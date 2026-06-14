@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cURL Generator — ZipScanner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --c-crit:#ff3b30;--c-high:#ff6b2b;--c-med:#f59e0b;--c-low:#22d3a5;--c-safe:#22c55e;
+      --radius:12px;--radius-sm:7px;--ease:cubic-bezier(0.16,1,0.3,1);
+      --syn-flag:#a78bfa;--syn-str:#34d399;--syn-url:#fbbf24;--syn-key:#93c5fd;
+    }
+    body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6}
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px)}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-200px;left:0;animation:d1 22s ease-in-out infinite alternate}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-100px;right:0;animation:d2 26s ease-in-out infinite alternate}
+    .blob-3{width:400px;height:400px;background:radial-gradient(circle,#0ea5e90a,transparent 70%);top:40%;left:55%;animation:d3 18s ease-in-out infinite alternate}
+    @keyframes d1{to{transform:translate(40px,30px) scale(1.06)}}
+    @keyframes d2{to{transform:translate(-30px,-40px) scale(1.1)}}
+    @keyframes d3{to{transform:translate(-20px,30px) scale(1.12)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    /* ── Layout ────────────────────────────────────────────────────── */
+    .page{position:relative;z-index:1;margin-left:60px;display:grid;grid-template-columns:460px 1fr;min-height:100vh}
+    .form-col{overflow-y:auto;max-height:100vh;border-right:1px solid var(--border)}
+    .preview-col{position:sticky;top:0;height:100vh;overflow-y:auto;padding:28px 32px 48px;display:flex;flex-direction:column}
+
+    /* ── Form header ───────────────────────────────────────────────── */
+    .form-header{padding:22px 24px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
+    .form-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;letter-spacing:0.06em;margin-bottom:8px}
+    .presets-row{display:flex;gap:5px;flex-wrap:wrap}
+    .preset-btn{padding:4px 10px;font-family:inherit;font-size:0.7rem;font-weight:600;letter-spacing:0.03em;background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;transition:border-color 0.15s,color 0.15s,background 0.15s;white-space:nowrap}
+    .preset-btn:hover{border-color:var(--accent);color:var(--accent-hi);background:var(--s3)}
+
+    /* ── Method + URL bar ─────────────────────────────────────────── */
+    .url-row{display:grid;grid-template-columns:110px 1fr;gap:10px;padding:12px 24px 14px;border-bottom:1px solid var(--border)}
+    .method-select{background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 28px 10px 11px;color:var(--text);font-family:'Syne',sans-serif;font-size:0.88rem;font-weight:800;letter-spacing:0.04em;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7099'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;transition:border-color 0.15s,color 0.15s}
+    .method-select:focus{border-color:var(--accent)}
+    .method-select.GET   {color:#22d3a5;border-color:#22d3a530}
+    .method-select.POST  {color:#818cf8;border-color:#6366f130}
+    .method-select.PUT   {color:#f59e0b;border-color:#f59e0b30}
+    .method-select.PATCH {color:#a78bfa;border-color:#a78bfa30}
+    .method-select.DELETE{color:#ff3b30;border-color:#ff3b3030}
+    .method-select.HEAD  {color:#60a5fa;border-color:#60a5fa30}
+    .url-input{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 13px;color:var(--text);font-family:'Menlo','Consolas',monospace;font-size:0.83rem;outline:none;transition:border-color 0.15s,box-shadow 0.15s}
+    .url-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+    .url-input::placeholder{color:var(--text-faint);font-family:'Inter',sans-serif}
+
+    /* ── Form sections ─────────────────────────────────────────────── */
+    .form-section{border-bottom:1px solid var(--border)}
+    .section-toggle{display:flex;align-items:center;gap:8px;padding:11px 24px;cursor:pointer;user-select:none;transition:background 0.12s;width:100%;background:none;border:none;color:inherit;font-family:inherit;text-align:left}
+    .section-toggle:hover{background:var(--s1)}
+    .section-toggle-icon{font-size:0.85rem;flex-shrink:0;width:20px;text-align:center}
+    .section-toggle-label{font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);flex:1}
+    .section-toggle-badge{font-size:0.63rem;background:var(--accent)20;color:var(--accent-hi);padding:1px 7px;border-radius:999px;border:1px solid var(--accent)30}
+    .section-chev{font-size:0.6rem;color:var(--text-faint);transition:transform 0.2s;flex-shrink:0}
+    .form-section.open .section-chev{transform:rotate(180deg)}
+    .section-body{display:none;padding:4px 24px 14px}
+    .form-section.open .section-body{display:block}
+
+    /* ── Field primitives ─────────────────────────────────────────── */
+    .field{margin-bottom:12px}.field:last-child{margin-bottom:0}
+    .field-label{font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:5px;display:block}
+    .field-input,.field-select,.field-textarea{width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 11px;color:var(--text);font-family:inherit;font-size:0.82rem;outline:none;transition:border-color 0.15s,box-shadow 0.15s}
+    .field-input:focus,.field-select:focus,.field-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+    .field-input::placeholder,.field-textarea::placeholder{color:var(--text-faint)}
+    .field-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7099'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+    .field-textarea{resize:vertical;min-height:80px;font-family:'Menlo','Consolas',monospace;font-size:0.78rem;line-height:1.6;tab-size:2}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+    /* ── KV pairs ─────────────────────────────────────────────────── */
+    .kv-list{display:flex;flex-direction:column;gap:5px;margin-bottom:7px}
+    .kv-row{display:grid;grid-template-columns:1fr 1fr auto;gap:5px;align-items:center}
+    .kv-input{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 8px;color:var(--text);font-family:'Menlo','Consolas',monospace;font-size:0.76rem;outline:none;transition:border-color 0.15s;width:100%}
+    .kv-input:focus{border-color:var(--accent)}
+    .kv-input::placeholder{color:var(--text-faint);font-family:'Inter',sans-serif;font-size:0.74rem}
+    .kv-remove{background:none;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-faint);cursor:pointer;font-size:0.72rem;padding:6px 8px;transition:color 0.15s,border-color 0.15s;flex-shrink:0}
+    .kv-remove:hover{color:var(--c-crit);border-color:var(--c-crit)30}
+    .btn-add-kv{width:100%;padding:6px;background:transparent;border:1px dashed var(--border);border-radius:var(--radius-sm);color:var(--text-faint);font-family:inherit;font-size:0.73rem;cursor:pointer;transition:border-color 0.15s,color 0.15s}
+    .btn-add-kv:hover{border-color:var(--accent);color:var(--accent-hi)}
+
+    /* Header presets */
+    .header-presets{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:9px}
+    .hdr-preset{padding:2px 7px;font-size:0.66rem;font-weight:500;background:var(--s2);border:1px solid var(--border);border-radius:4px;color:var(--text-dim);cursor:pointer;transition:border-color 0.15s,color 0.15s;font-family:'Menlo','Consolas',monospace}
+    .hdr-preset:hover{border-color:var(--accent-hi)50;color:var(--accent-hi)}
+
+    .auth-fields{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+
+    /* Toggles */
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0}
+    .toggle-label{font-size:0.8rem;color:var(--text-dim)}
+    .toggle-sublabel{font-size:0.66rem;color:var(--text-faint);font-family:'Menlo','Consolas',monospace;margin-left:5px}
+    .toggle-wrap{position:relative;width:36px;height:20px;flex-shrink:0}
+    .toggle-input{opacity:0;width:0;height:0;position:absolute}
+    .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:10px;cursor:pointer;transition:background 0.2s}
+    .toggle-slider::after{content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 0.2s}
+    .toggle-input:checked+.toggle-slider{background:var(--accent)}
+    .toggle-input:checked+.toggle-slider::after{left:19px}
+
+    /* ── Preview column ──────────────────────────────────────────── */
+    .preview-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0}
+    .preview-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;letter-spacing:0.06em}
+    .format-toggle{display:flex;gap:4px}
+    .fmt-btn{padding:5px 10px;font-family:inherit;font-size:0.72rem;font-weight:600;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;transition:all 0.15s}
+    .fmt-btn.active{background:var(--s2);border-color:var(--accent);color:var(--text)}
+    .fmt-btn:hover:not(.active){border-color:var(--border-hi);color:var(--text)}
+
+    /* ── THE EDITABLE COMMAND TEXTAREA ───────────────────────────── */
+    .cmd-textarea{
+      width:100%;
+      flex:1;             /* fills available height in flex column */
+      min-height:160px;
+      background:var(--s1);
+      border:1.5px solid var(--border);
+      border-radius:var(--radius);
+      padding:16px 18px;
+      color:var(--text);
+      font-family:'Menlo','Consolas','Monaco',monospace;
+      font-size:0.8rem;
+      line-height:1.8;
+      resize:vertical;
+      outline:none;
+      transition:border-color 0.2s, box-shadow 0.2s;
+      tab-size:2;
+      /* wrap behavior */
+      white-space:pre;
+      overflow-x:auto;
+      overflow-wrap:normal;
+      word-break:normal;
+    }
+    .cmd-textarea:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px var(--accent-glow);
+    }
+    .cmd-textarea.manual-mode{
+      border-color:var(--c-med);
+      box-shadow:0 0 0 2px #f59e0b18;
+    }
+    .cmd-textarea:empty::after{
+      content:'Configure a request on the left…';
+      color:var(--text-faint);
+    }
+
+    /* ── Command toolbar (below textarea) ──────────────────────── */
+    .cmd-toolbar{
+      display:flex;align-items:center;gap:8px;
+      padding:10px 0 14px;flex-shrink:0;flex-wrap:wrap;
+    }
+    .sync-indicator{
+      display:flex;align-items:center;gap:5px;
+      font-size:0.7rem;font-weight:600;letter-spacing:0.06em;
+      padding:4px 10px;border-radius:999px;border:1px solid;
+      cursor:pointer;transition:all 0.15s;white-space:nowrap;
+    }
+    .sync-indicator.auto{
+      background:#22d3a515;border-color:#22d3a540;color:var(--c-low);
+    }
+    .sync-indicator.auto:hover{background:#22d3a522;border-color:var(--c-low)}
+    .sync-indicator.manual{
+      background:#f59e0b15;border-color:#f59e0b40;color:var(--c-med);
+    }
+    .sync-indicator.manual:hover{background:#f59e0b22;border-color:var(--c-med)}
+    .sync-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+    .auto .sync-dot{background:var(--c-low);box-shadow:0 0 5px var(--c-low)}
+    .manual .sync-dot{background:var(--c-med);box-shadow:0 0 5px var(--c-med)}
+
+    .btn-copy{padding:8px 16px;background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;font-family:inherit;font-size:0.8rem;font-weight:600;letter-spacing:0.03em;border:none;border-radius:var(--radius-sm);cursor:pointer;box-shadow:0 4px 14px #6366f130;transition:opacity 0.15s,transform 0.15s}
+    .btn-copy:hover{opacity:0.88;transform:translateY(-1px)}
+    .btn-copy-oneliner{padding:8px 12px;background:var(--s2);color:var(--text-dim);font-family:inherit;font-size:0.78rem;font-weight:500;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:border-color 0.15s,color 0.15s;white-space:nowrap}
+    .btn-copy-oneliner:hover{border-color:var(--accent);color:var(--text)}
+    .copy-ok{font-size:0.72rem;color:var(--c-safe);opacity:0;transition:opacity 0.3s;white-space:nowrap}
+
+    /* ── Highlighted overlay (read-only, togglable) ─────────────── */
+    .highlight-wrap{flex-shrink:0}
+    .highlight-toggle-btn{width:100%;padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-faint);font-family:inherit;font-size:0.72rem;cursor:pointer;text-align:left;transition:border-color 0.15s,color 0.15s;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+    .highlight-toggle-btn:hover{border-color:var(--border-hi);color:var(--text-dim)}
+    .highlight-code{display:none;background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;font-family:'Menlo','Consolas',monospace;font-size:0.78rem;line-height:1.8;white-space:pre-wrap;word-break:break-all;margin-bottom:8px;pointer-events:none;user-select:none}
+    .highlight-code.visible{display:block}
+    /* Syntax tokens */
+    .t-cmd{color:#818cf8;font-weight:700}
+    .t-flag{color:#a78bfa}
+    .t-val{color:#34d399}
+    .t-url{color:#fbbf24}
+    .t-op{color:#6b7099}
+
+    /* ── Breakdown ──────────────────────────────────────────────── */
+    .breakdown-section{flex-shrink:0;margin-top:4px}
+    .breakdown-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .breakdown-title{font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint)}
+    .breakdown-line{flex:1;height:1px;background:var(--border)}
+    .breakdown-list{display:flex;flex-direction:column;gap:3px}
+    .bd-row{display:flex;align-items:baseline;gap:10px;padding:5px 9px;background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.73rem}
+    .bd-flag{font-family:'Menlo','Consolas',monospace;color:var(--syn-flag,#a78bfa);flex-shrink:0;font-weight:600;min-width:88px}
+    .bd-desc{color:var(--text-dim);line-height:1.4}
+    .bd-empty{font-size:0.77rem;color:var(--text-faint);padding:10px 0;text-align:center}
+
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="page">
+
+  <!-- ═══════════════════ FORM COLUMN ══════════════════════════ -->
+  <div class="form-col">
+    <div class="form-header">
+      <div class="form-title">cURL Generator</div>
+      <div class="presets-row">
+        <button class="preset-btn" onclick="applyPreset('rest-get')">REST GET</button>
+        <button class="preset-btn" onclick="applyPreset('rest-post')">POST JSON</button>
+        <button class="preset-btn" onclick="applyPreset('bearer')">Bearer Auth</button>
+        <button class="preset-btn" onclick="applyPreset('basic')">Basic Auth</button>
+        <button class="preset-btn" onclick="applyPreset('form')">Form Submit</button>
+        <button class="preset-btn" onclick="applyPreset('upload')">File Upload</button>
+        <button class="preset-btn" onclick="applyPreset('graphql')">GraphQL</button>
+        <button class="preset-btn" onclick="applyPreset('oauth')">OAuth Token</button>
+      </div>
+    </div>
+
+    <!-- Method + URL -->
+    <div class="url-row">
+      <select class="method-select GET" id="method" onchange="onMethodChange()">
+        <option>GET</option><option>POST</option><option>PUT</option>
+        <option>PATCH</option><option>DELETE</option><option>HEAD</option>
+        <option>OPTIONS</option><option>TRACE</option>
+      </select>
+      <input class="url-input" id="url" placeholder="https://api.example.com/v1/resource" oninput="update()" />
+    </div>
+
+    <!-- Headers -->
+    <div class="form-section open" id="sec-headers">
+      <button class="section-toggle" onclick="toggleSection('sec-headers')">
+        <span class="section-toggle-icon">📋</span>
+        <span class="section-toggle-label">Headers</span>
+        <span class="section-toggle-badge" id="badge-headers">0</span>
+        <span class="section-chev">▼</span>
+      </button>
+      <div class="section-body">
+        <div class="header-presets">
+          <span class="hdr-preset" onclick="addHeaderPreset('Content-Type','application/json')">application/json</span>
+          <span class="hdr-preset" onclick="addHeaderPreset('Content-Type','application/x-www-form-urlencoded')">form-urlencoded</span>
+          <span class="hdr-preset" onclick="addHeaderPreset('Content-Type','multipart/form-data')">multipart/form</span>
+          <span class="hdr-preset" onclick="addHeaderPreset('Accept','application/json')">Accept: JSON</span>
+          <span class="hdr-preset" onclick="addHeaderPreset('Accept','*/*')">Accept: */*</span>
+          <span class="hdr-preset" onclick="addHeaderPreset('Cache-Control','no-cache')">no-cache</span>
+          <span class="hdr-preset" onclick="addHeaderPreset('X-Request-ID','')">X-Request-ID</span>
+          <span class="hdr-preset" onclick="addHeaderPreset('X-Forwarded-For','')">X-Forwarded-For</span>
+        </div>
+        <div class="kv-list" id="headers-list"></div>
+        <button class="btn-add-kv" onclick="addKV('headers')">+ Add Header</button>
+      </div>
+    </div>
+
+    <!-- Authentication -->
+    <div class="form-section open" id="sec-auth">
+      <button class="section-toggle" onclick="toggleSection('sec-auth')">
+        <span class="section-toggle-icon">🔑</span>
+        <span class="section-toggle-label">Authentication</span>
+        <span class="section-toggle-badge" id="badge-auth">none</span>
+        <span class="section-chev">▼</span>
+      </button>
+      <div class="section-body">
+        <div class="field">
+          <label class="field-label" for="auth-type">Type</label>
+          <select class="field-select" id="auth-type" onchange="onAuthChange()">
+            <option value="none">None</option>
+            <option value="bearer">Bearer Token</option>
+            <option value="basic">Basic Auth</option>
+            <option value="apikey-header">API Key (Header)</option>
+            <option value="apikey-query">API Key (Query Param)</option>
+            <option value="digest">Digest</option>
+          </select>
+        </div>
+        <div class="auth-fields" id="auth-fields"></div>
+      </div>
+    </div>
+
+    <!-- Query Params -->
+    <div class="form-section" id="sec-query">
+      <button class="section-toggle" onclick="toggleSection('sec-query')">
+        <span class="section-toggle-icon">🔗</span>
+        <span class="section-toggle-label">Query Parameters</span>
+        <span class="section-toggle-badge" id="badge-query">0</span>
+        <span class="section-chev">▼</span>
+      </button>
+      <div class="section-body">
+        <div class="kv-list" id="query-list"></div>
+        <button class="btn-add-kv" onclick="addKV('query')">+ Add Parameter</button>
+      </div>
+    </div>
+
+    <!-- Request Body -->
+    <div class="form-section" id="sec-body">
+      <button class="section-toggle" onclick="toggleSection('sec-body')">
+        <span class="section-toggle-icon">📦</span>
+        <span class="section-toggle-label">Request Body</span>
+        <span class="section-toggle-badge" id="badge-body">none</span>
+        <span class="section-chev">▼</span>
+      </button>
+      <div class="section-body">
+        <div class="field">
+          <label class="field-label" for="body-type">Body Type</label>
+          <select class="field-select" id="body-type" onchange="onBodyChange()">
+            <option value="none">None</option>
+            <option value="json">JSON</option>
+            <option value="form">Form URL-encoded</option>
+            <option value="multipart">Multipart / Form Data</option>
+            <option value="raw">Raw</option>
+            <option value="binary">Binary File (-T)</option>
+          </select>
+        </div>
+        <div id="body-fields"></div>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="form-section" id="sec-options">
+      <button class="section-toggle" onclick="toggleSection('sec-options')">
+        <span class="section-toggle-icon">⚙</span>
+        <span class="section-toggle-label">Options &amp; Flags</span>
+        <span class="section-chev">▼</span>
+      </button>
+      <div class="section-body">
+        <div class="toggle-row"><span class="toggle-label">Follow redirects <span class="toggle-sublabel">-L</span></span><label class="toggle-wrap"><input class="toggle-input" type="checkbox" id="opt-follow" onchange="update()"><span class="toggle-slider"></span></label></div>
+        <div class="toggle-row"><span class="toggle-label">Skip SSL verify <span class="toggle-sublabel">-k</span></span><label class="toggle-wrap"><input class="toggle-input" type="checkbox" id="opt-insecure" onchange="update()"><span class="toggle-slider"></span></label></div>
+        <div class="toggle-row"><span class="toggle-label">Verbose <span class="toggle-sublabel">-v</span></span><label class="toggle-wrap"><input class="toggle-input" type="checkbox" id="opt-verbose" onchange="update()"><span class="toggle-slider"></span></label></div>
+        <div class="toggle-row"><span class="toggle-label">Silent <span class="toggle-sublabel">-s</span></span><label class="toggle-wrap"><input class="toggle-input" type="checkbox" id="opt-silent" onchange="update()"><span class="toggle-slider"></span></label></div>
+        <div class="toggle-row"><span class="toggle-label">Include response headers <span class="toggle-sublabel">-i</span></span><label class="toggle-wrap"><input class="toggle-input" type="checkbox" id="opt-include" onchange="update()"><span class="toggle-slider"></span></label></div>
+        <div class="toggle-row"><span class="toggle-label">Compressed <span class="toggle-sublabel">--compressed</span></span><label class="toggle-wrap"><input class="toggle-input" type="checkbox" id="opt-compressed" onchange="update()"><span class="toggle-slider"></span></label></div>
+        <div class="toggle-row"><span class="toggle-label">Fail on HTTP errors <span class="toggle-sublabel">-f</span></span><label class="toggle-wrap"><input class="toggle-input" type="checkbox" id="opt-fail" onchange="update()"><span class="toggle-slider"></span></label></div>
+        <div style="height:1px;background:var(--border);margin:10px 0"></div>
+        <div class="field-row">
+          <div class="field"><label class="field-label">HTTP Version</label><select class="field-select" id="opt-http" onchange="update()"><option value="">Default</option><option value="--http1.0">HTTP/1.0</option><option value="--http1.1">HTTP/1.1</option><option value="--http2">HTTP/2</option><option value="--http3">HTTP/3</option></select></div>
+          <div class="field"><label class="field-label">Retry</label><input class="field-input" type="number" id="opt-retry" min="0" max="20" placeholder="0" oninput="update()" /></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label class="field-label">Max Time (s)</label><input class="field-input" type="number" id="opt-maxtime" min="1" placeholder="e.g. 30" oninput="update()" /></div>
+          <div class="field"><label class="field-label">Connect Timeout (s)</label><input class="field-input" type="number" id="opt-connect" min="1" placeholder="e.g. 10" oninput="update()" /></div>
+        </div>
+        <div class="field"><label class="field-label">Proxy <span style="text-transform:none;color:var(--text-faint)">(-x)</span></label><input class="field-input" id="opt-proxy" placeholder="http://proxy.company.com:8080" oninput="update()" /></div>
+        <div class="field"><label class="field-label">User-Agent <span style="text-transform:none;color:var(--text-faint)">(-A)</span></label><input class="field-input" id="opt-useragent" placeholder="Mozilla/5.0 …" oninput="update()" /></div>
+        <div class="field"><label class="field-label">Cookie <span style="text-transform:none;color:var(--text-faint)">(-b)</span></label><input class="field-input" id="opt-cookie" placeholder="session=abc; token=xyz" oninput="update()" /></div>
+        <div class="field"><label class="field-label">Cookie Jar <span style="text-transform:none;color:var(--text-faint)">(-c)</span></label><input class="field-input" id="opt-cookiejar" placeholder="cookies.txt" oninput="update()" /></div>
+        <div class="field"><label class="field-label">Save to File <span style="text-transform:none;color:var(--text-faint)">(-o)</span></label><input class="field-input" id="opt-output" placeholder="response.json" oninput="update()" /></div>
+        <div class="field"><label class="field-label">Client Cert <span style="text-transform:none;color:var(--text-faint)">(--cert)</span></label><input class="field-input" id="opt-cert" placeholder="client.crt:password" oninput="update()" /></div>
+        <div class="field"><label class="field-label">CA Cert <span style="text-transform:none;color:var(--text-faint)">(--cacert)</span></label><input class="field-input" id="opt-cacert" placeholder="/path/to/ca.crt" oninput="update()" /></div>
+      </div>
+    </div>
+
+  </div><!-- /form-col -->
+
+
+  <!-- ═══════════════════ PREVIEW COLUMN ═══════════════════════ -->
+  <div class="preview-col">
+
+    <div class="preview-header">
+      <div class="preview-title">Command</div>
+      <div class="format-toggle">
+        <button class="fmt-btn active" id="fmt-multi"  onclick="setFmt('multi')">Multi-line</button>
+        <button class="fmt-btn"        id="fmt-single" onclick="setFmt('single')">One-liner</button>
+      </div>
+    </div>
+
+    <!--
+      THE EDITABLE TEXTAREA.
+      - In auto mode: form updates write here.
+      - In manual mode: user owns this text; form does not overwrite.
+      - Typing here auto-switches to manual mode.
+    -->
+    <textarea
+      class="cmd-textarea"
+      id="cmd-output"
+      spellcheck="false"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      placeholder="Configure a request on the left…"
+    ></textarea>
+
+    <!-- Toolbar below textarea -->
+    <div class="cmd-toolbar">
+      <span class="sync-indicator auto" id="sync-indicator" onclick="toggleLock()" title="Click to toggle auto-sync with form">
+        <span class="sync-dot"></span>
+        <span id="sync-label">Auto-sync</span>
+      </span>
+
+      <button class="btn-copy" onclick="copyCmd()">Copy</button>
+      <button class="btn-copy-oneliner" onclick="copyOneLiner()">Copy one-liner</button>
+      <span class="copy-ok" id="copy-ok">Copied!</span>
+    </div>
+
+    <!-- Syntax-highlighted view (togglable, never editable) -->
+    <div class="highlight-wrap">
+      <button class="highlight-toggle-btn" onclick="toggleHighlight(this)">
+        <span id="hl-chev" style="font-size:0.6rem;color:var(--text-faint);transition:transform 0.2s">▶</span>
+        Syntax-highlighted view
+      </button>
+      <div class="highlight-code" id="highlight-code"></div>
+    </div>
+
+    <!-- Flag breakdown -->
+    <div class="breakdown-section">
+      <div class="breakdown-hdr">
+        <span class="breakdown-title">Flag Reference</span>
+        <div class="breakdown-line"></div>
+      </div>
+      <div class="breakdown-list" id="breakdown"></div>
+    </div>
+
+  </div><!-- /preview-col -->
+
+</div><!-- /page -->
+
+<script>
+'use strict';
+
+/* ── State ──────────────────────────────────────────────────────────────────── */
+const state = {
+  method:  'GET',
+  url:     '',
+  headers: [],   // [{key, value}]
+  auth:    { type:'none', bearer:'', user:'', pass:'', keyName:'X-API-Key', keyVal:'', param:'api_key', paramVal:'' },
+  query:   [],   // [{key, value}]
+  body:    { type:'none', json:'', raw:'', rawCT:'text/plain', form:[], file:'' },
+  opts:    {
+    follow:false, insecure:false, verbose:false, silent:false,
+    include:false, compressed:false, fail:false,
+    http:'', retry:'', maxtime:'', connect:'',
+    proxy:'', useragent:'', cookie:'', cookiejar:'', output:'', cert:'', cacert:'',
+  },
+};
+
+let fmt         = 'multi';   // 'single' | 'multi'
+let manualMode  = false;      // when true, form changes don't overwrite the textarea
+let highlightOn = false;
+
+/* ── Flag docs ──────────────────────────────────────────────────────────────── */
+const FLAG_DOCS = {
+  '-X':               'Override the HTTP method (POST, PUT, PATCH, DELETE…)',
+  '-H':               'Append a custom request header — repeatable',
+  '-u':               'Username:password for Basic or Digest authentication',
+  '--digest':         'Use HTTP Digest authentication (with -u)',
+  '-d':               'Send data as the request body; implies POST if no -X',
+  '--data-urlencode': 'URL-encode a field before sending as form body',
+  '-F':               'Add a multipart/form-data field or file (prefix file paths with @)',
+  '-T':               'Upload a local file as the raw body (HTTP PUT by default)',
+  '-L':               'Follow HTTP redirects (301, 302, 303, 307, 308…)',
+  '-k':               'Allow connections to SSL sites without valid certificates',
+  '-v':               'Make operation verbose — shows headers and TLS handshake',
+  '-s':               'Silent mode — no progress bars or error messages',
+  '-i':               'Include the HTTP response headers in the output',
+  '--compressed':     'Request gzip/deflate response and auto-decompress it',
+  '-f':               'Fail fast and silently on server errors (4xx/5xx)',
+  '--http1.0':        'Force HTTP/1.0 (very old servers)',
+  '--http1.1':        'Force HTTP/1.1',
+  '--http2':          'Use HTTP/2 (requires libnghttp2)',
+  '--http3':          'Use HTTP/3 / QUIC (requires HTTP/3 support in curl build)',
+  '--retry':          'Retry the request N times on transient failure',
+  '--max-time':       'Abort if the entire operation exceeds N seconds',
+  '--connect-timeout':'Abort connection attempt after N seconds',
+  '-x':               'Tunnel through a proxy (HTTP, HTTPS, SOCKS4, SOCKS5)',
+  '-A':               'Override the User-Agent header',
+  '-b':               'Send cookies from a name=value string or a cookie file',
+  '-c':               'Write cookies set by the server into a file (cookie jar)',
+  '-o':               'Write the response body to a file instead of stdout',
+  '--cert':           'Use a client certificate for mutual TLS (PEM or PKCS#12)',
+  '--cacert':         'Specify a custom CA bundle for peer certificate verification',
+};
+
+/* ── Helpers ────────────────────────────────────────────────────────────────── */
+const q   = id => document.getElementById(id);
+const val = id => (q(id) ? q(id).value : '');
+const chk = id => !!(q(id) && q(id).checked);
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+function sq(s){ return String(s||'').replace(/'/g,"'\\''") }   // safe inside single-quotes
+
+/* ── Editable textarea — manual mode detection ─────────────────────────────── */
+q('cmd-output').addEventListener('input', () => {
+  if (!manualMode) {
+    manualMode = true;
+    refreshSyncIndicator();
+  }
+});
+
+function toggleLock() {
+  if (manualMode) {
+    // Unlock: regenerate from form
+    manualMode = false;
+    refreshSyncIndicator();
+    writeToTextarea(buildCommand());
+  } else {
+    // Lock: stop form from overwriting
+    manualMode = true;
+    refreshSyncIndicator();
+  }
+}
+
+function refreshSyncIndicator() {
+  const el = q('sync-indicator');
+  if (manualMode) {
+    el.className = 'sync-indicator manual';
+    q('sync-label').textContent = 'Manual — click to re-sync';
+    q('cmd-output').classList.add('manual-mode');
+  } else {
+    el.className = 'sync-indicator auto';
+    q('sync-label').textContent = 'Auto-sync';
+    q('cmd-output').classList.remove('manual-mode');
+  }
+}
+
+/* ── Section toggles ────────────────────────────────────────────────────────── */
+function toggleSection(id) { q(id).classList.toggle('open') }
+
+function toggleHighlight(btn) {
+  highlightOn = !highlightOn;
+  q('hl-chev').style.transform = highlightOn ? 'rotate(90deg)' : '';
+  const hc = q('highlight-code');
+  hc.classList.toggle('visible', highlightOn);
+  if (highlightOn) renderHighlight();
+}
+
+/* ── Method ─────────────────────────────────────────────────────────────────── */
+function onMethodChange() {
+  const m = val('method');
+  state.method = m;
+  q('method').className = 'method-select ' + m;
+  update();
+}
+
+/* ── KV lists ───────────────────────────────────────────────────────────────── */
+function getArr(ns) {
+  return ns === 'headers' ? state.headers
+       : ns === 'query'   ? state.query
+       :                    state.body.form;
+}
+
+function addKV(ns, kv = { key:'', value:'' }) {
+  const arr  = getArr(ns);
+  const list = q(ns + '-list');
+  arr.push({ key: kv.key||'', value: kv.value||'' });
+  const idx = arr.length - 1;
+  const row = document.createElement('div');
+  row.className = 'kv-row';
+  row.innerHTML = `
+    <input class="kv-input" placeholder="${ns === 'headers' ? 'Header-Name' : 'key'}"
+           value="${esc(kv.key||'')}"
+           oninput="getArr('${ns}')[${idx}].key=this.value;update()" />
+    <input class="kv-input" placeholder="value"
+           value="${esc(kv.value||'')}"
+           oninput="getArr('${ns}')[${idx}].value=this.value;update()" />
+    <button class="kv-remove" onclick="removeKV('${ns}',${idx})">✕</button>`;
+  list.appendChild(row);
+  update();
+}
+
+function removeKV(ns, idx) {
+  getArr(ns).splice(idx, 1);
+  rebuildKVList(ns);
+  update();
+}
+
+function rebuildKVList(ns) {
+  const arr  = getArr(ns);
+  const list = q(ns + '-list');
+  list.innerHTML = '';
+  arr.forEach((kv, i) => addKVRow(ns, kv, i, list));
+}
+
+function addKVRow(ns, kv, i, list) {
+  const row = document.createElement('div');
+  row.className = 'kv-row';
+  row.innerHTML = `
+    <input class="kv-input" placeholder="${ns === 'headers' ? 'Header-Name' : 'key'}"
+           value="${esc(kv.key)}"
+           oninput="getArr('${ns}')[${i}].key=this.value;update()" />
+    <input class="kv-input" placeholder="value"
+           value="${esc(kv.value)}"
+           oninput="getArr('${ns}')[${i}].value=this.value;update()" />
+    <button class="kv-remove" onclick="removeKV('${ns}',${i})">✕</button>`;
+  list.appendChild(row);
+}
+
+function addHeaderPreset(key, value) {
+  const existing = state.headers.find(h => h.key === key);
+  if (existing) { existing.value = value; rebuildKVList('headers'); update(); return; }
+  addKV('headers', { key, value });
+}
+
+/* ── Auth ───────────────────────────────────────────────────────────────────── */
+function onAuthChange() {
+  state.auth.type = val('auth-type');
+  q('badge-auth').textContent = state.auth.type === 'none' ? 'none' : state.auth.type;
+  renderAuthFields();
+  update();
+}
+
+function renderAuthFields() {
+  const t  = state.auth.type;
+  const af = q('auth-fields');
+  af.innerHTML = '';
+  if (t === 'bearer') {
+    af.innerHTML = `<div class="field"><label class="field-label">Bearer Token</label>
+      <input class="field-input" id="auth-bearer" placeholder="eyJhbGci…" value="${esc(state.auth.bearer)}"
+             oninput="state.auth.bearer=this.value;update()" /></div>`;
+  } else if (t === 'basic' || t === 'digest') {
+    af.innerHTML = `<div class="field-row">
+      <div class="field"><label class="field-label">Username</label>
+        <input class="field-input" id="auth-user" placeholder="username" value="${esc(state.auth.user)}"
+               oninput="state.auth.user=this.value;update()" /></div>
+      <div class="field"><label class="field-label">Password</label>
+        <input class="field-input" id="auth-pass" type="password" placeholder="••••••••" value="${esc(state.auth.pass)}"
+               oninput="state.auth.pass=this.value;update()" /></div></div>`;
+  } else if (t === 'apikey-header') {
+    af.innerHTML = `<div class="field-row">
+      <div class="field"><label class="field-label">Header Name</label>
+        <input class="field-input" id="auth-keyname" placeholder="X-API-Key" value="${esc(state.auth.keyName)}"
+               oninput="state.auth.keyName=this.value;update()" /></div>
+      <div class="field"><label class="field-label">API Key</label>
+        <input class="field-input" id="auth-keyval" placeholder="sk-…" value="${esc(state.auth.keyVal)}"
+               oninput="state.auth.keyVal=this.value;update()" /></div></div>`;
+  } else if (t === 'apikey-query') {
+    af.innerHTML = `<div class="field-row">
+      <div class="field"><label class="field-label">Param Name</label>
+        <input class="field-input" id="auth-param" placeholder="api_key" value="${esc(state.auth.param)}"
+               oninput="state.auth.param=this.value;update()" /></div>
+      <div class="field"><label class="field-label">Value</label>
+        <input class="field-input" id="auth-paramval" placeholder="sk-…" value="${esc(state.auth.paramVal)}"
+               oninput="state.auth.paramVal=this.value;update()" /></div></div>`;
+  }
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────────── */
+function onBodyChange() {
+  state.body.type = val('body-type');
+  q('badge-body').textContent = state.body.type;
+  renderBodyFields();
+  update();
+}
+
+function renderBodyFields() {
+  const t  = state.body.type;
+  const bf = q('body-fields');
+  bf.innerHTML = '';
+  if (t === 'none') return;
+  if (t === 'json') {
+    bf.innerHTML = `<div class="field"><label class="field-label">JSON Body</label>
+      <textarea class="field-textarea" id="body-json" rows="6" placeholder='{"key":"value"}'
+                oninput="state.body.json=this.value;update()">${esc(state.body.json)}</textarea></div>
+      <button onclick="formatJSON()" style="font-size:0.71rem;padding:4px 10px;background:var(--s2);border:1px solid var(--border);border-radius:4px;color:var(--text-dim);cursor:pointer;font-family:inherit;margin-top:-4px;margin-bottom:10px;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">Format JSON</button>`;
+  } else if (t === 'form' || t === 'multipart') {
+    state.body.form = state.body.form.length ? state.body.form : [];
+    bf.innerHTML = `<div class="kv-list" id="form-list"></div>
+      <button class="btn-add-kv" onclick="addKV('form')">+ Add Field</button>`;
+    if (t === 'multipart') {
+      bf.innerHTML += `<div style="font-size:0.71rem;color:var(--text-faint);margin-top:6px">Prefix file paths with <code style="background:var(--s2);padding:1px 5px;border-radius:3px">@</code>, e.g. <code style="background:var(--s2);padding:1px 5px;border-radius:3px">@/path/to/file.pdf</code></div>`;
+    }
+    state.body.form.forEach(kv => addKVRow('form', kv, state.body.form.indexOf(kv), q('form-list')));
+  } else if (t === 'raw') {
+    bf.innerHTML = `<div class="field-row" style="margin-bottom:8px">
+      <div class="field"><label class="field-label">Content-Type</label>
+        <input class="field-input" id="body-rawct" placeholder="text/plain" value="${esc(state.body.rawCT)}"
+               oninput="state.body.rawCT=this.value;update()" /></div></div>
+      <div class="field"><label class="field-label">Body</label>
+        <textarea class="field-textarea" id="body-raw" rows="5" placeholder="raw content…"
+                  oninput="state.body.raw=this.value;update()">${esc(state.body.raw)}</textarea></div>`;
+  } else if (t === 'binary') {
+    bf.innerHTML = `<div class="field"><label class="field-label">Local File Path (-T, HTTP PUT)</label>
+      <input class="field-input" id="body-file" placeholder="/path/to/file.bin" value="${esc(state.body.file)}"
+             oninput="state.body.file=this.value;update()" /></div>`;
+  }
+}
+
+function formatJSON() {
+  const ta = q('body-json');
+  if (!ta) return;
+  try {
+    ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
+    state.body.json = ta.value;
+    update();
+  } catch (_) {
+    ta.style.borderColor = 'var(--c-crit)';
+    setTimeout(() => ta.style.borderColor = '', 1000);
+  }
+}
+
+/* ── Build the command parts ────────────────────────────────────────────────── */
+function collectOpts() {
+  state.opts.follow     = chk('opt-follow');
+  state.opts.insecure   = chk('opt-insecure');
+  state.opts.verbose    = chk('opt-verbose');
+  state.opts.silent     = chk('opt-silent');
+  state.opts.include    = chk('opt-include');
+  state.opts.compressed = chk('opt-compressed');
+  state.opts.fail       = chk('opt-fail');
+  state.opts.http       = val('opt-http');
+  state.opts.retry      = val('opt-retry');
+  state.opts.maxtime    = val('opt-maxtime');
+  state.opts.connect    = val('opt-connect');
+  state.opts.proxy      = val('opt-proxy');
+  state.opts.useragent  = val('opt-useragent');
+  state.opts.cookie     = val('opt-cookie');
+  state.opts.cookiejar  = val('opt-cookiejar');
+  state.opts.output     = val('opt-output');
+  state.opts.cert       = val('opt-cert');
+  state.opts.cacert     = val('opt-cacert');
+  state.method          = val('method');
+  state.url             = val('url');
+}
+
+function buildParts() {
+  // Returns [{text, flag}]
+  const parts = [];
+  const add = (text, flag) => parts.push({ text, flag });
+
+  collectOpts();
+
+  if (state.method && state.method !== 'GET') add(`-X ${state.method}`, '-X');
+
+  const shortMap = [
+    ['verbose', 'v'], ['silent', 's'], ['include', 'i'],
+    ['follow', 'L'], ['insecure', 'k'], ['fail', 'f'],
+  ];
+  shortMap.forEach(([k, f]) => { if (state.opts[k]) add('-' + f, '-' + f); });
+  if (state.opts.compressed) add('--compressed', '--compressed');
+  if (state.opts.http)       add(state.opts.http, state.opts.http);
+
+  state.headers.filter(h => h.key).forEach(h => add(`-H '${sq(h.key)}: ${sq(h.value)}'`, '-H'));
+
+  const auth = state.auth;
+  if (auth.type === 'bearer' && auth.bearer)
+    add(`-H 'Authorization: Bearer ${sq(auth.bearer)}'`, '-H');
+  else if (auth.type === 'basic' && (auth.user || auth.pass))
+    add(`-u '${sq(auth.user)}:${sq(auth.pass)}'`, '-u');
+  else if (auth.type === 'digest' && (auth.user || auth.pass))
+    add(`--digest -u '${sq(auth.user)}:${sq(auth.pass)}'`, '-u');
+  else if (auth.type === 'apikey-header' && auth.keyVal)
+    add(`-H '${sq(auth.keyName || 'X-API-Key')}: ${sq(auth.keyVal)}'`, '-H');
+
+  const body = state.body;
+  if (body.type === 'json' && body.json)
+    add(`-d '${sq(body.json)}'`, '-d');
+  else if (body.type === 'form')
+    body.form.filter(f => f.key).forEach(f => add(`-d '${sq(f.key)}=${sq(f.value)}'`, '-d'));
+  else if (body.type === 'multipart')
+    body.form.filter(f => f.key).forEach(f => add(`-F '${sq(f.key)}=${sq(f.value)}'`, '-F'));
+  else if (body.type === 'raw' && body.raw) {
+    if (body.rawCT) add(`-H 'Content-Type: ${sq(body.rawCT)}'`, '-H');
+    add(`-d '${sq(body.raw)}'`, '-d');
+  } else if (body.type === 'binary' && body.file)
+    add(`-T '${sq(body.file)}'`, '-T');
+
+  if (state.opts.retry)     add(`--retry ${state.opts.retry}`, '--retry');
+  if (state.opts.maxtime)   add(`--max-time ${state.opts.maxtime}`, '--max-time');
+  if (state.opts.connect)   add(`--connect-timeout ${state.opts.connect}`, '--connect-timeout');
+  if (state.opts.proxy)     add(`-x '${sq(state.opts.proxy)}'`, '-x');
+  if (state.opts.useragent) add(`-A '${sq(state.opts.useragent)}'`, '-A');
+  if (state.opts.cookie)    add(`-b '${sq(state.opts.cookie)}'`, '-b');
+  if (state.opts.cookiejar) add(`-c '${sq(state.opts.cookiejar)}'`, '-c');
+  if (state.opts.output)    add(`-o '${sq(state.opts.output)}'`, '-o');
+  if (state.opts.cert)      add(`--cert '${sq(state.opts.cert)}'`, '--cert');
+  if (state.opts.cacert)    add(`--cacert '${sq(state.opts.cacert)}'`, '--cacert');
+
+  // Build URL with query params + api-key-query
+  let url = state.url || 'https://example.com';
+  const qps = [...state.query.filter(p => p.key)];
+  if (auth.type === 'apikey-query' && auth.paramVal)
+    qps.push({ key: auth.param || 'api_key', value: auth.paramVal });
+  if (qps.length) {
+    const sep = url.includes('?') ? '&' : '?';
+    url += sep + qps.map(p => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`).join('&');
+  }
+  add(`'${url}'`, 'URL');
+
+  return parts;
+}
+
+function buildCommand(forceFmt) {
+  const parts = buildParts();
+  const sep   = (forceFmt || fmt) === 'multi' ? ' \\\n  ' : ' ';
+  return ['curl', ...parts.map(p => p.text)].join(sep);
+}
+
+/* ── Write to the editable textarea (only when NOT in manual mode) ─────────── */
+function writeToTextarea(cmd) {
+  const ta = q('cmd-output');
+  if (ta) ta.value = cmd;
+}
+
+/* ── Main update ────────────────────────────────────────────────────────────── */
+function update() {
+  // Update badges
+  q('badge-headers').textContent = state.headers.filter(h => h.key).length;
+  q('badge-query').textContent   = state.query.filter(p => p.key).length;
+  q('badge-auth').textContent    = state.auth.type === 'none' ? 'none' : (val('auth-type') || state.auth.type);
+  q('badge-body').textContent    = val('body-type') || state.body.type;
+
+  if (!manualMode) {
+    writeToTextarea(buildCommand());
+  }
+  if (highlightOn) renderHighlight();
+  renderBreakdown();
+}
+
+/* ── Syntax-highlighted view ────────────────────────────────────────────────── */
+function renderHighlight() {
+  const parts = buildParts();
+  if (!parts.length) { q('highlight-code').innerHTML = ''; return; }
+  const sep = fmt === 'multi' ? ' \\\n  ' : ' ';
+  let html = `<span class="t-cmd">curl</span>`;
+  parts.forEach(p => {
+    const pre = fmt === 'multi' ? `<span class="t-op"> \\</span>\n  ` : ' ';
+    if (p.flag === 'URL') {
+      html += pre + `<span class="t-url">${esc(p.text)}</span>`;
+    } else {
+      const spIdx = p.text.indexOf(' ');
+      if (spIdx === -1) {
+        html += pre + `<span class="t-flag">${esc(p.text)}</span>`;
+      } else {
+        html += pre + `<span class="t-flag">${esc(p.text.slice(0, spIdx))}</span> <span class="t-val">${esc(p.text.slice(spIdx + 1))}</span>`;
+      }
+    }
+  });
+  q('highlight-code').innerHTML = html;
+}
+
+/* ── Breakdown ──────────────────────────────────────────────────────────────── */
+function renderBreakdown() {
+  const parts = buildParts();
+  const bd    = q('breakdown');
+  const seen  = new Set();
+  const rows  = [];
+  parts.forEach(p => {
+    if (!p.flag || p.flag === 'URL' || seen.has(p.flag)) return;
+    if (FLAG_DOCS[p.flag]) { seen.add(p.flag); rows.push({ flag: p.flag, desc: FLAG_DOCS[p.flag] }); }
+  });
+  bd.innerHTML = rows.length
+    ? rows.map(r => `<div class="bd-row"><span class="bd-flag">${esc(r.flag)}</span><span class="bd-desc">${esc(r.desc)}</span></div>`).join('')
+    : '<div class="bd-empty">Build your request to see flag explanations</div>';
+}
+
+/* ── Format toggle ──────────────────────────────────────────────────────────── */
+function setFmt(f) {
+  fmt = f;
+  q('fmt-multi').classList.toggle('active',  f === 'multi');
+  q('fmt-single').classList.toggle('active', f === 'single');
+  if (!manualMode) writeToTextarea(buildCommand());
+  if (highlightOn) renderHighlight();
+}
+
+/* ── Copy ───────────────────────────────────────────────────────────────────── */
+function getCommandText() {
+  // Always copies whatever is currently in the textarea (respects manual edits)
+  return q('cmd-output').value;
+}
+
+function copyCmd() {
+  navigator.clipboard?.writeText(getCommandText());
+  flash();
+}
+
+function copyOneLiner() {
+  // Always produces a one-liner from the textarea content
+  const text = getCommandText().replace(/ \\\n\s*/g, ' ');
+  navigator.clipboard?.writeText(text);
+  flash();
+}
+
+function flash() {
+  const el = q('copy-ok');
+  el.style.opacity = '1';
+  setTimeout(() => el.style.opacity = '0', 2000);
+}
+
+/* ── Keyboard shortcut ──────────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); copyCmd(); }
+});
+
+/* ── Presets ────────────────────────────────────────────────────────────────── */
+const PRESETS = {
+  'rest-get': {
+    method:'GET', url:'https://api.example.com/v1/users',
+    headers:[{key:'Accept',value:'application/json'}],
+    auth:{type:'none'}, query:[{key:'limit',value:'20'},{key:'offset',value:'0'}],
+    body:{type:'none',json:'',form:[]},
+  },
+  'rest-post': {
+    method:'POST', url:'https://api.example.com/v1/users',
+    headers:[{key:'Content-Type',value:'application/json'},{key:'Accept',value:'application/json'}],
+    auth:{type:'bearer',bearer:'YOUR_TOKEN'},
+    query:[], body:{type:'json',json:'{\n  "name": "Jane Doe",\n  "email": "jane@example.com"\n}',form:[]},
+  },
+  'bearer': {
+    method:'GET', url:'https://api.example.com/v1/me',
+    headers:[{key:'Accept',value:'application/json'}],
+    auth:{type:'bearer',bearer:'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjMifQ'},
+    query:[], body:{type:'none',json:'',form:[]}, opts:{follow:true},
+  },
+  'basic': {
+    method:'GET', url:'https://api.example.com/v1/admin',
+    headers:[], auth:{type:'basic',user:'admin',pass:'s3cr3t'},
+    query:[], body:{type:'none',json:'',form:[]},
+  },
+  'form': {
+    method:'POST', url:'https://example.com/login',
+    headers:[], auth:{type:'none'}, query:[],
+    body:{type:'form',form:[{key:'username',value:'admin'},{key:'password',value:'secret'}]},
+    opts:{follow:true},
+  },
+  'upload': {
+    method:'POST', url:'https://api.example.com/v1/upload',
+    headers:[{key:'Authorization',value:'Bearer TOKEN'}], auth:{type:'none'}, query:[],
+    body:{type:'multipart',form:[{key:'file',value:'@/path/to/file.pdf'},{key:'title',value:'My Document'}]},
+  },
+  'graphql': {
+    method:'POST', url:'https://api.example.com/graphql',
+    headers:[{key:'Content-Type',value:'application/json'},{key:'Authorization',value:'Bearer TOKEN'}],
+    auth:{type:'none'}, query:[],
+    body:{type:'json',json:'{\n  "query": "{ user(id: \\"1\\") { name email } }"\n}',form:[]},
+  },
+  'oauth': {
+    method:'POST', url:'https://auth.example.com/oauth/token',
+    headers:[{key:'Content-Type',value:'application/x-www-form-urlencoded'}],
+    auth:{type:'basic',user:'client_id',pass:'client_secret'}, query:[],
+    body:{type:'form',form:[{key:'grant_type',value:'client_credentials'},{key:'scope',value:'read write'}]},
+  },
+};
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+
+  state.method  = p.method || 'GET';
+  state.url     = p.url    || '';
+  state.headers = JSON.parse(JSON.stringify(p.headers || []));
+  state.auth    = Object.assign(
+    { type:'none', bearer:'', user:'', pass:'', keyName:'X-API-Key', keyVal:'', param:'api_key', paramVal:'' },
+    p.auth || {}
+  );
+  state.query   = JSON.parse(JSON.stringify(p.query || []));
+  state.body    = Object.assign(
+    { type:'none', json:'', raw:'', rawCT:'text/plain', form:[], file:'' },
+    p.body || {}
+  );
+  if (p.opts) Object.assign(state.opts, p.opts);
+
+  // Sync DOM
+  q('method').value    = state.method;
+  q('method').className = 'method-select ' + state.method;
+  q('url').value       = state.url;
+  q('auth-type').value = state.auth.type;
+  q('body-type').value = state.body.type;
+
+  ['follow','insecure','verbose','silent','include','compressed','fail'].forEach(k => {
+    if (q('opt-' + k)) q('opt-' + k).checked = !!(state.opts[k]);
+  });
+
+  rebuildKVList('headers');
+  rebuildKVList('query');
+  renderAuthFields();
+  renderBodyFields();
+
+  // Exit manual mode when a preset is applied
+  manualMode = false;
+  refreshSyncIndicator();
+  update();
+}
+
+/* ── Init ───────────────────────────────────────────────────────────────────── */
+applyPreset('rest-get');
+</script>
+</body>
+</html>

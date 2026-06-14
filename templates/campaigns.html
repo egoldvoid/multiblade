@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campaigns — ZipScanner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;--border:#1e2240;--border-hi:#2d3260;--text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;--accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;--c-crit:#ff3b30;--c-high:#ff6b2b;--c-med:#f59e0b;--c-low:#22d3a5;--c-safe:#22c55e;--radius:12px;--radius-sm:7px;--ease:cubic-bezier(0.16,1,0.3,1)}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6}
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px)}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-200px;left:0;animation:d1 22s ease-in-out infinite alternate}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-100px;right:0;animation:d2 26s ease-in-out infinite alternate}
+    @keyframes d1{to{transform:translate(40px,30px) scale(1.06)}} @keyframes d2{to{transform:translate(-30px,-40px) scale(1.1)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .page{position:relative;z-index:1;margin-left:60px;padding:36px 40px 60px;max-width:1100px}
+    .page-header{margin-bottom:28px}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;margin-bottom:4px}
+    .page-sub{font-size:0.82rem;color:var(--text-dim)}
+
+    .campaign-grid{display:flex;flex-direction:column;gap:14px}
+
+    .campaign-card{
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+      overflow:hidden;transition:border-color 0.2s;
+      animation:fade-up 0.4s var(--ease) both;
+    }
+    .campaign-card:hover{border-color:var(--border-hi)}
+    .campaign-head{display:flex;align-items:center;gap:14px;padding:16px 20px;cursor:pointer}
+    .campaign-head:hover{background:#ffffff02}
+
+    .ioc-type-badge{
+      font-size:0.63rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      padding:3px 9px;border-radius:4px;flex-shrink:0;
+    }
+    .badge-ip    {background:#ef444420;color:#ef4444}
+    .badge-url   {background:#f59e0b20;color:var(--c-med)}
+    .badge-onion {background:#a855f720;color:#a855f7}
+    .badge-hash  {background:#6366f120;color:var(--accent-hi)}
+
+    .campaign-indicator{
+      flex:1;font-family:'Menlo','Consolas',monospace;font-size:0.82rem;
+      color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .campaign-count{
+      font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;flex-shrink:0;
+      background:var(--accent)15;color:var(--accent-hi);padding:3px 10px;border-radius:5px;
+    }
+    .campaign-chev{font-size:0.6rem;color:var(--text-faint);flex-shrink:0;transition:transform 0.2s}
+    .campaign-card.open .campaign-chev{transform:rotate(180deg)}
+
+    .campaign-body{display:none;padding:0 20px 16px;border-top:1px solid var(--border)}
+    .campaign-card.open .campaign-body{display:block;padding-top:14px}
+    .cb-label{font-size:0.65rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px}
+
+    .scan-rows{display:flex;flex-direction:column;gap:5px}
+    .scan-row{
+      display:flex;align-items:center;gap:10px;padding:8px 12px;
+      background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-sm);
+      text-decoration:none;color:inherit;transition:border-color 0.15s;
+    }
+    .scan-row:hover{border-color:var(--accent-hi)}
+    .risk-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .scan-name{flex:1;font-size:0.8rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .scan-score{font-family:'Syne',sans-serif;font-size:0.9rem;font-weight:700;flex-shrink:0}
+    .scan-time{font-size:0.7rem;color:var(--text-faint);flex-shrink:0}
+
+    .empty-state{padding:64px 24px;text-align:center;color:var(--text-faint)}
+    .empty-icon{font-size:3rem;opacity:0.3;margin-bottom:12px}
+    .empty-state p{font-size:0.85rem;line-height:1.7}
+    .empty-state a{color:var(--accent-hi);text-decoration:none}
+
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    @keyframes fade-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">Campaigns</div>
+    <div class="page-sub">Scans clustered by shared network indicators — IPs, .onion addresses, or URLs appearing in multiple archives point to coordinated campaigns.</div>
+  </div>
+  <div class="campaign-grid" id="campaign-grid">
+    <div class="empty-state"><div class="empty-icon">⏳</div><p>Loading…</p></div>
+  </div>
+</div>
+
+<script>
+  const RISK_COLOR = {none:'#373b5c',low:'#22d3a5',medium:'#f59e0b',high:'#ff6b2b',critical:'#ff3b30'};
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function timeAgo(d){if(!d)return'';const diff=(Date.now()-new Date(d+'Z').getTime())/1000;if(diff<60)return'just now';if(diff<3600)return Math.floor(diff/60)+'m ago';if(diff<86400)return Math.floor(diff/3600)+'h ago';return Math.floor(diff/86400)+'d ago'}
+
+  async function load() {
+    const resp = await fetch('/api/campaigns');
+    const camps = await resp.json();
+    const grid = document.getElementById('campaign-grid');
+
+    if (!camps.length) {
+      grid.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">🔗</div>
+        <p>No campaign clusters detected yet.<br/>Campaigns appear when two or more scans share a network indicator (IP, domain, .onion address).<br/><a href="/analyzer">Scan more files →</a></p>
+      </div>`;
+      return;
+    }
+
+    grid.innerHTML = '';
+    camps.forEach((c, i) => {
+      const badgeCls = `badge-${c.type}`;
+      const card = document.createElement('div');
+      card.className = 'campaign-card';
+      card.style.animationDelay = (i * 50) + 'ms';
+
+      const scansHtml = c.scans.map(s => {
+        const label = (s.risk_label||'none').toLowerCase();
+        const color = RISK_COLOR[label] || '#373b5c';
+        return `<a class="scan-row" href="/history#scan-${s.id}">
+          <div class="risk-dot" style="background:${color};box-shadow:0 0 6px ${color}44"></div>
+          <span class="scan-name" title="${esc(s.filename)}">${esc(s.filename)}</span>
+          <span class="scan-score" style="color:${color}">${s.risk_score}</span>
+          <span class="scan-time">${timeAgo(s.scanned_at)}</span>
+        </a>`;
+      }).join('');
+
+      card.innerHTML = `
+        <div class="campaign-head" onclick="this.closest('.campaign-card').classList.toggle('open')">
+          <span class="ioc-type-badge ${badgeCls}">${esc(c.type)}</span>
+          <span class="campaign-indicator" title="${esc(c.indicator)}">${esc(c.indicator)}</span>
+          <span class="campaign-count">${c.scan_count} scan${c.scan_count!==1?'s':''}</span>
+          <span class="campaign-chev">▼</span>
+        </div>
+        <div class="campaign-body">
+          <div class="cb-label">Scans sharing this indicator</div>
+          <div class="scan-rows">${scansHtml}</div>
+        </div>`;
+      grid.appendChild(card);
+    });
+  }
+
+  load();
+</script>
+</body>
+</html>

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YARA Playground — ZipScanner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;--border:#1e2240;--border-hi:#2d3260;--text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;--accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;--c-crit:#ff3b30;--c-high:#ff6b2b;--c-med:#f59e0b;--c-low:#22d3a5;--c-safe:#22c55e;--radius:12px;--radius-sm:7px;--ease:cubic-bezier(0.16,1,0.3,1)}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6}
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px)}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-200px;left:0;animation:d1 22s ease-in-out infinite alternate}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-100px;right:0;animation:d2 26s ease-in-out infinite alternate}
+    @keyframes d1{to{transform:translate(40px,30px) scale(1.06)}} @keyframes d2{to{transform:translate(-30px,-40px) scale(1.1)}}
+
+    .page{position:relative;z-index:1;margin-left:60px;display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+    .sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;position:sticky;top:0;height:100vh}
+    .main{overflow-y:auto;max-height:100vh;padding:28px 32px 60px}
+
+    /* Sidebar */
+    .sb-header{padding:20px 18px 14px;border-bottom:1px solid var(--border)}
+    .sb-title{font-family:'Syne',sans-serif;font-size:0.9rem;font-weight:800;letter-spacing:0.06em;margin-bottom:10px}
+    .btn-new{
+      width:100%;padding:9px;background:var(--accent);color:#fff;font-family:inherit;
+      font-size:0.78rem;font-weight:600;border:none;border-radius:var(--radius-sm);cursor:pointer;
+      transition:opacity 0.15s;letter-spacing:0.04em;
+    }
+    .btn-new:hover{opacity:0.85}
+    .drafts-list{flex:1;overflow-y:auto;padding:10px 10px}
+    .draft-item{
+      padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;margin-bottom:4px;
+      transition:background 0.12s;border:1px solid transparent;
+    }
+    .draft-item:hover{background:var(--s1)}
+    .draft-item.active{background:var(--s2);border-color:var(--border-hi)}
+    .draft-name{font-size:0.8rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .draft-date{font-size:0.68rem;color:var(--text-faint);margin-top:1px}
+    .drafts-empty{padding:20px;text-align:center;color:var(--text-faint);font-size:0.8rem}
+
+    /* Main editor area */
+    .editor-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+    .rule-name-input{
+      flex:1;background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);
+      padding:9px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;
+      outline:none;transition:border-color 0.15s;
+    }
+    .rule-name-input:focus{border-color:var(--accent)}
+    .btn-save,.btn-delete-draft,.btn-test{
+      padding:9px 14px;font-family:inherit;font-size:0.78rem;font-weight:600;
+      border-radius:var(--radius-sm);cursor:pointer;border:none;transition:opacity 0.15s;white-space:nowrap;
+    }
+    .btn-save{background:var(--s2);color:var(--text-dim);border:1px solid var(--border)}
+    .btn-save:hover{border-color:var(--accent);color:var(--text)}
+    .btn-delete-draft{background:transparent;color:var(--text-faint);border:1px solid var(--border)}
+    .btn-delete-draft:hover{border-color:var(--c-crit);color:var(--c-crit)}
+    .btn-test{background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;box-shadow:0 4px 16px #6366f130}
+    .btn-test:hover{opacity:0.88}
+    .btn-test:disabled{opacity:0.35;cursor:not-allowed}
+
+    .editor-wrap{position:relative;margin-bottom:16px}
+    .code-editor{
+      width:100%;min-height:340px;max-height:560px;
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);
+      padding:14px;color:#c9d1d9;font-family:'Menlo','Consolas','Monaco',monospace;font-size:0.82rem;
+      line-height:1.7;resize:vertical;outline:none;transition:border-color 0.15s;tab-size:4;
+    }
+    .code-editor:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+
+    /* Syntax hint bar */
+    .syntax-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+    .syn-chip{font-size:0.68rem;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--border);color:var(--text-dim);background:var(--s2);transition:border-color 0.15s,color 0.15s;font-family:'Menlo','Consolas',monospace}
+    .syn-chip:hover{border-color:var(--accent);color:var(--accent-hi)}
+
+    /* Result */
+    .result-wrap{margin-top:4px}
+    .result-box{padding:12px 14px;border-radius:var(--radius-sm);border:1px solid;font-size:0.82rem}
+    .result-ok{background:#22c55e10;border-color:#22c55e30;color:var(--c-safe)}
+    .result-error{background:#ff3b3010;border-color:#ff3b3030;color:var(--c-crit);font-family:'Menlo','Consolas',monospace;font-size:0.78rem;white-space:pre-wrap}
+    .result-note{background:var(--s2);border-color:var(--border);color:var(--text-dim)}
+
+    .template-section{margin-top:24px}
+    .section-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+    .section-title{font-size:0.65rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-faint)}
+    .section-line{flex:1;height:1px;background:var(--border)}
+    .template-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+    .tpl-card{
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);
+      padding:12px;cursor:pointer;transition:border-color 0.15s,background 0.15s;
+    }
+    .tpl-card:hover{border-color:var(--accent);background:var(--s2)}
+    .tpl-name{font-size:0.8rem;font-weight:600;margin-bottom:3px}
+    .tpl-desc{font-size:0.72rem;color:var(--text-dim)}
+
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    @keyframes fade-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+
+<div class="page">
+  <!-- Drafts sidebar -->
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-title">YARA Playground</div>
+      <button class="btn-new" onclick="newDraft()">+ New Rule</button>
+    </div>
+    <div class="drafts-list" id="drafts-list">
+      <div class="drafts-empty">No saved rules yet</div>
+    </div>
+  </div>
+
+  <!-- Editor -->
+  <div class="main">
+    <div class="editor-header">
+      <input class="rule-name-input" id="rule-name" placeholder="Rule name…" value="MyRule" />
+      <button class="btn-save" onclick="saveDraft()">Save</button>
+      <button class="btn-delete-draft" id="btn-del" style="display:none" onclick="deleteDraft()">Delete</button>
+      <button class="btn-test" id="btn-test" onclick="testRule()">Compile &amp; Test</button>
+    </div>
+
+    <div class="syntax-bar">
+      <span class="syn-chip" onclick="insertSnippet('strings')">strings:</span>
+      <span class="syn-chip" onclick="insertSnippet('condition')">condition:</span>
+      <span class="syn-chip" onclick="insertSnippet('meta')">meta:</span>
+      <span class="syn-chip" onclick="insertSnippet('hex')">hex string</span>
+      <span class="syn-chip" onclick="insertSnippet('regex')">regex string</span>
+      <span class="syn-chip" onclick="insertSnippet('any')">any of</span>
+      <span class="syn-chip" onclick="insertSnippet('all')">all of</span>
+    </div>
+
+    <div class="editor-wrap">
+      <textarea class="code-editor" id="code-editor" spellcheck="false" placeholder="Write your YARA rule here…">rule MyRule {
+    meta:
+        description = "My custom detection rule"
+        severity = "high"
+        mitre = "T1027"
+    strings:
+        $s1 = "suspicious_string" nocase
+        $s2 = /eval\s*\(/ nocase
+    condition:
+        any of them
+}</textarea>
+    </div>
+
+    <div class="result-wrap" id="result-wrap"></div>
+
+    <!-- Templates -->
+    <div class="template-section">
+      <div class="section-hdr"><span class="section-title">Starter Templates</span><div class="section-line"></div></div>
+      <div class="template-grid">
+        <div class="tpl-card" onclick="loadTemplate('dropper')">
+          <div class="tpl-name">Dropper pattern</div>
+          <div class="tpl-desc">Detects download-and-execute patterns in scripts</div>
+        </div>
+        <div class="tpl-card" onclick="loadTemplate('webshell')">
+          <div class="tpl-name">PHP webshell</div>
+          <div class="tpl-desc">eval/exec with user-input parameter</div>
+        </div>
+        <div class="tpl-card" onclick="loadTemplate('cred')">
+          <div class="tpl-name">Credential theft</div>
+          <div class="tpl-desc">LSASS dump and SAM access APIs</div>
+        </div>
+        <div class="tpl-card" onclick="loadTemplate('obfuscation')">
+          <div class="tpl-name">Obfuscated payload</div>
+          <div class="tpl-desc">Base64/hex encoded execution chains</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let activeDraftId = null;
+
+  const TEMPLATES = {
+    dropper: `rule Dropper_DownloadExec {
+    meta:
+        description = "Download and execute pattern"
+        severity = "high"
+        mitre = "T1105"
+    strings:
+        $dl1 = "URLDownloadToFile" ascii
+        $dl2 = "DownloadString" nocase
+        $dl3 = "wget " nocase
+        $dl4 = "curl " nocase
+        $exec1 = "WScript.Shell" nocase
+        $exec2 = "Shell.Execute" nocase
+        $exec3 = "subprocess" nocase
+    condition:
+        (any of ($dl*)) and (any of ($exec*))
+}`,
+    webshell: `rule PHP_Webshell {
+    meta:
+        description = "PHP webshell using eval with user input"
+        severity = "critical"
+        mitre = "T1505.003"
+    strings:
+        $a = /eval\\s*\\(\\s*(base64_decode|gzinflate|str_rot13)/ nocase
+        $b = /\\$_(GET|POST|REQUEST|COOKIE)\\s*\\[/ nocase
+        $c = "system(" nocase
+        $d = "passthru(" nocase
+        $e = "exec(" nocase
+    condition:
+        $a and ($b or any of ($c, $d, $e))
+}`,
+    cred: `rule CredentialTheft_LSASS {
+    meta:
+        description = "LSASS memory dump or SAM access"
+        severity = "critical"
+        mitre = "T1003.001"
+    strings:
+        $a = "MiniDumpWriteDump" ascii wide
+        $b = "lsass" nocase
+        $c = "SamIConnect" ascii wide
+        $d = "LsaRetrievePrivateData" ascii wide
+        $e = "NtQuerySystemInformation" ascii wide
+    condition:
+        ($a and $b) or $c or $d or
+        (2 of ($a, $e))
+}`,
+    obfuscation: `rule ObfuscatedPayload {
+    meta:
+        description = "Base64 or hex encoded execution chain"
+        severity = "high"
+        mitre = "T1027"
+    strings:
+        $b64 = /[A-Za-z0-9+\\/]{100,}={0,2}/
+        $hex = /\\\\x[0-9A-Fa-f]{2}(\\\\x[0-9A-Fa-f]{2}){15,}/
+        $ps_enc = "-EncodedCommand" nocase
+        $ps_enc2 = "-enc " nocase
+    condition:
+        ($ps_enc or $ps_enc2) or
+        ($b64 and ($hex or $ps_enc))
+}`,
+  };
+
+  const SNIPPETS = {
+    strings: '\n    strings:\n        $s1 = "pattern" nocase\n',
+    condition: '\n    condition:\n        any of them\n',
+    meta: '    meta:\n        description = ""\n        severity = "medium"\n',
+    hex: '        $hex = { DE AD BE EF ?? ?? 00 00 }\n',
+    regex: '        $re = /pattern/ nocase\n',
+    any: 'any of ($s*)',
+    all: 'all of them',
+  };
+
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+  function insertSnippet(key) {
+    const ta = document.getElementById('code-editor');
+    const snip = SNIPPETS[key] || '';
+    const start = ta.selectionStart;
+    const val = ta.value;
+    ta.value = val.slice(0, start) + snip + val.slice(start);
+    ta.focus();
+    ta.setSelectionRange(start + snip.length, start + snip.length);
+  }
+
+  function loadTemplate(key) {
+    document.getElementById('code-editor').value = TEMPLATES[key] || '';
+    document.getElementById('rule-name').value = key.charAt(0).toUpperCase() + key.slice(1) + '_Custom';
+    document.getElementById('result-wrap').innerHTML = '';
+  }
+
+  async function loadDrafts() {
+    const resp = await fetch('/api/yara-drafts');
+    const drafts = await resp.json();
+    const list = document.getElementById('drafts-list');
+    if (!drafts.length) { list.innerHTML = '<div class="drafts-empty">No saved rules yet</div>'; return; }
+    list.innerHTML = '';
+    drafts.forEach(d => {
+      const div = document.createElement('div');
+      div.className = 'draft-item' + (d.id === activeDraftId ? ' active' : '');
+      div.id = `draft-${d.id}`;
+      div.onclick = () => selectDraft(d);
+      div.innerHTML = `<div class="draft-name">${esc(d.name)}</div><div class="draft-date">${d.created_at?.slice(0,10)||''}</div>`;
+      list.appendChild(div);
+    });
+  }
+
+  function selectDraft(d) {
+    activeDraftId = d.id;
+    document.getElementById('rule-name').value = d.name;
+    document.getElementById('code-editor').value = d.content;
+    document.getElementById('result-wrap').innerHTML = '';
+    document.getElementById('btn-del').style.display = '';
+    document.querySelectorAll('.draft-item').forEach(el => el.classList.toggle('active', el.id === `draft-${d.id}`));
+  }
+
+  function newDraft() {
+    activeDraftId = null;
+    document.getElementById('rule-name').value = 'NewRule';
+    document.getElementById('code-editor').value = `rule NewRule {\n    meta:\n        description = ""\n        severity = "medium"\n    strings:\n        $s1 = "pattern" nocase\n    condition:\n        any of them\n}`;
+    document.getElementById('result-wrap').innerHTML = '';
+    document.getElementById('btn-del').style.display = 'none';
+    document.querySelectorAll('.draft-item').forEach(el => el.classList.remove('active'));
+  }
+
+  async function saveDraft() {
+    const name    = document.getElementById('rule-name').value.trim() || 'Untitled';
+    const content = document.getElementById('code-editor').value;
+    if (activeDraftId) {
+      await fetch(`/api/yara-drafts/${activeDraftId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content}) });
+    } else {
+      const resp = await fetch('/api/yara-drafts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, content}) });
+      const data = await resp.json();
+      activeDraftId = data.id;
+      document.getElementById('btn-del').style.display = '';
+    }
+    loadDrafts();
+  }
+
+  async function deleteDraft() {
+    if (!activeDraftId || !confirm('Delete this rule draft?')) return;
+    await fetch(`/api/yara-drafts/${activeDraftId}`, { method:'DELETE' });
+    activeDraftId = null;
+    document.getElementById('btn-del').style.display = 'none';
+    newDraft();
+    loadDrafts();
+  }
+
+  async function testRule() {
+    const btn  = document.getElementById('btn-test');
+    const rule = document.getElementById('code-editor').value.trim();
+    const wrap = document.getElementById('result-wrap');
+    if (!rule) { wrap.innerHTML = '<div class="result-box result-error">No rule to test.</div>'; return; }
+    btn.disabled = true; btn.textContent = 'Compiling…';
+    wrap.innerHTML = '';
+    try {
+      const resp = await fetch('/api/yara-test', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ rule }),
+      });
+      const data = await resp.json();
+      if (data.error) {
+        wrap.innerHTML = `<div class="result-box result-error">✕ ${esc(data.error)}</div>`;
+      } else if (data.compiled) {
+        const note = data.note ? `<div style="margin-top:6px;font-size:0.78rem;color:var(--text-dim)">${esc(data.note)}</div>` : '';
+        wrap.innerHTML = `<div class="result-box result-ok">✓ Rule compiled successfully${note}</div>`;
+      }
+    } catch(e) {
+      wrap.innerHTML = `<div class="result-box result-error">Network error: ${esc(e.message)}</div>`;
+    }
+    btn.disabled = false; btn.textContent = 'Compile & Test';
+  }
+
+  loadDrafts();
+</script>
+</body>
+</html>

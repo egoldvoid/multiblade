@@ -1,0 +1,151 @@
+<!-- Shared sidebar navigation — include in every inner page -->
+<style>
+  .app-nav {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    width: 60px;
+    background: #080a12;
+    border-right: 1px solid #1e2240;
+    z-index: 200;
+    display: flex; flex-direction: column;
+    transition: width 0.3s cubic-bezier(0.16,1,0.3,1);
+    overflow: hidden;
+  }
+  .app-nav:hover { width: 200px; box-shadow: 4px 0 32px rgba(0,0,0,0.5); }
+
+  .nav-logo {
+    display: flex; align-items: center; gap: 12px;
+    padding: 18px 0 18px 14px;
+    text-decoration: none;
+    border-bottom: 1px solid #1e2240;
+    flex-shrink: 0; overflow: hidden;
+  }
+  .nav-hex {
+    width: 32px; height: 32px; flex-shrink: 0;
+    background: linear-gradient(135deg, #6366f1, #7c3aed);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: grid; place-items: center;
+    font-size: 13px;
+    box-shadow: 0 0 16px #6366f133;
+  }
+  .nav-brand-wrap { overflow: hidden; }
+  .nav-brand {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 0.75rem; letter-spacing: 0.12em; color: #dde1f5;
+    white-space: nowrap;
+    opacity: 0; transition: opacity 0.15s 0.12s;
+  }
+  .nav-sub {
+    font-size: 0.6rem; color: #6b7099; letter-spacing: 0.08em;
+    text-transform: uppercase; white-space: nowrap;
+    opacity: 0; transition: opacity 0.15s 0.12s;
+  }
+  .app-nav:hover .nav-brand,
+  .app-nav:hover .nav-sub { opacity: 1; }
+
+  .nav-section-label {
+    font-size: 0.58rem; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: #373b5c;
+    padding: 14px 0 4px 20px; white-space: nowrap;
+    opacity: 0; transition: opacity 0.12s;
+    flex-shrink: 0;
+  }
+  .app-nav:hover .nav-section-label { opacity: 1; }
+
+  .nav-links { flex: 1; padding: 8px 0; display: flex; flex-direction: column; gap: 1px; overflow: hidden; }
+
+  .nav-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 0 9px 17px;
+    text-decoration: none; color: #6b7099;
+    font-size: 0.8rem; font-weight: 500;
+    border-radius: 0 8px 8px 0; margin-right: 8px;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    white-space: nowrap; overflow: hidden; flex-shrink: 0;
+    border-left: 2px solid transparent;
+  }
+  .nav-link:hover { color: #dde1f5; background: #121525; }
+  .nav-link.active {
+    color: #818cf8; background: #6366f112;
+    border-left-color: #6366f1; padding-left: 15px;
+  }
+  .nav-icon { width: 22px; text-align: center; flex-shrink: 0; font-size: 0.95rem; }
+  .nav-label { opacity: 0; transition: opacity 0.12s 0.1s; }
+  .app-nav:hover .nav-label { opacity: 1; }
+
+  .nav-divider { height: 1px; background: #1e2240; margin: 6px 10px; flex-shrink: 0; }
+
+  .nav-back {
+    border-top: 1px solid #1e2240;
+    flex-shrink: 0; overflow: hidden;
+  }
+  .nav-back .nav-link { margin: 6px 8px 6px 0; border-radius: 0 8px 8px 0; }
+
+  /* Push main content right of sidebar */
+  .page-with-nav { margin-left: 60px; }
+</style>
+
+<nav class="app-nav" id="app-nav">
+  <a href="/" class="nav-logo" title="Back to Hub">
+    <div class="nav-hex">⬡</div>
+    <div class="nav-brand-wrap">
+      <div class="nav-brand">ZIPSCANNER</div>
+      <div class="nav-sub">Security Platform</div>
+    </div>
+  </a>
+
+  <div class="nav-links">
+    <div class="nav-section-label">Tools</div>
+
+    <a href="/analyzer" class="nav-link {% if active_page == 'analyzer' %}active{% endif %}" title="File Analyzer">
+      <span class="nav-icon">🛡️</span>
+      <span class="nav-label">File Analyzer</span>
+    </a>
+    <a href="/triage" class="nav-link {% if active_page == 'triage' %}active{% endif %}" title="Triage Queue">
+      <span class="nav-icon">⚡</span>
+      <span class="nav-label">Triage Queue</span>
+    </a>
+    <a href="/compare" class="nav-link {% if active_page == 'compare' %}active{% endif %}" title="Compare Archives">
+      <span class="nav-icon">⚖️</span>
+      <span class="nav-label">Compare</span>
+    </a>
+
+    <div class="nav-divider"></div>
+    <div class="nav-section-label">Intelligence</div>
+
+    <a href="/history" class="nav-link {% if active_page == 'history' %}active{% endif %}" title="Scan History">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">History</span>
+    </a>
+    <a href="/campaigns" class="nav-link {% if active_page == 'campaigns' %}active{% endif %}" title="Campaigns">
+      <span class="nav-icon">🔗</span>
+      <span class="nav-label">Campaigns</span>
+    </a>
+    <a href="/watch" class="nav-link {% if active_page == 'watch' %}active{% endif %}" title="Watch Folders">
+      <span class="nav-icon">👁</span>
+      <span class="nav-label">Watch Folders</span>
+    </a>
+
+    <div class="nav-divider"></div>
+    <div class="nav-section-label">Config</div>
+
+    <a href="/yara" class="nav-link {% if active_page == 'yara' %}active{% endif %}" title="YARA Playground">
+      <span class="nav-icon">🔬</span>
+      <span class="nav-label">YARA Playground</span>
+    </a>
+    <a href="/custom-checks" class="nav-link {% if active_page == 'custom' %}active{% endif %}" title="Custom Rules">
+      <span class="nav-icon">🔧</span>
+      <span class="nav-label">Custom Rules</span>
+    </a>
+    <a href="/curl" class="nav-link {% if active_page == 'curl' %}active{% endif %}" title="cURL Generator">
+      <span class="nav-icon">⚙</span>
+      <span class="nav-label">cURL Generator</span>
+    </a>
+  </div>
+
+  <div class="nav-back">
+    <a href="/" class="nav-link" title="Hub">
+      <span class="nav-icon">⊞</span>
+      <span class="nav-label">Back to Hub</span>
+    </a>
+  </div>
+</nav>

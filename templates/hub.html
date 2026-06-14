@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZipScanner — Security Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080a12; --s1: #0d0f1c; --s2: #121525; --s3: #191d31;
+      --border: #1e2240; --border-hi: #2d3260;
+      --text: #dde1f5; --text-dim: #6b7099; --text-faint: #373b5c;
+      --accent: #6366f1; --accent-hi: #818cf8; --accent-glow: #6366f133;
+      --c-crit: #ff3b30; --c-high: #ff6b2b; --c-med: #f59e0b;
+      --c-low: #22d3a5; --c-safe: #22c55e;
+      --radius: 14px; --radius-sm: 8px;
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px; line-height: 1.6; min-height: 100vh;
+    }
+
+    /* Ambient background */
+    .bg-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .blob { position: absolute; border-radius: 50%; filter: blur(100px); }
+    .blob-1 { width: 800px; height: 800px; background: radial-gradient(circle, #3730a318, transparent 70%); top: -300px; left: -200px; animation: drift1 22s ease-in-out infinite alternate; }
+    .blob-2 { width: 600px; height: 600px; background: radial-gradient(circle, #7c3aed14, transparent 70%); bottom: -150px; right: -100px; animation: drift2 28s ease-in-out infinite alternate; }
+    .blob-3 { width: 500px; height: 500px; background: radial-gradient(circle, #0ea5e910, transparent 70%); top: 50%; left: 60%; animation: drift3 20s ease-in-out infinite alternate; }
+    @keyframes drift1 { to { transform: translate(60px, 40px) scale(1.08); } }
+    @keyframes drift2 { to { transform: translate(-50px,-60px) scale(1.12); } }
+    @keyframes drift3 { to { transform: translate(-30px, 50px) scale(1.15); } }
+    .grid-overlay {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: radial-gradient(circle, #6366f115 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+    }
+
+    /* Page shell */
+    .page { position: relative; z-index: 1; min-height: 100vh; padding: 60px 48px 80px; max-width: 1280px; margin: 0 auto; }
+
+    /* Header */
+    .hub-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 64px;
+    }
+    .hub-brand { display: flex; align-items: center; gap: 14px; }
+    .hub-hex {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: grid; place-items: center; font-size: 18px;
+      box-shadow: 0 0 28px var(--accent-glow);
+    }
+    .hub-brand-text h1 {
+      font-family: 'Syne', sans-serif; font-size: 1.5rem;
+      font-weight: 800; letter-spacing: 0.12em; color: var(--text);
+    }
+    .hub-brand-text p { font-size: 0.75rem; color: var(--text-dim); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 1px; }
+
+    .hub-stats { display: flex; gap: 24px; }
+    .hub-stat { text-align: right; }
+    .hub-stat-val { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--text); line-height: 1; }
+    .hub-stat-val.danger { color: var(--c-high); }
+    .hub-stat-lbl { font-size: 0.65rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
+
+    /* Hero tagline */
+    .hub-hero {
+      margin-bottom: 48px;
+      animation: fade-up 0.6s var(--ease) both;
+    }
+    .hub-hero h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.2rem, 4vw, 3.4rem);
+      font-weight: 800; line-height: 1.1; letter-spacing: -0.02em;
+      background: linear-gradient(150deg, #e2e6ff 10%, var(--accent-hi) 60%, #a855f7 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 16px;
+    }
+    .hub-hero p { font-size: 1rem; color: var(--text-dim); max-width: 560px; line-height: 1.7; }
+
+    /* Tool grid */
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+    @media (max-width: 1100px) { .tool-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 800px)  { .tool-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px)  { .tool-grid { grid-template-columns: 1fr; } }
+
+    .tool-card {
+      background: var(--s1); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px 22px;
+      text-decoration: none; color: inherit;
+      display: flex; flex-direction: column; gap: 14px;
+      position: relative; overflow: hidden;
+      transition: border-color 0.25s, box-shadow 0.25s, transform 0.2s;
+      animation: fade-up 0.5s var(--ease) both;
+    }
+    .tool-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, var(--card-color, #6366f1)14, transparent 70%);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .tool-card:hover { border-color: var(--card-color, var(--accent)); transform: translateY(-2px); box-shadow: 0 12px 40px -12px var(--card-color, var(--accent))30; }
+    .tool-card:hover::before { opacity: 1; }
+
+    .tool-card:nth-child(1) { --card-color: #6366f1; animation-delay: 0.05s; }
+    .tool-card:nth-child(2) { --card-color: #f59e0b; animation-delay: 0.10s; }
+    .tool-card:nth-child(3) { --card-color: #22d3a5; animation-delay: 0.15s; }
+    .tool-card:nth-child(4) { --card-color: #60a5fa; animation-delay: 0.20s; }
+    .tool-card:nth-child(5) { --card-color: #a855f7; animation-delay: 0.25s; }
+    .tool-card:nth-child(6) { --card-color: #ff6b2b; animation-delay: 0.30s; }
+    .tool-card:nth-child(7) { --card-color: #22c55e; animation-delay: 0.35s; }
+    .tool-card:nth-child(8) { --card-color: #ec4899; animation-delay: 0.40s; }
+
+    .tool-icon-wrap {
+      width: 44px; height: 44px;
+      background: var(--card-color, var(--accent))15;
+      border: 1px solid var(--card-color, var(--accent))30;
+      border-radius: 10px; display: grid; place-items: center;
+      font-size: 1.3rem; flex-shrink: 0;
+      box-shadow: 0 0 14px var(--card-color, var(--accent))18;
+      position: relative; z-index: 1;
+    }
+    .tool-body { position: relative; z-index: 1; flex: 1; }
+    .tool-name {
+      font-family: 'Syne', sans-serif; font-size: 0.95rem;
+      font-weight: 800; color: var(--text); margin-bottom: 6px;
+    }
+    .tool-desc { font-size: 0.78rem; color: var(--text-dim); line-height: 1.6; }
+
+    .tool-footer {
+      position: relative; z-index: 1;
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: 14px; border-top: 1px solid var(--border);
+    }
+    .tool-tag {
+      font-size: 0.63rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 3px 8px;
+      background: var(--card-color, var(--accent))14;
+      color: var(--card-color, var(--accent));
+      border-radius: 4px;
+    }
+    .tool-arrow {
+      font-size: 0.8rem; color: var(--text-faint);
+      transition: transform 0.2s, color 0.2s;
+    }
+    .tool-card:hover .tool-arrow { transform: translateX(3px); color: var(--card-color, var(--accent)); }
+
+    /* Recent activity strip */
+    .activity-section { margin-top: 8px; }
+    .activity-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    }
+    .activity-title { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); }
+    .activity-line { flex: 1; height: 1px; background: var(--border); }
+
+    .activity-list { display: flex; flex-direction: column; gap: 6px; }
+    .activity-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; background: var(--s1); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); text-decoration: none; color: inherit;
+      transition: border-color 0.15s, background 0.15s;
+      animation: fade-up 0.4s var(--ease) both;
+    }
+    .activity-row:hover { border-color: var(--border-hi); background: var(--s2); }
+    .risk-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .risk-none     { background: var(--text-faint); }
+    .risk-low      { background: var(--c-low); box-shadow: 0 0 6px var(--c-low); }
+    .risk-medium   { background: var(--c-med); box-shadow: 0 0 6px var(--c-med); }
+    .risk-high     { background: var(--c-high); box-shadow: 0 0 6px var(--c-high); }
+    .risk-critical { background: var(--c-crit); box-shadow: 0 0 6px var(--c-crit); }
+    .activity-name { flex: 1; font-size: 0.82rem; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .activity-score { font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700; }
+    .activity-time { font-size: 0.72rem; color: var(--text-faint); flex-shrink: 0; }
+    .activity-status {
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 4px;
+    }
+    .status-new       { background: #6366f115; color: var(--accent-hi); }
+    .status-reviewed  { background: #22c55e15; color: var(--c-safe); }
+    .status-escalated { background: #ff3b3015; color: var(--c-crit); }
+    .status-false_positive { background: #6b709915; color: var(--text-dim); }
+
+    .empty-activity { padding: 32px; text-align: center; color: var(--text-faint); font-size: 0.85rem; }
+    .empty-activity a { color: var(--accent-hi); text-decoration: none; }
+    .empty-activity a:hover { text-decoration: underline; }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="bg-layer" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+<div class="grid-overlay" aria-hidden="true"></div>
+
+<div class="page">
+
+  <header class="hub-header">
+    <div class="hub-brand">
+      <div class="hub-hex">⬡</div>
+      <div class="hub-brand-text">
+        <h1>ZIPSCANNER</h1>
+        <p>Security Analysis Platform</p>
+      </div>
+    </div>
+    <div class="hub-stats">
+      <div class="hub-stat">
+        <div class="hub-stat-val" id="stat-total">{{ stats.total }}</div>
+        <div class="hub-stat-lbl">Total Scans</div>
+      </div>
+      <div class="hub-stat">
+        <div class="hub-stat-val danger" id="stat-unsafe">{{ stats.unsafe }}</div>
+        <div class="hub-stat-lbl">Threats Found</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="hub-hero">
+    <h2>Every tool you need<br/>to analyze threats.</h2>
+    <p>Scan, triage, pivot, compare, and hunt — all in one platform. Select a tool below to get started.</p>
+  </div>
+
+  <div class="tool-grid">
+
+    <a href="/analyzer" class="tool-card">
+      <div class="tool-icon-wrap">🛡️</div>
+      <div class="tool-body">
+        <div class="tool-name">File Analyzer</div>
+        <div class="tool-desc">Drop a single archive and get a full threat report with risk score, MITRE ATT&CK mapping, IOC extraction, and YARA rule matching.</div>
+      </div>
+      <div class="tool-footer">
+        <span class="tool-tag">Core</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </a>
+
+    <a href="/triage" class="tool-card">
+      <div class="tool-icon-wrap">⚡</div>
+      <div class="tool-body">
+        <div class="tool-name">Triage Queue</div>
+        <div class="tool-desc">Upload multiple archives at once. Scans run in sequence and results are ranked by risk score so you work the worst threats first.</div>
+      </div>
+      <div class="tool-footer">
+        <span class="tool-tag">Bulk</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </a>
+
+    <a href="/compare" class="tool-card">
+      <div class="tool-icon-wrap">⚖️</div>
+      <div class="tool-body">
+        <div class="tool-name">Compare Archives</div>
+        <div class="tool-desc">Upload two versions of an archive and see exactly what changed — new files, removed files, new findings, and risk score delta.</div>
+      </div>
+      <div class="tool-footer">
+        <span class="tool-tag">Diff</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </a>
+
+    <a href="/history" class="tool-card">
+      <div class="tool-icon-wrap">📋</div>
+      <div class="tool-body">
+        <div class="tool-name">Scan History</div>
+        <div class="tool-desc">Browse every past scan. Filter by severity or status, add analyst notes, export STIX bundles or ATT&CK Navigator layers, and pivot on IOCs.</div>
+      </div>
+      <div class="tool-footer">
+        <span class="tool-tag">History</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </a>
+
+    <a href="/campaigns" class="tool-card">
+      <div class="tool-icon-wrap">🔗</div>
+      <div class="tool-body">
+        <div class="tool-name">Campaigns</div>
+        <div class="tool-desc">Automatically cluster scans that share IP addresses, Tor .onion endpoints, or URLs — surface coordinated campaigns across your archive history.</div>
+      </div>
+      <div class="tool-footer">
+        <span class="tool-tag">Threat Intel</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </a>
+
+    <a href="/watch" class="tool-card">
+      <div class="tool-icon-wrap">👁</div>
+      <div class="tool-body">
+        <div class="tool-name">Watch Folders</div>
+        <div class="tool-desc">Point the scanner at a local directory. Trigger a batch scan of all archives found there — no manual upload required.</div>
+      </div>
+      <div class="tool-footer">
+        <span class="tool-tag">Automation</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </a>
+
+    <a href="/yara" class="tool-card">
+      <div class="tool-icon-wrap">🔬</div>
+      <div class="tool-body">
+        <div class="tool-name">YARA Playground</div>
+        <div class="tool-desc">Write and compile YARA rules in a code editor, save drafts, and validate syntax. Rules you write here can be deployed to the live scanner.</div>
+      </div>
+      <div class="tool-footer">
+        <span class="tool-tag">Rules</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </a>
+
+    <a href="/custom-checks" class="tool-card">
+      <div class="tool-icon-wrap">🔧</div>
+      <div class="tool-body">
+        <div class="tool-name">Custom Rules</div>
+        <div class="tool-desc">Define your own detection patterns — regex, string matches, extension blacklists, or filename rules — tuned to your threat model.</div>
+      </div>
+      <div class="tool-footer">
+        <span class="tool-tag">Config</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </a>
+
+    <a href="/curl" class="tool-card">
+      <div class="tool-icon-wrap">⚙</div>
+      <div class="tool-body">
+        <div class="tool-name">cURL Generator</div>
+        <div class="tool-desc">Build any curl command from dropdowns — method, headers, auth, body, query params, and every flag. Live preview updates as you type.</div>
+      </div>
+      <div class="tool-footer">
+        <span class="tool-tag">Utility</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- Recent scans strip -->
+  <div class="activity-section">
+    <div class="activity-header">
+      <span class="activity-title">Recent Scans</span>
+      <div class="activity-line"></div>
+      <a href="/history" style="font-size:0.72rem;color:var(--accent-hi);text-decoration:none;">View all →</a>
+    </div>
+    <div class="activity-list" id="activity-list">
+      <div class="empty-activity">Loading…</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const RISK_DOT = { none:'risk-none', low:'risk-low', medium:'risk-medium', high:'risk-high', critical:'risk-critical' };
+  const RISK_COLOR = { none:'#373b5c', low:'#22d3a5', medium:'#f59e0b', high:'#ff6b2b', critical:'#ff3b30' };
+
+  function timeAgo(dateStr) {
+    if (!dateStr) return '';
+    const diff = (Date.now() - new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z'))) / 1000;
+    if (diff < 60)   return 'just now';
+    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    return Math.floor(diff/86400) + 'd ago';
+  }
+
+  async function loadRecent() {
+    const list = document.getElementById('activity-list');
+    try {
+      const resp = await fetch('/api/scans?limit=8');
+      const scans = await resp.json();
+      if (!scans.length) {
+        list.innerHTML = `<div class="empty-activity">No scans yet. <a href="/analyzer">Analyze your first file →</a></div>`;
+        return;
+      }
+      list.innerHTML = '';
+      scans.forEach((s, i) => {
+        const label  = (s.risk_label || 'none').toLowerCase();
+        const color  = RISK_COLOR[label] || '#373b5c';
+        const dotCls = RISK_DOT[label]   || 'risk-none';
+        const status = s.status || 'new';
+        const row = document.createElement('a');
+        row.href = `/history#scan-${s.id}`;
+        row.className = 'activity-row';
+        row.style.animationDelay = (i * 40) + 'ms';
+        row.innerHTML = `
+          <div class="risk-dot ${dotCls}"></div>
+          <span class="activity-name" title="${esc(s.filename)}">${esc(s.filename)}</span>
+          <span class="activity-score" style="color:${color}">${s.risk_score}</span>
+          <span class="activity-status status-${status}">${status.replace('_',' ')}</span>
+          <span class="activity-time">${timeAgo(s.scanned_at)}</span>
+        `;
+        list.appendChild(row);
+      });
+    } catch(e) {
+      list.innerHTML = `<div class="empty-activity">Could not load recent scans.</div>`;
+    }
+  }
+
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  loadRecent();
+</script>
+</body>
+</html>

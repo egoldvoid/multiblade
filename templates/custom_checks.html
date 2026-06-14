@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Custom Rules — ZipScanner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;--border:#1e2240;--border-hi:#2d3260;--text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;--accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;--c-crit:#ff3b30;--c-high:#ff6b2b;--c-med:#f59e0b;--c-low:#22d3a5;--c-safe:#22c55e;--radius:12px;--radius-sm:7px;--ease:cubic-bezier(0.16,1,0.3,1)}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6}
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px)}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-200px;left:0;animation:d1 22s ease-in-out infinite alternate}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-100px;right:0;animation:d2 26s ease-in-out infinite alternate}
+    @keyframes d1{to{transform:translate(40px,30px) scale(1.06)}} @keyframes d2{to{transform:translate(-30px,-40px) scale(1.1)}}
+
+    .page{position:relative;z-index:1;margin-left:60px;display:grid;grid-template-columns:400px 1fr;min-height:100vh}
+    .form-col{border-right:1px solid var(--border);overflow-y:auto;max-height:100vh}
+    .list-col{overflow-y:auto;max-height:100vh}
+
+    .col-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
+    .col-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;letter-spacing:0.06em;margin-bottom:2px}
+    .col-sub{font-size:0.75rem;color:var(--text-dim)}
+
+    /* Form */
+    .form-inner{padding:20px 24px 40px}
+    .field{margin-bottom:16px}
+    .field-label{font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px;display:block}
+    .field-input,.field-select,.field-textarea{
+      width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);
+      padding:9px 12px;color:var(--text);font-family:inherit;font-size:0.82rem;
+      outline:none;transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    .field-input:focus,.field-select:focus,.field-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+    .field-input::placeholder,.field-textarea::placeholder{color:var(--text-faint)}
+    .field-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7099'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+    .field-textarea{resize:vertical;min-height:60px;font-family:'Menlo','Consolas',monospace;font-size:0.8rem}
+    .field-hint{font-size:0.68rem;color:var(--text-faint);margin-top:5px;line-height:1.5}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .btn-submit{
+      width:100%;padding:11px;background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;
+      font-family:inherit;font-size:0.85rem;font-weight:600;letter-spacing:0.04em;
+      border:none;border-radius:var(--radius-sm);cursor:pointer;
+      box-shadow:0 4px 18px #6366f130;transition:opacity 0.15s,transform 0.15s;
+    }
+    .btn-submit:hover{opacity:0.88;transform:translateY(-1px)}
+    .error-msg{background:#ff3b3010;border:1px solid #ff3b3030;border-radius:var(--radius-sm);padding:10px 12px;font-size:0.78rem;color:var(--c-crit);margin-bottom:14px;display:none}
+
+    /* Type info cards */
+    .type-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+    .type-card{padding:8px 10px;background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-sm)}
+    .type-card-name{font-size:0.72rem;font-weight:600;font-family:'Menlo','Consolas',monospace;color:var(--accent-hi);margin-bottom:2px}
+    .type-card-desc{font-size:0.68rem;color:var(--text-faint);line-height:1.4}
+
+    /* Check list */
+    .list-inner{padding:16px 24px 40px}
+    .checks-empty{padding:40px;text-align:center;color:var(--text-faint);font-size:0.82rem}
+
+    .check-card{
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);
+      padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;
+      animation:fade-up 0.3s var(--ease) both;transition:border-color 0.15s;
+    }
+    .check-card.disabled{opacity:0.45}
+    .check-card:hover{border-color:var(--border-hi)}
+
+    .check-toggle{
+      width:32px;height:18px;border-radius:9px;border:none;cursor:pointer;
+      background:var(--border);position:relative;flex-shrink:0;transition:background 0.2s;
+    }
+    .check-toggle::after{content:'';position:absolute;left:3px;top:3px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left 0.2s}
+    .check-toggle.on{background:var(--c-low)}
+    .check-toggle.on::after{left:17px}
+
+    .check-info{flex:1;min-width:0}
+    .check-name{font-size:0.82rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .check-meta{display:flex;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap}
+    .check-type{font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:1px 5px;border-radius:3px;background:var(--s2);border:1px solid var(--border);color:var(--text-dim);font-family:'Menlo','Consolas',monospace}
+    .check-pattern{font-size:0.72rem;font-family:'Menlo','Consolas',monospace;color:var(--accent-hi);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+    .check-hits{font-size:0.68rem;color:var(--text-faint)}
+
+    .sev-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+    .sev-critical .sev-dot{background:var(--c-crit);box-shadow:0 0 5px var(--c-crit)}
+    .sev-high .sev-dot{background:var(--c-high);box-shadow:0 0 5px var(--c-high)}
+    .sev-medium .sev-dot{background:var(--c-med);box-shadow:0 0 5px var(--c-med)}
+    .sev-low .sev-dot{background:var(--c-low);box-shadow:0 0 5px var(--c-low)}
+    .sev-info .sev-dot{background:#60a5fa;box-shadow:0 0 5px #60a5fa}
+
+    .btn-del-check{background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:0.8rem;padding:3px 6px;border-radius:3px;transition:color 0.15s,background 0.15s;flex-shrink:0}
+    .btn-del-check:hover{color:var(--c-crit);background:var(--s2)}
+
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    @keyframes fade-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+
+<div class="page">
+  <!-- Form column -->
+  <div class="form-col">
+    <div class="col-header">
+      <div class="col-title">Custom Rules</div>
+      <div class="col-sub">Detection patterns applied to every future scan</div>
+    </div>
+    <div class="form-inner">
+      <div class="error-msg" id="error-msg"></div>
+
+      <div class="field">
+        <label class="field-label" for="f-name">Rule Name</label>
+        <input class="field-input" id="f-name" placeholder="e.g. AWS Credential Pattern" maxlength="80" />
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label" for="f-type">Type</label>
+          <select class="field-select" id="f-type" onchange="updateHint()">
+            <option value="regex">regex</option>
+            <option value="string">string</option>
+            <option value="extension">extension</option>
+            <option value="filename">filename (regex)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-severity">Severity</label>
+          <select class="field-select" id="f-severity">
+            <option value="critical">critical</option>
+            <option value="high">high</option>
+            <option value="medium" selected>medium</option>
+            <option value="low">low</option>
+            <option value="info">info</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="f-pattern">Pattern</label>
+        <textarea class="field-textarea" id="f-pattern" placeholder="Enter pattern…" rows="2"></textarea>
+        <div class="field-hint" id="pattern-hint">Regex applied to file content (case-insensitive, text files only)</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="f-desc">Description</label>
+        <input class="field-input" id="f-desc" placeholder="What does this rule detect?" maxlength="200" />
+      </div>
+
+      <button class="btn-submit" onclick="saveCheck()">Add Rule →</button>
+
+      <div style="margin-top:20px">
+        <div style="font-size:0.65rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px">Type reference</div>
+        <div class="type-cards">
+          <div class="type-card"><div class="type-card-name">regex</div><div class="type-card-desc">Python regex applied to text file content</div></div>
+          <div class="type-card"><div class="type-card-name">string</div><div class="type-card-desc">Exact byte string match in text files</div></div>
+          <div class="type-card"><div class="type-card-name">extension</div><div class="type-card-desc">File extension (e.g. .hta or hta)</div></div>
+          <div class="type-card"><div class="type-card-name">filename</div><div class="type-card-desc">Regex matched against basename</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- List column -->
+  <div class="list-col">
+    <div class="col-header">
+      <div class="col-title">Active Rules</div>
+      <div class="col-sub" id="rules-count">Loading…</div>
+    </div>
+    <div class="list-inner">
+      <div class="checks-empty" id="checks-empty" style="display:none">
+        No custom rules yet.<br/>Add one on the left to get started.
+      </div>
+      <div id="checks-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const HINTS = {
+    regex: 'Python regex applied to text file content (case-insensitive). e.g. AKIA[0-9A-Z]{16}',
+    string: 'Exact byte string match inside text files. e.g. BEGIN RSA PRIVATE KEY',
+    extension: 'File extension to flag. e.g. .hta or hta (leading dot optional)',
+    'filename': 'Regex matched against the filename (basename, case-insensitive). e.g. (crack|keygen)',
+  };
+
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function updateHint(){document.getElementById('pattern-hint').textContent=HINTS[document.getElementById('f-type').value]||''}
+
+  async function loadChecks() {
+    const resp = await fetch('/api/custom-checks');
+    const checks = await resp.json();
+    const list = document.getElementById('checks-list');
+    const empty = document.getElementById('checks-empty');
+    const count = document.getElementById('rules-count');
+
+    const total   = checks.length;
+    const enabled = checks.filter(c=>c.enabled).length;
+    count.textContent = `${total} rule${total!==1?'s':''} · ${enabled} active`;
+
+    if (!total) { empty.style.display='block'; list.innerHTML=''; return; }
+    empty.style.display='none';
+    list.innerHTML='';
+
+    checks.forEach((c,i) => {
+      const div = document.createElement('div');
+      div.className = `check-card sev-${c.severity}${c.enabled?'':' disabled'}`;
+      div.id = `cc-${c.id}`;
+      div.style.animationDelay = (i*30)+'ms';
+      div.innerHTML = `
+        <span class="sev-dot"></span>
+        <button class="check-toggle ${c.enabled?'on':''}" onclick="toggleCheck(${c.id},${!c.enabled},this)" title="${c.enabled?'Disable':'Enable'} rule"></button>
+        <div class="check-info">
+          <div class="check-name">${esc(c.name)}</div>
+          <div class="check-meta">
+            <span class="check-type">${esc(c.type)}</span>
+            <span class="check-pattern">${esc(c.pattern)}</span>
+            ${c.hit_count>0?`<span class="check-hits">${c.hit_count} hit${c.hit_count!==1?'s':''}</span>`:''}
+            ${c.description?`<span style="font-size:0.7rem;color:var(--text-dim)">${esc(c.description)}</span>`:''}
+          </div>
+        </div>
+        <button class="btn-del-check" onclick="deleteCheck(${c.id})">✕</button>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  async function saveCheck() {
+    const errEl = document.getElementById('error-msg');
+    errEl.style.display='none';
+    const body = {
+      name:        document.getElementById('f-name').value.trim(),
+      type:        document.getElementById('f-type').value,
+      pattern:     document.getElementById('f-pattern').value.trim(),
+      severity:    document.getElementById('f-severity').value,
+      description: document.getElementById('f-desc').value.trim(),
+    };
+    if (!body.name||!body.pattern) { errEl.textContent='Name and pattern are required.'; errEl.style.display='block'; return; }
+    const resp = await fetch('/api/custom-checks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const data = await resp.json();
+    if (data.error) { errEl.textContent=data.error; errEl.style.display='block'; return; }
+    document.getElementById('f-name').value='';
+    document.getElementById('f-pattern').value='';
+    document.getElementById('f-desc').value='';
+    loadChecks();
+  }
+
+  async function toggleCheck(id, enabled, btn) {
+    await fetch(`/api/custom-checks/${id}/toggle`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})});
+    btn.classList.toggle('on', enabled);
+    const card = document.getElementById(`cc-${id}`);
+    if (card) card.classList.toggle('disabled', !enabled);
+    loadChecks();
+  }
+
+  async function deleteCheck(id) {
+    if (!confirm('Delete this rule?')) return;
+    await fetch(`/api/custom-checks/${id}`, {method:'DELETE'});
+    loadChecks();
+  }
+
+  updateHint();
+  loadChecks();
+</script>
+</body>
+</html>

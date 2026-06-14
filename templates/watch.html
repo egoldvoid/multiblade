@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Watch Folders — ZipScanner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;--border:#1e2240;--border-hi:#2d3260;--text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;--accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;--c-crit:#ff3b30;--c-high:#ff6b2b;--c-med:#f59e0b;--c-low:#22d3a5;--c-safe:#22c55e;--radius:12px;--radius-sm:7px;--ease:cubic-bezier(0.16,1,0.3,1)}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6}
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px)}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-200px;left:0;animation:d1 22s ease-in-out infinite alternate}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-100px;right:0;animation:d2 26s ease-in-out infinite alternate}
+    @keyframes d1{to{transform:translate(40px,30px) scale(1.06)}} @keyframes d2{to{transform:translate(-30px,-40px) scale(1.1)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .page{position:relative;z-index:1;margin-left:60px;padding:36px 40px 60px;max-width:900px}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;margin-bottom:4px}
+    .page-sub{font-size:0.82rem;color:var(--text-dim);margin-bottom:28px;max-width:600px;line-height:1.6}
+
+    .add-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:24px}
+    .add-title{font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:10px}
+    .add-row{display:flex;gap:10px}
+    .path-input{
+      flex:1;background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-sm);
+      padding:10px 13px;color:var(--text);font-family:'Menlo','Consolas',monospace;font-size:0.83rem;
+      outline:none;transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    .path-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+    .path-input::placeholder{color:var(--text-faint);font-family:'Inter',sans-serif}
+    .btn-add{
+      padding:10px 18px;background:var(--accent);color:#fff;font-family:inherit;font-size:0.83rem;font-weight:600;
+      border:none;border-radius:var(--radius-sm);cursor:pointer;transition:opacity 0.15s;white-space:nowrap;
+    }
+    .btn-add:hover{opacity:0.85}
+    .add-hint{font-size:0.72rem;color:var(--text-faint);margin-top:8px}
+    .error-msg{font-size:0.78rem;color:var(--c-crit);margin-top:8px;display:none}
+
+    .folders-grid{display:flex;flex-direction:column;gap:10px}
+    .folders-empty{padding:48px;text-align:center;color:var(--text-faint);font-size:0.85rem}
+    .folder-card{
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+      padding:16px 20px;display:flex;align-items:center;gap:14px;
+      transition:border-color 0.15s;animation:fade-up 0.3s var(--ease) both;
+    }
+    .folder-card:hover{border-color:var(--border-hi)}
+    .folder-icon{font-size:1.4rem;flex-shrink:0}
+    .folder-info{flex:1;min-width:0}
+    .folder-path{font-family:'Menlo','Consolas',monospace;font-size:0.83rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .folder-meta{font-size:0.7rem;color:var(--text-faint);margin-top:3px}
+    .folder-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+
+    .btn-scan-now{
+      padding:7px 13px;background:var(--s2);color:var(--text-dim);font-family:inherit;font-size:0.75rem;font-weight:500;
+      border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:border-color 0.15s,color 0.15s;white-space:nowrap;
+    }
+    .btn-scan-now:hover{border-color:var(--accent);color:var(--text)}
+    .btn-scan-now:disabled{opacity:0.35;cursor:not-allowed}
+    .btn-del-folder{background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:0.85rem;padding:4px 7px;border-radius:3px;transition:color 0.15s,background 0.15s}
+    .btn-del-folder:hover{color:var(--c-crit);background:var(--s2)}
+
+    .toggle-wrap{position:relative;width:36px;height:20px;flex-shrink:0}
+    .toggle-input{opacity:0;width:0;height:0;position:absolute}
+    .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:10px;cursor:pointer;transition:background 0.2s}
+    .toggle-slider::after{content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 0.2s}
+    .toggle-input:checked + .toggle-slider{background:var(--c-low)}
+    .toggle-input:checked + .toggle-slider::after{left:19px}
+
+    /* Scan results overlay */
+    .scan-results{display:none;margin-top:16px;background:var(--s2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+    .scan-result-title{font-size:0.75rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-faint);margin-bottom:10px}
+    .sr-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.78rem}
+    .sr-item:last-child{border-bottom:none}
+    .sr-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+    .sr-score{font-family:'Syne',sans-serif;font-size:0.85rem;font-weight:700;flex-shrink:0}
+    .sr-link{font-size:0.7rem;color:var(--accent-hi);text-decoration:none;flex-shrink:0}
+    .sr-link:hover{text-decoration:underline}
+
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    @keyframes fade-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="page">
+  <div class="page-title">Watch Folders</div>
+  <div class="page-sub">Point the scanner at local directories. Trigger a batch scan of all archives found there — results are saved to History automatically. No manual upload required.</div>
+
+  <div class="add-card">
+    <div class="add-title">Add Directory</div>
+    <div class="add-row">
+      <input class="path-input" id="path-input" placeholder="/Users/you/Downloads" autocomplete="off" />
+      <button class="btn-add" onclick="addFolder()">Add Folder</button>
+    </div>
+    <div class="add-hint">Enter the absolute path to the directory you want to monitor.</div>
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+
+  <div class="folders-grid" id="folders-grid">
+    <div class="folders-empty">Loading…</div>
+  </div>
+
+  <div class="scan-results" id="scan-results">
+    <div class="scan-result-title">Scan Results</div>
+    <div id="scan-result-list"></div>
+  </div>
+</div>
+
+<script>
+  const RISK_COLOR = {none:'#373b5c',low:'#22d3a5',medium:'#f59e0b',high:'#ff6b2b',critical:'#ff3b30'};
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function timeAgo(d){if(!d)return'never';const diff=(Date.now()-new Date(d+(d.endsWith('Z')?'':'Z')).getTime())/1000;if(diff<60)return'just now';if(diff<3600)return Math.floor(diff/60)+'m ago';if(diff<86400)return Math.floor(diff/3600)+'h ago';return Math.floor(diff/86400)+'d ago'}
+
+  async function loadFolders() {
+    const resp = await fetch('/api/watch-folders');
+    const folders = await resp.json();
+    const grid = document.getElementById('folders-grid');
+    if (!folders.length) { grid.innerHTML = '<div class="folders-empty">No watched folders yet. Add one above.</div>'; return; }
+    grid.innerHTML = '';
+    folders.forEach((f,i) => {
+      const div = document.createElement('div');
+      div.className = 'folder-card';
+      div.id = `folder-${f.id}`;
+      div.style.animationDelay = (i*40)+'ms';
+      div.innerHTML = `
+        <span class="folder-icon">${f.enabled?'👁':'💤'}</span>
+        <div class="folder-info">
+          <div class="folder-path" title="${esc(f.path)}">${esc(f.path)}</div>
+          <div class="folder-meta">Last scanned: ${timeAgo(f.last_scanned_at)} · ${f.total_scanned} archive${f.total_scanned!==1?'s':''} scanned total</div>
+        </div>
+        <div class="folder-actions">
+          <label class="toggle-wrap" title="${f.enabled?'Disable':'Enable'} watching">
+            <input class="toggle-input" type="checkbox" ${f.enabled?'checked':''} onchange="toggleFolder(${f.id},this.checked)" />
+            <span class="toggle-slider"></span>
+          </label>
+          <button class="btn-scan-now" id="scan-btn-${f.id}" onclick="scanNow(${f.id},this)">Scan Now</button>
+          <button class="btn-del-folder" onclick="deleteFolder(${f.id})">✕</button>
+        </div>`;
+      grid.appendChild(div);
+    });
+  }
+
+  async function addFolder() {
+    const path = document.getElementById('path-input').value.trim();
+    const errEl = document.getElementById('error-msg');
+    errEl.style.display = 'none';
+    if (!path) return;
+    const resp = await fetch('/api/watch-folders', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({path})});
+    const data = await resp.json();
+    if (data.error) { errEl.textContent = data.error; errEl.style.display='block'; return; }
+    document.getElementById('path-input').value = '';
+    loadFolders();
+  }
+
+  async function toggleFolder(id, enabled) {
+    await fetch(`/api/watch-folders/${id}/toggle`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled})});
+    loadFolders();
+  }
+
+  async function deleteFolder(id) {
+    if (!confirm('Remove this watched folder?')) return;
+    await fetch(`/api/watch-folders/${id}`, {method:'DELETE'});
+    loadFolders();
+  }
+
+  async function scanNow(id, btn) {
+    btn.disabled = true; btn.textContent = 'Scanning…';
+    document.getElementById('scan-results').style.display='none';
+    const resp = await fetch(`/api/watch-folders/${id}/scan`, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+    const data = await resp.json();
+    btn.disabled = false; btn.textContent = 'Scan Now';
+    loadFolders();
+
+    if (data.results?.length) {
+      const resSec  = document.getElementById('scan-results');
+      const resList = document.getElementById('scan-result-list');
+      resSec.style.display = 'block';
+      resList.innerHTML = data.results.map(r => {
+        if (r.error) return `<div class="sr-item"><span class="sr-name">${esc(r.filename)}</span><span style="color:var(--c-crit);font-size:0.75rem">Error: ${esc(r.error)}</span></div>`;
+        const color = r.safe ? 'var(--c-safe)' : 'var(--c-high)';
+        return `<div class="sr-item">
+          <span class="sr-name">${esc(r.filename)}</span>
+          <span class="sr-score" style="color:${color}">${r.risk_score}</span>
+          <a class="sr-link" href="/history#scan-${r.scan_id}">View →</a>
+        </div>`;
+      }).join('');
+      resSec.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+  }
+
+  document.getElementById('path-input').addEventListener('keydown', e => { if(e.key==='Enter') addFolder(); });
+  loadFolders();
+</script>
+</body>
+</html>
