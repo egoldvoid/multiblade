@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ tool.name }} — Vantage Generators</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --tc:{{ tool.color }};
+      --radius:12px;--radius-sm:7px;--ease:cubic-bezier(0.16,1,0.3,1);
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px)}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-200px;left:0;animation:d1 22s ease-in-out infinite alternate}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,var(--tc)0a,transparent 70%);bottom:-100px;right:0;animation:d2 26s ease-in-out infinite alternate}
+    @keyframes d1{to{transform:translate(40px,30px) scale(1.06)}} @keyframes d2{to{transform:translate(-30px,-40px) scale(1.1)}}
+
+    /* Layout */
+    .page { position:relative;z-index:1;display:grid;grid-template-columns:420px 1fr;min-height:100vh; }
+    .form-col { overflow-y:auto;max-height:100vh;border-right:1px solid var(--border); }
+    .preview-col { position:sticky;top:0;height:100vh;overflow-y:auto;padding:28px 32px 60px;display:flex;flex-direction:column; }
+
+    /* Form header */
+    .form-header { padding:20px 24px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10; }
+    .back-row { display:flex;align-items:center;gap:10px;margin-bottom:10px; }
+    .back-link { color:var(--text-faint);text-decoration:none;font-size:0.75rem;transition:color 0.15s; }
+    .back-link:hover { color:var(--text-dim); }
+    .tool-header { display:flex;align-items:center;gap:12px; }
+    .tool-icon-badge {
+      width:40px;height:40px;border-radius:10px;
+      background:var(--tc)18;border:1px solid var(--tc)40;
+      display:grid;place-items:center;font-size:1.2rem;flex-shrink:0;
+    }
+    .tool-name-big { font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;letter-spacing:0.04em; }
+    .tool-full-name { font-size:0.7rem;color:var(--text-faint);margin-top:1px; }
+    .cat-badge {
+      font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+      padding:2px 8px;border-radius:4px;
+      background:var(--tc)14;color:var(--tc);margin-left:auto;flex-shrink:0;
+    }
+    .tool-desc-header { font-size:0.78rem;color:var(--text-dim);margin-top:8px;line-height:1.5; }
+
+    /* Preset row */
+    .presets-row { display:flex;gap:5px;flex-wrap:wrap;padding:10px 24px;border-bottom:1px solid var(--border); }
+    .preset-btn {
+      padding:4px 10px;font-family:inherit;font-size:0.7rem;font-weight:600;
+      background:var(--s2);border:1px solid var(--border);border-radius:999px;
+      color:var(--text-dim);cursor:pointer;transition:all 0.15s;white-space:nowrap;
+    }
+    .preset-btn:hover { border-color:var(--tc);color:var(--tc); }
+
+    /* Form sections */
+    .form-section { border-bottom:1px solid var(--border); }
+    .section-toggle {
+      display:flex;align-items:center;gap:8px;padding:11px 24px;
+      cursor:pointer;user-select:none;transition:background 0.12s;
+      width:100%;background:none;border:none;color:inherit;font-family:inherit;text-align:left;
+    }
+    .section-toggle:hover { background:var(--s1); }
+    .sec-icon { font-size:0.85rem;flex-shrink:0;width:20px;text-align:center; }
+    .sec-label { font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);flex:1; }
+    .sec-chev { font-size:0.6rem;color:var(--text-faint);transition:transform 0.2s; }
+    .form-section.open .sec-chev { transform:rotate(180deg); }
+    .section-body { display:none;padding:4px 24px 14px; }
+    .form-section.open .section-body { display:block; }
+
+    /* Fields */
+    .field { margin-bottom:11px; }
+    .field:last-child { margin-bottom:0; }
+    .field-label { font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:5px;display:block; }
+    .field-input, .field-select, .field-textarea {
+      width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);
+      padding:8px 11px;color:var(--text);font-family:inherit;font-size:0.82rem;outline:none;
+      transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    .field-input:focus,.field-select:focus,.field-textarea:focus { border-color:var(--tc);box-shadow:0 0 0 3px var(--tc)22; }
+    .field-input::placeholder,.field-textarea::placeholder { color:var(--text-faint); }
+    .field-select {
+      cursor:pointer;appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7099'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;
+    }
+    .field-textarea { resize:vertical;min-height:72px;font-family:'Menlo','Consolas',monospace;font-size:0.78rem; }
+
+    /* Toggle switch */
+    .toggle-row { display:flex;align-items:center;justify-content:space-between;padding:5px 0; }
+    .toggle-label { font-size:0.8rem;color:var(--text-dim);flex:1;padding-right:12px; }
+    .toggle-flag { font-size:0.65rem;color:var(--text-faint);font-family:'Menlo','Consolas',monospace;margin-left:4px; }
+    .toggle-wrap { position:relative;width:36px;height:20px;flex-shrink:0; }
+    .toggle-input { opacity:0;width:0;height:0;position:absolute; }
+    .toggle-slider { position:absolute;inset:0;background:var(--border);border-radius:10px;cursor:pointer;transition:background 0.2s; }
+    .toggle-slider::after { content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 0.2s; }
+    .toggle-input:checked + .toggle-slider { background:var(--tc); }
+    .toggle-input:checked + .toggle-slider::after { left:19px; }
+
+    /* ── PREVIEW COLUMN ─────────────────────────────────────────── */
+    .preview-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0; }
+    .preview-title { font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;letter-spacing:0.06em; }
+    .format-toggle { display:flex;gap:4px; }
+    .fmt-btn {
+      padding:5px 10px;font-family:inherit;font-size:0.72rem;font-weight:600;
+      background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);
+      color:var(--text-dim);cursor:pointer;transition:all 0.15s;
+    }
+    .fmt-btn.active { background:var(--s2);border-color:var(--tc);color:var(--text); }
+    .fmt-btn:hover:not(.active) { border-color:var(--border-hi);color:var(--text); }
+
+    /* Editable command textarea */
+    .cmd-textarea {
+      width:100%;flex:1;min-height:140px;
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:16px 18px;color:var(--text);
+      font-family:'Menlo','Consolas','Monaco',monospace;font-size:0.8rem;line-height:1.8;
+      resize:vertical;outline:none;tab-size:2;
+      white-space:pre;overflow-x:auto;
+      transition:border-color 0.2s,box-shadow 0.2s;
+    }
+    .cmd-textarea:focus { border-color:var(--tc);box-shadow:0 0 0 3px var(--tc)22; }
+    .cmd-textarea.manual-mode { border-color:#f59e0b;box-shadow:0 0 0 2px #f59e0b18; }
+
+    /* Toolbar */
+    .cmd-toolbar { display:flex;align-items:center;gap:8px;padding:10px 0 14px;flex-shrink:0;flex-wrap:wrap; }
+    .sync-indicator {
+      display:flex;align-items:center;gap:5px;
+      font-size:0.7rem;font-weight:600;letter-spacing:0.06em;
+      padding:4px 10px;border-radius:999px;border:1px solid;
+      cursor:pointer;transition:all 0.15s;white-space:nowrap;
+    }
+    .sync-indicator.auto { background:#22d3a515;border-color:#22d3a540;color:#22d3a5; }
+    .sync-indicator.auto:hover { background:#22d3a522; }
+    .sync-indicator.manual { background:#f59e0b15;border-color:#f59e0b40;color:#f59e0b; }
+    .sync-dot { width:6px;height:6px;border-radius:50%;flex-shrink:0; }
+    .auto .sync-dot { background:#22d3a5;box-shadow:0 0 5px #22d3a5; }
+    .manual .sync-dot { background:#f59e0b;box-shadow:0 0 5px #f59e0b; }
+    .btn-copy {
+      padding:8px 16px;background:var(--tc);color:#fff;
+      font-family:inherit;font-size:0.8rem;font-weight:600;letter-spacing:0.03em;
+      border:none;border-radius:var(--radius-sm);cursor:pointer;
+      box-shadow:0 4px 14px var(--tc)30;transition:opacity 0.15s,transform 0.15s;
+    }
+    .btn-copy:hover { opacity:0.88;transform:translateY(-1px); }
+    .btn-plain {
+      padding:8px 12px;background:var(--s2);color:var(--text-dim);
+      font-family:inherit;font-size:0.78rem;font-weight:500;
+      border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;
+      transition:border-color 0.15s,color 0.15s;
+    }
+    .btn-plain:hover { border-color:var(--tc);color:var(--text); }
+    .copy-ok { font-size:0.72rem;color:#22c55e;opacity:0;transition:opacity 0.3s;white-space:nowrap; }
+
+    /* Breakdown */
+    .breakdown-section { flex-shrink:0;margin-top:6px; }
+    .breakdown-hdr { display:flex;align-items:center;gap:8px;margin-bottom:8px; }
+    .breakdown-title { font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint); }
+    .breakdown-line { flex:1;height:1px;background:var(--border); }
+    .breakdown-list { display:flex;flex-direction:column;gap:4px; }
+    .bd-row {
+      display:flex;align-items:baseline;gap:10px;padding:6px 10px;
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.73rem;
+    }
+    .bd-flag { font-family:'Menlo','Consolas',monospace;color:var(--tc);flex-shrink:0;font-weight:600;min-width:90px; }
+    .bd-desc { color:var(--text-dim);line-height:1.4; }
+    .bd-empty { font-size:0.77rem;color:var(--text-faint);padding:10px 0;text-align:center; }
+
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    @keyframes fade-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  </style>
+</head>
+<body>
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+
+<!-- Pass tool data to JS as JSON -->
+<script>
+const TOOL = {{ tool | tojson }};
+</script>
+
+<div class="page">
+
+  <!-- ═════════════ FORM COLUMN ═════════════ -->
+  <div class="form-col">
+
+    <div class="form-header">
+      <div class="back-row">
+        <a href="/generators" class="back-link">← All generators</a>
+        <span class="cat-badge">{{ tool.category }}</span>
+      </div>
+      <div class="tool-header">
+        <div class="tool-icon-badge">{{ tool.icon }}</div>
+        <div>
+          <div class="tool-name-big">{{ tool.name }}</div>
+          {% if tool.full_name != tool.name %}
+          <div class="tool-full-name">{{ tool.full_name }}</div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="tool-desc-header">{{ tool.desc }}</div>
+    </div>
+
+    {% if tool.presets %}
+    <div class="presets-row">
+      {% for p in tool.presets %}
+      <button class="preset-btn" onclick="applyPreset({{ loop.index0 }})">{{ p.label }}</button>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div id="form-sections">
+      {% for sec in tool.sections %}
+      <div class="form-section open" id="sec-{{ sec.id }}">
+        <button class="section-toggle" onclick="document.getElementById('sec-{{ sec.id }}').classList.toggle('open')">
+          <span class="sec-icon">{{ sec.icon }}</span>
+          <span class="sec-label">{{ sec.label }}</span>
+          <span class="sec-chev">▼</span>
+        </button>
+        <div class="section-body">
+          {% for field in sec.fields %}
+            {% if field.type == 'checkbox' %}
+            <div class="toggle-row">
+              <span class="toggle-label">
+                {{ field.doc }}
+                <span class="toggle-flag">{{ field.flag }}</span>
+              </span>
+              <label class="toggle-wrap">
+                <input class="toggle-input" type="checkbox" id="f_{{ field.id }}" onchange="update()" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            {% elif field.type == 'select' %}
+            <div class="field">
+              <label class="field-label" for="f_{{ field.id }}">{{ field.label }}</label>
+              <select class="field-select" id="f_{{ field.id }}" onchange="update()">
+                {% for opt in field.options %}
+                <option value="{{ opt.value }}">{{ opt.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% elif field.type == 'textarea' %}
+            <div class="field">
+              <label class="field-label" for="f_{{ field.id }}">{{ field.label }}</label>
+              <textarea class="field-textarea" id="f_{{ field.id }}" placeholder="{{ field.placeholder }}" oninput="update()"></textarea>
+            </div>
+            {% else %}
+            <div class="field">
+              <label class="field-label" for="f_{{ field.id }}">{{ field.label }}</label>
+              <input class="field-input" id="f_{{ field.id }}" type="{{ field.type }}"
+                     placeholder="{{ field.placeholder }}" oninput="update()" />
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div><!-- /form-col -->
+
+
+  <!-- ═════════════ PREVIEW COLUMN ═════════════ -->
+  <div class="preview-col">
+
+    <div class="preview-header">
+      <div class="preview-title">Command</div>
+      <div class="format-toggle">
+        <button class="fmt-btn active" id="fmt-multi"  onclick="setFmt('multi')">Multi-line</button>
+        <button class="fmt-btn"        id="fmt-single" onclick="setFmt('single')">One-liner</button>
+      </div>
+    </div>
+
+    <textarea class="cmd-textarea" id="cmd-output"
+      spellcheck="false" autocomplete="off" autocorrect="off"
+      placeholder="Fill in the form on the left…"></textarea>
+
+    <div class="cmd-toolbar">
+      <span class="sync-indicator auto" id="sync-indicator" onclick="toggleLock()" title="Click to toggle auto-sync">
+        <span class="sync-dot"></span>
+        <span id="sync-label">Auto-sync</span>
+      </span>
+      <button class="btn-copy"  onclick="copyCmd()">Copy</button>
+      <button class="btn-plain" onclick="copyOneLiner()">Copy one-liner</button>
+      <span class="copy-ok" id="copy-ok">Copied!</span>
+    </div>
+
+    <div class="breakdown-section">
+      <div class="breakdown-hdr">
+        <span class="breakdown-title">Flag Reference</span>
+        <div class="breakdown-line"></div>
+      </div>
+      <div class="breakdown-list" id="breakdown">
+        <div class="bd-empty">Fill in the form to see flag explanations</div>
+      </div>
+    </div>
+
+  </div><!-- /preview-col -->
+
+</div><!-- /page -->
+
+<script>
+'use strict';
+
+let fmt        = 'multi';
+let manualMode = false;
+
+/* ── Sync toggle ─────────────────────────────────────────────────────────── */
+document.getElementById('cmd-output').addEventListener('input', () => {
+  if (!manualMode) { manualMode = true; refreshSync(); }
+});
+
+function toggleLock() {
+  manualMode = !manualMode;
+  if (!manualMode) writeCmd(buildCommand());
+  refreshSync();
+}
+
+function refreshSync() {
+  const el = document.getElementById('sync-indicator');
+  el.className = 'sync-indicator ' + (manualMode ? 'manual' : 'auto');
+  document.getElementById('sync-label').textContent = manualMode ? 'Manual — click to re-sync' : 'Auto-sync';
+  document.getElementById('cmd-output').classList.toggle('manual-mode', manualMode);
+}
+
+/* ── Field value reader ──────────────────────────────────────────────────── */
+function fieldVal(field) {
+  const el = document.getElementById('f_' + field.id);
+  if (!el) return null;
+  if (field.type === 'checkbox') return el.checked ? true : false;
+  return el.value;
+}
+
+function setFieldVal(field, val) {
+  const el = document.getElementById('f_' + field.id);
+  if (!el) return;
+  if (field.type === 'checkbox') { el.checked = !!val; }
+  else { el.value = val || ''; }
+}
+
+/* ── Build command ───────────────────────────────────────────────────────── */
+function sq(s) { return String(s || '').replace(/'/g, "'\\''"); }
+
+function buildCommand() {
+  const args = [];
+  let positional = null;
+
+  for (const sec of TOOL.sections) {
+    for (const field of sec.fields) {
+      const v = fieldVal(field);
+      if (v === null || v === '' || v === false) continue;
+
+      if (field.position === 'last') {
+        if (v && String(v).trim()) positional = String(v).trim();
+        continue;
+      }
+
+      if (field.type === 'checkbox') {
+        if (v) args.push(field.flag);
+      } else {
+        const val = String(v).trim();
+        if (!val) continue;
+        if (!field.flag) {
+          args.push(val);
+        } else {
+          // Quote if contains spaces or shell-special chars
+          const needsQuote = /[\s'"\\$;&|<>(){}!#*?]/.test(val);
+          const formatted  = needsQuote ? `'${sq(val)}'` : val;
+          args.push(`${field.flag} ${formatted}`);
+        }
+      }
+    }
+  }
+
+  if (positional) {
+    const needsQuote = /[\s'"\\$;&|<>(){}!#*?]/.test(positional);
+    args.push(needsQuote ? `'${sq(positional)}'` : positional);
+  }
+
+  if (!args.length) return TOOL.name;
+
+  const sep = fmt === 'multi' ? ' \\\n  ' : ' ';
+  return [TOOL.name, ...args].join(sep);
+}
+
+/* ── Write to textarea ───────────────────────────────────────────────────── */
+function writeCmd(cmd) {
+  const ta = document.getElementById('cmd-output');
+  if (ta) ta.value = cmd;
+}
+
+/* ── Update (form → textarea + breakdown) ───────────────────────────────── */
+function update() {
+  if (!manualMode) writeCmd(buildCommand());
+  renderBreakdown();
+}
+
+function renderBreakdown() {
+  const bd   = document.getElementById('breakdown');
+  const rows = [];
+  const seen = new Set();
+
+  for (const sec of TOOL.sections) {
+    for (const field of sec.fields) {
+      if (!field.flag || field.position === 'last') continue;
+      if (seen.has(field.flag)) continue;
+      const v = fieldVal(field);
+      if (v === null || v === '' || v === false) continue;
+      seen.add(field.flag);
+      rows.push({ flag: field.flag, doc: field.doc });
+    }
+  }
+
+  if (!rows.length) {
+    bd.innerHTML = '<div class="bd-empty">Fill in the form to see flag explanations</div>';
+    return;
+  }
+  bd.innerHTML = rows.map(r =>
+    `<div class="bd-row"><span class="bd-flag">${esc(r.flag)}</span><span class="bd-desc">${esc(r.doc)}</span></div>`
+  ).join('');
+}
+
+/* ── Format toggle ───────────────────────────────────────────────────────── */
+function setFmt(f) {
+  fmt = f;
+  document.getElementById('fmt-multi').classList.toggle('active',  f === 'multi');
+  document.getElementById('fmt-single').classList.toggle('active', f === 'single');
+  if (!manualMode) writeCmd(buildCommand());
+}
+
+/* ── Presets ─────────────────────────────────────────────────────────────── */
+function applyPreset(idx) {
+  const preset = TOOL.presets[idx];
+  if (!preset) return;
+  for (const sec of TOOL.sections) {
+    for (const field of sec.fields) {
+      const v = preset.values[field.id];
+      if (v !== undefined) setFieldVal(field, v);
+      else if (field.type !== 'checkbox') setFieldVal(field, '');
+      else setFieldVal(field, false);
+    }
+  }
+  manualMode = false;
+  refreshSync();
+  update();
+}
+
+/* ── Copy ────────────────────────────────────────────────────────────────── */
+function copyCmd() {
+  navigator.clipboard?.writeText(document.getElementById('cmd-output').value);
+  flash();
+}
+function copyOneLiner() {
+  const text = document.getElementById('cmd-output').value.replace(/ \\\n\s*/g, ' ');
+  navigator.clipboard?.writeText(text);
+  flash();
+}
+function flash() {
+  const el = document.getElementById('copy-ok');
+  el.style.opacity = '1';
+  setTimeout(() => el.style.opacity = '0', 2000);
+}
+
+/* ── Keyboard shortcut ───────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); copyCmd(); }
+});
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── Init ────────────────────────────────────────────────────────────────── */
+update();
+</script>
+</body>
+</html>

@@ -11,6 +11,7 @@ from zip_analyzer import ZipAnalyzer
 from zip_analyzer.models import Severity
 from zip_analyzer.tar_analyzer import TarAnalyzer
 from zip_analyzer import database, stix_export
+from zip_analyzer.tool_data import get_all_tools, get_tool, get_categories
 
 try:
     from werkzeug.serving import WSGIRequestHandler as _WRH
@@ -130,9 +131,29 @@ def handle_exc(_e):
 # ── Page routes ───────────────────────────────────────────────────────────────
 
 @app.route("/")
-def hub():
+def landing():
+    return render_template("landing.html")
+
+
+@app.route("/platform")
+def platform_hub():
     stats = database.scan_stats()
     return render_template("hub.html", stats=stats)
+
+
+@app.route("/generators")
+def generators():
+    tools      = get_all_tools()
+    categories = get_categories()
+    return render_template("generators.html", tools=tools, categories=categories)
+
+
+@app.route("/generators/<slug>")
+def generator_tool(slug):
+    tool = get_tool(slug)
+    if not tool:
+        return jsonify({"error": "Tool not found"}), 404
+    return render_template("generator_tool.html", tool=tool, active_page="generators")
 
 
 @app.route("/analyzer")

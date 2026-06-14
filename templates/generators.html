@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Command Generators — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;--radius-sm:7px;--ease:cubic-bezier(0.16,1,0.3,1);
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+
+    .bg-layer { position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden; }
+    .blob { position:absolute;border-radius:50%;filter:blur(100px); }
+    .blob-1 { width:800px;height:800px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-300px;left:-150px;animation:d1 24s ease-in-out infinite alternate; }
+    .blob-2 { width:600px;height:600px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-200px;right:-100px;animation:d2 28s ease-in-out infinite alternate; }
+    @keyframes d1{to{transform:translate(50px,40px) scale(1.07)}} @keyframes d2{to{transform:translate(-40px,-50px) scale(1.1)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    /* Page layout */
+    .page { position:relative;z-index:1;padding:0 0 80px; }
+
+    /* Sticky header */
+    .page-header {
+      position:sticky;top:0;z-index:50;
+      background:linear-gradient(180deg, var(--bg) 80%, transparent);
+      padding:24px 40px 16px;
+    }
+    .header-top { display:flex;align-items:center;gap:16px;margin-bottom:16px; }
+    .back-link {
+      display:inline-flex;align-items:center;gap:6px;
+      text-decoration:none;color:var(--text-faint);font-size:0.78rem;
+      transition:color 0.15s;flex-shrink:0;
+    }
+    .back-link:hover { color:var(--text-dim); }
+    .page-title { font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em; }
+    .result-count { font-size:0.75rem;color:var(--text-faint);margin-left:auto;white-space:nowrap; }
+
+    /* Search row */
+    .search-row { display:flex;gap:10px;align-items:center;flex-wrap:wrap; }
+    .search-wrap { flex:1;min-width:200px;position:relative;max-width:480px; }
+    .search-icon { position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:0.8rem;color:var(--text-faint);pointer-events:none; }
+    .search-input {
+      width:100%;background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:10px 14px 10px 36px;color:var(--text);font-family:inherit;font-size:0.88rem;
+      outline:none;transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    .search-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow); }
+    .search-input::placeholder { color:var(--text-faint); }
+
+    /* Category filter chips */
+    .cat-chips { display:flex;gap:6px;flex-wrap:wrap; }
+    .cat-chip {
+      padding:5px 13px;font-family:inherit;font-size:0.72rem;font-weight:600;
+      background:transparent;border:1px solid var(--border);border-radius:999px;
+      color:var(--text-dim);cursor:pointer;transition:all 0.15s;white-space:nowrap;
+    }
+    .cat-chip:hover { border-color:var(--border-hi);color:var(--text); }
+    .cat-chip.active { background:var(--s2);border-color:var(--accent);color:var(--text); }
+
+    /* Tool grid */
+    .tool-grid {
+      display:grid;
+      grid-template-columns:repeat(4, 1fr);
+      gap:14px;
+      padding:16px 40px 0;
+    }
+    @media(max-width:1100px){.tool-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:800px) {.tool-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:520px) {.tool-grid{grid-template-columns:1fr}}
+
+    /* Tool card */
+    .tool-card {
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+      padding:18px 18px 16px;text-decoration:none;color:inherit;
+      display:flex;flex-direction:column;gap:10px;
+      position:relative;overflow:hidden;
+      transition:border-color 0.2s,box-shadow 0.2s,transform 0.18s;
+      animation:rise 0.4s var(--ease) both;
+    }
+    .tool-card::before {
+      content:'';position:absolute;inset:0;border-radius:inherit;
+      background:radial-gradient(ellipse 80% 55% at 50% 0%,var(--tc,#6366f1)18,transparent 70%);
+      opacity:0;transition:opacity 0.25s;
+    }
+    .tool-card:hover { border-color:var(--tc,var(--accent));transform:translateY(-2px);box-shadow:0 10px 36px -12px var(--tc,var(--accent))38; }
+    .tool-card:hover::before { opacity:1; }
+    .tool-card.hidden { display:none; }
+
+    /* Tier badge */
+    .tier-badge {
+      position:absolute;top:12px;right:12px;
+      font-size:0.58rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+      padding:2px 6px;border-radius:4px;
+    }
+    .tier-1 { background:#6366f120;color:var(--accent-hi); }
+    .tier-2 { background:#60a5fa18;color:#60a5fa; }
+    .tier-3 { background:#6b709918;color:var(--text-faint); }
+
+    .card-top { display:flex;align-items:center;gap:10px;position:relative;z-index:1; }
+    .card-icon {
+      width:36px;height:36px;border-radius:9px;
+      background:var(--tc,var(--accent))18;
+      border:1px solid var(--tc,var(--accent))35;
+      display:grid;place-items:center;font-size:1rem;flex-shrink:0;
+    }
+    .card-name { font-family:'Syne',sans-serif;font-size:0.9rem;font-weight:800;color:var(--text); }
+    .card-full { font-size:0.68rem;color:var(--text-faint);margin-top:1px; }
+    .cat-tag {
+      font-size:0.62rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;
+      padding:2px 7px;border-radius:4px;
+      background:var(--tc,var(--accent))14;
+      color:var(--tc,var(--accent));
+      align-self:flex-start;position:relative;z-index:1;
+    }
+    .card-desc { font-size:0.76rem;color:var(--text-dim);line-height:1.55;position:relative;z-index:1;flex:1; }
+    .card-footer {
+      display:flex;align-items:center;justify-content:space-between;
+      padding-top:10px;border-top:1px solid var(--border);position:relative;z-index:1;
+    }
+    .card-sections { font-size:0.65rem;color:var(--text-faint); }
+    .card-arrow { font-size:0.75rem;color:var(--text-faint);transition:transform 0.18s,color 0.18s; }
+    .tool-card:hover .card-arrow { transform:translateX(3px);color:var(--tc,var(--accent)); }
+
+    /* Empty state */
+    .empty-state { padding:80px 40px;text-align:center;color:var(--text-faint); }
+    .empty-icon { font-size:3rem;opacity:0.3;margin-bottom:12px; }
+
+    @keyframes rise { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  </style>
+</head>
+<body>
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="page">
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/" class="back-link">← Vantage</a>
+      <div class="page-title">Command Generators</div>
+      <div class="result-count" id="result-count"></div>
+    </div>
+    <div class="search-row">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="search" type="text" placeholder="Search tools… nmap, ffuf, nuclei" autocomplete="off" />
+      </div>
+      <div class="cat-chips" id="cat-chips">
+        <button class="cat-chip active" data-cat="">All</button>
+        {% for cat in categories %}
+        <button class="cat-chip" data-cat="{{ cat }}">{{ cat }}</button>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="tool-grid" id="tool-grid">
+    {% for tool in tools %}
+    <a
+      class="tool-card"
+      href="/generators/{{ tool.slug }}"
+      style="--tc:{{ tool.color }}"
+      data-name="{{ tool.name | lower }}"
+      data-full="{{ tool.full_name | lower }}"
+      data-desc="{{ tool.desc | lower }}"
+      data-cat="{{ tool.category }}"
+      data-tier="{{ tool.tier }}"
+    >
+      <span class="tier-badge tier-{{ tool.tier }}">T{{ tool.tier }}</span>
+      <div class="card-top">
+        <div class="card-icon">{{ tool.icon }}</div>
+        <div>
+          <div class="card-name">{{ tool.name }}</div>
+          {% if tool.full_name != tool.name %}
+          <div class="card-full">{{ tool.full_name }}</div>
+          {% endif %}
+        </div>
+      </div>
+      <span class="cat-tag">{{ tool.category }}</span>
+      <div class="card-desc">{{ tool.desc }}</div>
+      <div class="card-footer">
+        <span class="card-sections">{{ tool.sections | length }} sections · {{ tool.presets | length }} presets</span>
+        <span class="card-arrow">→</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <div class="empty-state" id="empty-state" style="display:none">
+    <div class="empty-icon">🔍</div>
+    <p>No tools match your search.</p>
+  </div>
+</div>
+
+<script>
+  const cards   = Array.from(document.querySelectorAll('.tool-card'));
+  const search  = document.getElementById('search');
+  const chips   = document.querySelectorAll('.cat-chip');
+  const countEl = document.getElementById('result-count');
+  const emptyEl = document.getElementById('empty-state');
+  let activeCat = '';
+
+  function filter() {
+    const q   = search.value.toLowerCase().trim();
+    let shown = 0;
+    cards.forEach((c, i) => {
+      const matchQ   = !q || c.dataset.name.includes(q) || c.dataset.full.includes(q) || c.dataset.desc.includes(q);
+      const matchCat = !activeCat || c.dataset.cat === activeCat;
+      const visible  = matchQ && matchCat;
+      c.classList.toggle('hidden', !visible);
+      if (visible) { c.style.animationDelay = (shown++ * 20) + 'ms'; }
+    });
+    countEl.textContent = shown + ' of ' + cards.length + ' tools';
+    emptyEl.style.display = shown === 0 ? 'block' : 'none';
+  }
+
+  search.addEventListener('input', filter);
+
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeCat = chip.dataset.cat;
+      filter();
+    });
+  });
+
+  // Keyboard shortcut: / to focus search
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement !== search) {
+      e.preventDefault(); search.focus();
+    }
+  });
+
+  filter(); // initialise count
+</script>
+</body>
+</html>
