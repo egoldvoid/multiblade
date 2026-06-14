@@ -14,7 +14,7 @@ from zip_analyzer import database, stix_export
 
 try:
     from werkzeug.serving import WSGIRequestHandler as _WRH
-    _WRH.version_string = lambda self: "zip-analyzer"
+    _WRH.version_string = lambda self: "vantage"
 except Exception:
     pass
 

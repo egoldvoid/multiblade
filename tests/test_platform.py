@@ -1,4 +1,4 @@
-"""Tests for the ZipScanner platform: routes, APIs, database, and custom checks."""
+"""Tests for the Vantage platform: routes, APIs, database, and custom checks."""
 
 import io
 import json

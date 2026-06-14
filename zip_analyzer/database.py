@@ -1,11 +1,11 @@
-"""SQLite persistence layer for ZipScanner platform."""
+"""SQLite persistence layer for Vantage platform."""
 import json
 import sqlite3
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-_DB_PATH = Path(__file__).parent.parent / "data" / "zipscanner.db"
+_DB_PATH = Path(__file__).parent.parent / "data" / "vantage.db"
 _lock = threading.Lock()
 _conn: Optional[sqlite3.Connection] = None
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start the ZIP Analyzer server and guarantee port 5002 is freed on exit.
+# Start the Vantage server and guarantee port 5002 is freed on exit.
 # Usage: ./run.sh
 
 PORT=5002
