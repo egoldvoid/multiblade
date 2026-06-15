@@ -119,6 +119,13 @@
     }
     .fmt-btn.active { background:var(--s2);border-color:var(--tc);color:var(--text); }
     .fmt-btn:hover:not(.active) { border-color:var(--border-hi);color:var(--text); }
+    .share-btn {
+      padding:5px 11px;font-family:inherit;font-size:0.72rem;font-weight:600;
+      background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);
+      color:var(--text-dim);cursor:pointer;transition:all 0.15s;margin-left:8px;
+    }
+    .share-btn:hover { border-color:var(--tc);color:var(--text); }
+    .share-btn.flashed { border-color:var(--tc);color:var(--tc); }
 
     /* Editable command textarea */
     .cmd-textarea {
@@ -276,9 +283,12 @@ const TOOL = {{ tool | tojson }};
 
     <div class="preview-header">
       <div class="preview-title">Command</div>
-      <div class="format-toggle">
-        <button class="fmt-btn active" id="fmt-multi"  onclick="setFmt('multi')">Multi-line</button>
-        <button class="fmt-btn"        id="fmt-single" onclick="setFmt('single')">One-liner</button>
+      <div style="display:flex;align-items:center">
+        <div class="format-toggle">
+          <button class="fmt-btn active" id="fmt-multi"  onclick="setFmt('multi')">Multi-line</button>
+          <button class="fmt-btn"        id="fmt-single" onclick="setFmt('single')">One-liner</button>
+        </div>
+        <button class="share-btn" id="share-btn" onclick="shareConfig()" title="Copy shareable link">Share</button>
       </div>
     </div>
 
@@ -480,6 +490,46 @@ document.addEventListener('keydown', e => {
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+/* ── Share / permalink ───────────────────────────────────────────────────── */
+function getFormState() {
+  const state = {};
+  document.querySelectorAll('[id^="f_"]').forEach(el => {
+    const key = el.id.slice(2);
+    if (el.type === 'checkbox') { if (el.checked) state[key] = true; }
+    else if (el.value)          { state[key] = el.value; }
+  });
+  return state;
+}
+
+function setFormState(state) {
+  Object.entries(state).forEach(([key, val]) => {
+    const el = document.getElementById('f_' + key);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = !!val;
+    else el.value = val;
+  });
+  update();
+}
+
+function shareConfig() {
+  const encoded = btoa(JSON.stringify(getFormState()));
+  const url = window.location.origin + window.location.pathname + '?c=' + encodeURIComponent(encoded);
+  history.replaceState({}, '', url);
+  navigator.clipboard?.writeText(url);
+  const btn = document.getElementById('share-btn');
+  btn.textContent = 'Copied!';
+  btn.classList.add('flashed');
+  setTimeout(() => { btn.textContent = 'Share'; btn.classList.remove('flashed'); }, 2000);
+}
+
+// Restore state from URL on load
+(function() {
+  const c = new URLSearchParams(window.location.search).get('c');
+  if (c) {
+    try { setFormState(JSON.parse(atob(decodeURIComponent(c)))); } catch(e) {}
+  }
+}());
 
 /* ── Recently visited tracking ───────────────────────────────────────────── */
 (function() {
