@@ -42,6 +42,12 @@
     .back-link:hover { color:var(--text-dim); }
     .page-title { font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em; }
     .result-count { font-size:0.75rem;color:var(--text-faint);margin-left:auto;white-space:nowrap; }
+    .kb-hint { font-size:0.65rem;color:var(--text-faint);display:flex;gap:10px;flex-wrap:wrap; }
+    .kb-hint kbd {
+      font-family:'Menlo','Consolas',monospace;font-size:0.65rem;
+      background:var(--s2);border:1px solid var(--border);border-radius:4px;
+      padding:1px 5px;color:var(--text-dim);
+    }
 
     /* Search row */
     .search-row { display:flex;gap:10px;align-items:center;flex-wrap:wrap; }
@@ -177,6 +183,10 @@
       <a href="/" class="back-link">← Vantage</a>
       <div class="page-title">Command Generators</div>
       <div class="result-count" id="result-count"></div>
+      <div class="kb-hint">
+        <span><kbd>/</kbd> search</span>
+        <span><kbd>Esc</kbd> reset</span>
+      </div>
     </div>
     <div class="search-row">
       <div class="search-wrap">
@@ -338,9 +348,26 @@
     });
   });
 
+  function resetFilters() {
+    search.value = '';
+    chips.forEach(c => c.classList.remove('active'));
+    document.querySelector('.cat-chip[data-cat=""]').classList.add('active');
+    activeCat = '';
+    tierChips.forEach(c => c.classList.remove('active'));
+    document.querySelector('.tier-chip[data-tier=""]').classList.add('active');
+    activeTier = '';
+    filter();
+  }
+
   document.addEventListener('keydown', e => {
     if (e.key === '/' && document.activeElement !== search) {
       e.preventDefault(); search.focus();
+    } else if (e.key === 'Escape') {
+      if (search.value || activeCat || activeTier) {
+        e.preventDefault(); resetFilters();
+      } else if (document.activeElement === search) {
+        search.blur();
+      }
     }
   });
 
