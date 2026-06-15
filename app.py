@@ -57,6 +57,10 @@ def _security_headers(response):
         "connect-src 'self'; "
         "frame-ancestors 'none'"
     )
+    response.headers["Permissions-Policy"] = (
+        "camera=(), microphone=(), geolocation=(), payment=()"
+    )
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     return response
 
 
@@ -107,11 +111,28 @@ def result_to_json(result, display_filename: str, filesize: int) -> dict:
 
 
 def _csrf_check():
-    origin  = request.headers.get("Origin", "")
+    """CSRF guard for this localhost-only tool.
+
+    Blocks three attack vectors:
+      1. Cross-origin Origin header  — browser always sets this for cross-site XHR.
+      2. Cross-origin Referer header — set by browser for cross-site form posts.
+      3. application/x-www-form-urlencoded content-type — the classic CSRF form
+         payload; our JSON APIs must never accept it.
+
+    Intentionally allows requests with no Origin/Referer (e.g. curl, direct API
+    calls) since Private Network Access policy (Chrome 94+/Firefox 90+) already
+    prevents public websites from reaching localhost in modern browsers.
+    """
+    origin  = request.headers.get("Origin",  "")
     referer = request.headers.get("Referer", "")
-    if origin and not origin.startswith(("http://localhost", "http://127.0.0.1")):
+    ct      = request.content_type or ""
+
+    if origin  and not origin.startswith(("http://localhost", "http://127.0.0.1")):
         return False
     if referer and not referer.startswith(("http://localhost", "http://127.0.0.1")):
+        return False
+    # Browsers send this content-type for form submissions — our APIs never need it.
+    if "application/x-www-form-urlencoded" in ct:
         return False
     return True
 
@@ -263,7 +284,7 @@ def analyze():
 @app.route("/api/scans")
 def api_scans():
     limit  = min(int(request.args.get("limit", 200)), 500)
-    offset = int(request.args.get("offset", 0))
+    offset = max(0, int(request.args.get("offset", 0)))
     return jsonify(database.get_scans(limit, offset))
 
 
@@ -293,6 +314,8 @@ def api_update_scan(scan_id):
     valid_statuses = {"new", "reviewed", "escalated", "false_positive"}
     if status and status not in valid_statuses:
         return jsonify({"error": "Invalid status"}), 400
+    if notes is not None and len(notes) > 10_000:
+        return jsonify({"error": "Notes exceeds maximum length (10 000 chars)"}), 400
     database.update_scan(scan_id, notes=notes, status=status)
     return jsonify({"ok": True})
 
@@ -302,6 +325,11 @@ def api_ioc_pivot():
     q = request.args.get("q", "").strip()
     if len(q) < 3:
         return jsonify({"error": "Query too short (min 3 chars)"}), 400
+    # Strip SQL LIKE wildcards for the minimum-length check so that a query
+    # consisting only of wildcards (e.g. "%%%") doesn't trigger a full-table scan.
+    non_wildcard = q.replace("%", "").replace("_", "")
+    if len(non_wildcard) < 3:
+        return jsonify({"error": "Query must contain at least 3 non-wildcard characters"}), 400
     return jsonify(database.pivot_ioc(q))
 
 
@@ -347,6 +375,8 @@ def api_save_yara_draft():
     body = request.get_json(silent=True) or {}
     name    = (body.get("name") or "Untitled").strip()[:80]
     content = (body.get("content") or "").strip()
+    if len(content) > 65_536:
+        return jsonify({"error": "YARA rule content too large (max 64 KB)"}), 400
     draft_id = database.save_yara_draft(name, content)
     return jsonify({"id": draft_id})
 
@@ -357,6 +387,8 @@ def api_update_yara_draft(draft_id):
         return jsonify({"error": "Forbidden"}), 403
     body    = request.get_json(silent=True) or {}
     content = body.get("content")
+    if content is not None and len(content) > 65_536:
+        return jsonify({"error": "YARA rule content too large (max 64 KB)"}), 400
     database.update_yara_draft(draft_id, content=content)
     return jsonify({"ok": True})
 
@@ -380,6 +412,8 @@ def api_yara_test():
 
     if not rule:
         return jsonify({"error": "No rule provided"}), 400
+    if len(rule) > 65_536:
+        return jsonify({"error": "YARA rule too large (max 64 KB)"}), 400
 
     try:
         import yara as _yara
@@ -435,10 +469,20 @@ def api_save_custom_check():
 
     if type_ == "regex":
         import re
+        if len(pattern) > 1_000:
+            return jsonify({"error": "Regex pattern too long (max 1 000 chars)"}), 400
+        # Reject patterns with nested quantifiers — a common ReDoS construct.
+        # e.g. (a+)+  ([a-z]*)+  (.*){2,}  — all catastrophically backtrack.
+        _NESTED_QUANT = re.compile(r'\([^)]*[+*][^)]*\)[+*{?]|\([^)]+\)\{[0-9]')
+        if _NESTED_QUANT.search(pattern):
+            return jsonify({"error": "Pattern contains a nested quantifier that may cause catastrophic backtracking"}), 400
         try:
             re.compile(pattern)
         except re.error as e:
             return jsonify({"error": f"Invalid regex: {e}"}), 400
+
+    if len(pattern) > 4_000:
+        return jsonify({"error": "Pattern too long (max 4 000 chars)"}), 400
 
     check_id = database.save_custom_check(name, type_, pattern, severity, description)
     return jsonify({"id": check_id})

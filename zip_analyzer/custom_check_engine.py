@@ -57,6 +57,10 @@ def run_custom_checks(zf: zipfile.ZipFile, checks: list) -> List[Finding]:
                     continue
                 try:
                     with zf.open(info) as f:
+                        # 64 KB cap bounds the input for re.search — nested
+                        # quantifier patterns are rejected at save time (app.py),
+                        # so ReDoS blast radius is limited even if a bad pattern
+                        # somehow reaches here.
                         content = f.read(65536)
                     if ctype == "string":
                         hit = pat.encode("utf-8", errors="replace") in content

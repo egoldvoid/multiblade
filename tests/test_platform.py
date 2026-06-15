@@ -839,3 +839,252 @@ class TestStixExport:
     def test_navigator_empty_techniques(self):
         layer = to_navigator_layer(self._scan(mitre=[]))
         assert layer["techniques"] == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECURITY — CSRF, INPUT VALIDATION, HEADER HARDENING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestSecurityHeaders:
+    """Every response must include the full security header set."""
+
+    def test_x_content_type_options(self, client):
+        r = client.get("/")
+        assert r.headers.get("X-Content-Type-Options") == "nosniff"
+
+    def test_x_frame_options(self, client):
+        r = client.get("/")
+        assert r.headers.get("X-Frame-Options") == "DENY"
+
+    def test_referrer_policy(self, client):
+        r = client.get("/")
+        assert r.headers.get("Referrer-Policy") == "no-referrer"
+
+    def test_csp_present(self, client):
+        r = client.get("/")
+        assert "Content-Security-Policy" in r.headers
+
+    def test_csp_no_unsafe_eval(self, client):
+        r = client.get("/")
+        assert "unsafe-eval" not in r.headers.get("Content-Security-Policy", "")
+
+    def test_permissions_policy(self, client):
+        r = client.get("/")
+        assert "Permissions-Policy" in r.headers
+
+    def test_cross_domain_policies(self, client):
+        r = client.get("/")
+        assert r.headers.get("X-Permitted-Cross-Domain-Policies") == "none"
+
+    def test_headers_on_api_responses(self, client):
+        r = client.get("/api/scans")
+        assert r.headers.get("X-Content-Type-Options") == "nosniff"
+
+
+class TestCsrfGuard:
+    """Requests with a cross-origin Origin or form-encoded body must be rejected."""
+
+    def _post_json(self, client, url, body=None, **extra):
+        return client.post(
+            url,
+            data=json.dumps(body or {}),
+            content_type="application/json",
+            **extra,
+        )
+
+    def test_cross_origin_rejected(self, client):
+        r = self._post_json(
+            client, "/api/custom-checks",
+            body={"name": "x", "type": "string", "pattern": "x", "severity": "low"},
+            headers={"Origin": "https://evil.example.com"},
+        )
+        assert r.status_code == 403
+
+    def test_cross_origin_referer_rejected(self, client):
+        r = self._post_json(
+            client, "/api/custom-checks",
+            body={"name": "x", "type": "string", "pattern": "x", "severity": "low"},
+            headers={"Referer": "https://evil.example.com/attack.html"},
+        )
+        assert r.status_code == 403
+
+    def test_form_urlencoded_rejected(self, client):
+        r = client.post(
+            "/api/custom-checks",
+            data="name=x&type=string&pattern=x&severity=low",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert r.status_code == 403
+
+    def test_localhost_origin_allowed(self, client):
+        r = self._post_json(
+            client, "/api/custom-checks",
+            body={"name": "x", "type": "string", "pattern": "x", "severity": "low"},
+            headers={"Origin": "http://localhost:5000"},
+        )
+        assert r.status_code == 200
+
+    def test_no_origin_no_referer_allowed(self, client):
+        """curl-style requests with no Origin/Referer must be allowed."""
+        r = self._post_json(
+            client, "/api/custom-checks",
+            body={"name": "x", "type": "string", "pattern": "x", "severity": "low"},
+        )
+        assert r.status_code == 200
+
+    def test_csrf_on_delete_scan(self, client):
+        """Cross-origin DELETE must also be blocked."""
+        scan_id = database.save_scan(_make_result())
+        r = client.delete(
+            f"/api/scans/{scan_id}",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert r.status_code == 403
+
+    def test_csrf_on_patch_scan(self, client):
+        scan_id = database.save_scan(_make_result())
+        r = client.patch(
+            f"/api/scans/{scan_id}",
+            data="notes=pwned",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert r.status_code == 403
+
+
+class TestInputValidation:
+    """Verify bounds-checking and sanitisation on all mutating API endpoints."""
+
+    def _post_json(self, client, url, body):
+        return client.post(url, data=json.dumps(body), content_type="application/json")
+
+    def _patch_json(self, client, url, body):
+        return client.patch(url, data=json.dumps(body), content_type="application/json")
+
+    # ── /api/scans ────────────────────────────────────────────────────────────
+
+    def test_negative_offset_clamped(self, client):
+        """Negative offset must not reach SQLite as-is."""
+        r = client.get("/api/scans?offset=-99")
+        assert r.status_code == 200  # clamped to 0, not rejected
+
+    def test_notes_too_long(self, client):
+        scan_id = database.save_scan(_make_result())
+        r = self._patch_json(client, f"/api/scans/{scan_id}", {"notes": "x" * 10_001})
+        assert r.status_code == 400
+
+    def test_notes_max_length_ok(self, client):
+        scan_id = database.save_scan(_make_result())
+        r = self._patch_json(client, f"/api/scans/{scan_id}", {"notes": "x" * 10_000})
+        assert r.status_code == 200
+
+    def test_invalid_status_rejected(self, client):
+        scan_id = database.save_scan(_make_result())
+        r = self._patch_json(client, f"/api/scans/{scan_id}", {"status": "malicious"})
+        assert r.status_code == 400
+
+    # ── /api/ioc-pivot ───────────────────────────────────────────────────────
+
+    def test_ioc_pivot_too_short(self, client):
+        r = client.get("/api/ioc-pivot?q=ab")
+        assert r.status_code == 400
+
+    def test_ioc_pivot_wildcard_only_rejected(self, client):
+        r = client.get("/api/ioc-pivot?q=%%%")
+        assert r.status_code == 400
+
+    def test_ioc_pivot_mixed_wildcards_too_few_real_chars(self, client):
+        """"%ab%" has only 2 non-wildcard chars — must be rejected."""
+        r = client.get("/api/ioc-pivot?q=%ab%")
+        assert r.status_code == 400
+
+    def test_ioc_pivot_valid_query(self, client):
+        r = client.get("/api/ioc-pivot?q=192.168.1")
+        assert r.status_code == 200
+
+    # ── /api/custom-checks ReDoS ─────────────────────────────────────────────
+
+    def test_regex_pattern_too_long(self, client):
+        r = self._post_json(client, "/api/custom-checks", {
+            "name": "x", "type": "regex", "severity": "low",
+            "pattern": "a" * 1_001,
+        })
+        assert r.status_code == 400
+
+    def test_nested_quantifier_rejected(self, client):
+        """(a+)+ is a textbook ReDoS pattern — must be rejected."""
+        r = self._post_json(client, "/api/custom-checks", {
+            "name": "x", "type": "regex", "severity": "low",
+            "pattern": "(a+)+",
+        })
+        assert r.status_code == 400
+
+    def test_nested_quantifier_star_rejected(self, client):
+        r = self._post_json(client, "/api/custom-checks", {
+            "name": "x", "type": "regex", "severity": "low",
+            "pattern": "([a-z]*)+",
+        })
+        assert r.status_code == 400
+
+    def test_valid_regex_accepted(self, client):
+        r = self._post_json(client, "/api/custom-checks", {
+            "name": "x", "type": "regex", "severity": "low",
+            "pattern": r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}",
+        })
+        assert r.status_code == 200
+
+    def test_invalid_regex_rejected(self, client):
+        r = self._post_json(client, "/api/custom-checks", {
+            "name": "x", "type": "regex", "severity": "low",
+            "pattern": "(unclosed",
+        })
+        assert r.status_code == 400
+
+    def test_non_regex_pattern_no_length_limit_enforced(self, client):
+        """Non-regex patterns use the 4 000-char general limit."""
+        r = self._post_json(client, "/api/custom-checks", {
+            "name": "x", "type": "string", "severity": "low",
+            "pattern": "a" * 4_001,
+        })
+        assert r.status_code == 400
+
+    # ── /api/yara-test ───────────────────────────────────────────────────────
+
+    def test_yara_rule_too_large(self, client):
+        # Fill with non-whitespace so .strip() doesn't shrink it
+        huge_rule = "// " + "a" * 65_534
+        r = self._post_json(client, "/api/yara-test", {"rule": huge_rule})
+        assert r.status_code == 400
+
+    def test_yara_rule_valid_compiles(self, client):
+        rule = "rule ok { condition: false }"
+        r = self._post_json(client, "/api/yara-test", {"rule": rule})
+        assert r.status_code == 200
+        assert r.get_json()["compiled"] is True
+
+    def test_yara_rule_compile_error(self, client):
+        r = self._post_json(client, "/api/yara-test", {"rule": "this is not yara"})
+        assert r.status_code == 400
+
+    # ── /api/yara-drafts ─────────────────────────────────────────────────────
+
+    def test_yara_draft_too_large_on_create(self, client):
+        r = self._post_json(client, "/api/yara-drafts", {
+            "name": "big", "content": "x" * 65_537,
+        })
+        assert r.status_code == 400
+
+    def test_yara_draft_valid_create(self, client):
+        r = self._post_json(client, "/api/yara-drafts", {
+            "name": "test", "content": "rule ok { condition: false }",
+        })
+        assert r.status_code == 200
+        assert "id" in r.get_json()
+
+    def test_yara_draft_too_large_on_update(self, client):
+        # Create a draft first
+        cr = self._post_json(client, "/api/yara-drafts", {"name": "t", "content": "x"})
+        draft_id = cr.get_json()["id"]
+        r = self._patch_json(client, f"/api/yara-drafts/{draft_id}", {
+            "content": "x" * 65_537,
+        })
+        assert r.status_code == 400
