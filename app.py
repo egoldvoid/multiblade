@@ -23,6 +23,90 @@ _TAR_SUFFIXES = {".tar", ".tgz", ".tbz2", ".txz", ".tar.gz", ".tar.bz2", ".tar.x
 _MAX_MB  = int(os.environ.get("MAX_UPLOAD_MB", "256"))
 _DEBUG   = os.environ.get("FLASK_DEBUG", "0") == "1"
 
+# ── Attack workflow definitions ────────────────────────────────────────────────
+WORKFLOWS = [
+    {
+        "id": "full-recon",
+        "name": "Full External Recon",
+        "goal": "Map the complete attack surface of a target domain from the outside.",
+        "tags": ["Recon"],
+        "time": "30–60 min",
+        "steps": ["subfinder", "amass", "dnsx", "httpx", "katana", "waybackurls"],
+    },
+    {
+        "id": "web-app-audit",
+        "name": "Web App Audit",
+        "goal": "Systematically probe a web application from fingerprinting through exploitation.",
+        "tags": ["Web"],
+        "time": "1–3 hrs",
+        "steps": ["httpx", "whatweb", "wafw00f", "nikto", "nuclei", "ffuf", "dalfox"],
+    },
+    {
+        "id": "api-hunt",
+        "name": "API Hunt",
+        "goal": "Discover hidden API endpoints and test them for auth flaws and injection.",
+        "tags": ["Web"],
+        "time": "45–90 min",
+        "steps": ["katana", "arjun", "ffuf", "nuclei", "jwt_tool"],
+    },
+    {
+        "id": "port-sweep",
+        "name": "Port & Service Sweep",
+        "goal": "Find every open port at scale, then fingerprint services on each.",
+        "tags": ["Network"],
+        "time": "15–45 min",
+        "steps": ["masscan", "nmap", "rustscan", "naabu", "httpx"],
+    },
+    {
+        "id": "credential-attack",
+        "name": "Credential Attack",
+        "goal": "Enumerate accounts, spray passwords, crack hashes, and test Kerberos.",
+        "tags": ["Network", "Recon"],
+        "time": "Variable",
+        "steps": ["kerbrute", "hydra", "medusa", "hashcat"],
+    },
+    {
+        "id": "secrets-hunt",
+        "name": "Secrets Hunt",
+        "goal": "Find leaked credentials and secrets across code, archives, and web endpoints.",
+        "tags": ["Recon", "Web"],
+        "time": "20–40 min",
+        "steps": ["trufflehog", "gitleaks", "semgrep", "linkfinder", "gau"],
+    },
+    {
+        "id": "cloud-recon",
+        "name": "Cloud Recon",
+        "goal": "Enumerate cloud assets, misconfigurations, and exposed storage across providers.",
+        "tags": ["Cloud"],
+        "time": "30–60 min",
+        "steps": ["shodan", "amass", "s3scanner", "pacu", "trivy"],
+    },
+    {
+        "id": "mobile-assessment",
+        "name": "Mobile Assessment",
+        "goal": "Decompile, analyse, and instrument an Android APK for vulnerabilities.",
+        "tags": ["Mobile"],
+        "time": "2–4 hrs",
+        "steps": ["apktool", "jadx", "semgrep", "frida", "objection"],
+    },
+    {
+        "id": "dns-enum",
+        "name": "DNS Enumeration",
+        "goal": "Exhaustively enumerate subdomains, resolve records, and detect typosquatting.",
+        "tags": ["Recon", "Network"],
+        "time": "20–40 min",
+        "steps": ["subfinder", "amass", "dnsx", "dnsrecon", "dnstwist", "fierce"],
+    },
+    {
+        "id": "vuln-chain",
+        "name": "Vuln Exploitation Chain",
+        "goal": "Chain scanner output into targeted exploit attempts for common web vulns.",
+        "tags": ["Web"],
+        "time": "1–2 hrs",
+        "steps": ["nuclei", "sqlmap", "commix", "ssrfmap", "tplmap"],
+    },
+]
+
 _ALLOWED_EXT = {
     ".zip", ".jar", ".apk", ".war", ".ear",
     ".tar", ".tgz", ".tbz2", ".txz",
@@ -205,6 +289,13 @@ def generators():
     tools      = get_all_tools()
     categories = get_categories()
     return render_template("generators.html", tools=tools, categories=categories)
+
+
+@app.route("/generators/workflows")
+def workflows():
+    from zip_analyzer.tool_data import TOOLS_BY_SLUG
+    return render_template("workflows.html", workflows=WORKFLOWS,
+                           tools_by_slug=TOOLS_BY_SLUG, active_page="workflows")
 
 
 @app.route("/generators/<slug>")

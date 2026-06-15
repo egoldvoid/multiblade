@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attack Workflows — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:14px;--radius-sm:7px;--ease:cubic-bezier(0.16,1,0.3,1);
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+
+    .bg-layer { position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden; }
+    .blob { position:absolute;border-radius:50%;filter:blur(100px); }
+    .blob-1 { width:800px;height:800px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-300px;left:-150px;animation:d1 24s ease-in-out infinite alternate; }
+    .blob-2 { width:600px;height:600px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-200px;right:-100px;animation:d2 28s ease-in-out infinite alternate; }
+    @keyframes d1{to{transform:translate(50px,40px) scale(1.07)}} @keyframes d2{to{transform:translate(-40px,-50px) scale(1.1)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .page { position:relative;z-index:1;padding:0 0 100px; }
+
+    /* Header */
+    .page-header {
+      position:sticky;top:0;z-index:50;
+      background:linear-gradient(180deg,var(--bg) 80%,transparent);
+      padding:24px 40px 16px;
+    }
+    .header-top { display:flex;align-items:center;gap:16px;margin-bottom:16px; }
+    .back-link {
+      display:inline-flex;align-items:center;gap:6px;
+      text-decoration:none;color:var(--text-faint);font-size:0.78rem;
+      transition:color 0.15s;flex-shrink:0;
+    }
+    .back-link:hover { color:var(--text-dim); }
+    .page-title { font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em; }
+    .page-subtitle { font-size:0.82rem;color:var(--text-dim);margin-left:auto;white-space:nowrap; }
+
+    /* Tag filter */
+    .filter-row { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+    .tag-chip {
+      display:inline-flex;align-items:center;gap:5px;
+      padding:5px 12px;border-radius:99px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.75rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;letter-spacing:0.03em;
+      user-select:none;
+    }
+    .tag-chip:hover { border-color:var(--border-hi);color:var(--text); }
+    .tag-chip.active { border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow); }
+
+    /* Tag color map (used on cards too) */
+    .tag-badge {
+      display:inline-flex;align-items:center;
+      padding:2px 8px;border-radius:99px;
+      font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+    }
+    .tag-Recon   { background:#22d3a518;color:#22d3a5;border:1px solid #22d3a530; }
+    .tag-Web     { background:#f59e0b18;color:#f59e0b;border:1px solid #f59e0b30; }
+    .tag-Network { background:#6366f118;color:#818cf8;border:1px solid #6366f130; }
+    .tag-Cloud   { background:#a855f718;color:#c084fc;border:1px solid #a855f730; }
+    .tag-Mobile  { background:#ec489918;color:#f472b6;border:1px solid #ec489930; }
+
+    /* Workflow grid */
+    .workflow-grid {
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(540px,1fr));
+      gap:20px;padding:24px 40px 0;
+    }
+    @media(max-width:860px) { .workflow-grid { grid-template-columns:1fr;padding:16px 20px 0; } }
+
+    /* Workflow card */
+    .wf-card {
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:24px;display:flex;flex-direction:column;gap:18px;
+      transition:border-color 0.2s,box-shadow 0.25s,transform 0.2s;
+      position:relative;overflow:hidden;
+    }
+    .wf-card::before {
+      content:'';position:absolute;inset:0;border-radius:inherit;
+      background:radial-gradient(ellipse 70% 50% at 50% 0%,var(--card-glow,#6366f110),transparent 70%);
+      opacity:0;transition:opacity 0.3s;
+    }
+    .wf-card:hover { border-color:var(--border-hi);transform:translateY(-2px);box-shadow:0 12px 48px -12px #00000066; }
+    .wf-card:hover::before { opacity:1; }
+    .wf-card[data-tags*="Recon"]   { --card-glow:#22d3a510; }
+    .wf-card[data-tags*="Web"]     { --card-glow:#f59e0b10; }
+    .wf-card[data-tags*="Network"] { --card-glow:#6366f110; }
+    .wf-card[data-tags*="Cloud"]   { --card-glow:#a855f710; }
+    .wf-card[data-tags*="Mobile"]  { --card-glow:#ec489910; }
+    .wf-card.hidden { display:none; }
+
+    /* Card header */
+    .wf-header { display:flex;align-items:flex-start;justify-content:space-between;gap:12px;position:relative;z-index:1; }
+    .wf-meta { flex:1;min-width:0; }
+    .wf-name { font-family:'Syne',sans-serif;font-size:1.05rem;font-weight:800;letter-spacing:-0.01em;margin-bottom:5px; }
+    .wf-goal { font-size:0.8rem;color:var(--text-dim);line-height:1.5; }
+    .wf-sidebar { display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0; }
+    .wf-time { font-size:0.68rem;color:var(--text-faint);white-space:nowrap; }
+    .wf-tags { display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end; }
+
+    /* Step chain */
+    .step-chain { display:flex;align-items:center;flex-wrap:wrap;gap:0;position:relative;z-index:1; }
+    .step-item {
+      display:flex;align-items:center;
+      text-decoration:none;
+      position:relative;
+    }
+    .step-pill {
+      display:flex;align-items:center;gap:7px;
+      padding:7px 12px;border-radius:9px;
+      background:var(--s2);border:1.5px solid var(--border);
+      transition:border-color 0.15s,background 0.15s,transform 0.15s;
+      position:relative;z-index:1;
+    }
+    .step-item:hover .step-pill {
+      background:var(--s3);border-color:var(--step-color,var(--border-hi));
+      transform:translateY(-1px);
+    }
+    .step-num {
+      width:16px;height:16px;border-radius:50%;
+      background:var(--step-color,var(--border));
+      display:grid;place-items:center;
+      font-size:0.6rem;font-weight:700;color:#fff;
+      flex-shrink:0;
+    }
+    .step-icon { font-size:0.9rem;line-height:1; }
+    .step-name { font-size:0.75rem;font-weight:600;color:var(--text);white-space:nowrap; }
+    .step-cat  { font-size:0.62rem;color:var(--text-faint);white-space:nowrap; }
+
+    .step-arrow {
+      padding:0 6px;color:var(--text-faint);font-size:0.75rem;flex-shrink:0;
+      pointer-events:none;
+    }
+
+    /* Card footer */
+    .wf-footer { display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1; }
+    .step-count { font-size:0.72rem;color:var(--text-faint); }
+    .wf-start-btn {
+      display:inline-flex;align-items:center;gap:7px;
+      padding:8px 16px;border-radius:8px;
+      background:var(--accent-glow);border:1.5px solid var(--accent);
+      color:var(--accent-hi);font-size:0.8rem;font-weight:600;
+      text-decoration:none;transition:background 0.15s,border-color 0.15s,gap 0.15s;
+    }
+    .wf-start-btn:hover { background:#6366f125;border-color:var(--accent-hi);gap:10px; }
+
+    /* Empty state */
+    .empty-state { grid-column:1/-1;text-align:center;padding:80px 20px;color:var(--text-faint); }
+    .empty-state p { margin-top:8px;font-size:0.82rem; }
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+
+<div class="bg-layer" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+</div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="page page-with-nav">
+
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/generators" class="back-link">← All Tools</a>
+      <span class="page-title">Attack Workflows</span>
+      <span class="page-subtitle">{{ workflows | length }} curated chains</span>
+    </div>
+    <div class="filter-row" id="filter-row">
+      <button class="tag-chip active" data-filter="All" onclick="filterTag(this)">All</button>
+      <button class="tag-chip" data-filter="Recon"   onclick="filterTag(this)">Recon</button>
+      <button class="tag-chip" data-filter="Web"     onclick="filterTag(this)">Web</button>
+      <button class="tag-chip" data-filter="Network" onclick="filterTag(this)">Network</button>
+      <button class="tag-chip" data-filter="Cloud"   onclick="filterTag(this)">Cloud</button>
+      <button class="tag-chip" data-filter="Mobile"  onclick="filterTag(this)">Mobile</button>
+    </div>
+  </div>
+
+  <div class="workflow-grid" id="wf-grid">
+
+  {% for wf in workflows %}
+  {% set first_step = wf.steps[0] %}
+  {% set first_tool = tools_by_slug.get(first_step, {}) %}
+  <div class="wf-card" id="wf-{{ wf.id }}" data-tags="{{ wf.tags | join(' ') }}">
+
+    <div class="wf-header">
+      <div class="wf-meta">
+        <div class="wf-name">{{ wf.name }}</div>
+        <div class="wf-goal">{{ wf.goal }}</div>
+      </div>
+      <div class="wf-sidebar">
+        <span class="wf-time">⏱ {{ wf.time }}</span>
+        <div class="wf-tags">
+          {% for tag in wf.tags %}
+          <span class="tag-badge tag-{{ tag }}">{{ tag }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="step-chain">
+      {% for slug in wf.steps %}
+      {% set tool = tools_by_slug.get(slug, {}) %}
+      {% if tool %}
+      <a href="/generators/{{ slug }}" class="step-item"
+         style="--step-color:{{ tool.color }}"
+         title="{{ tool.get('full_name', tool.name) }} — {{ tool.desc }}">
+        <div class="step-pill">
+          <div class="step-num">{{ loop.index }}</div>
+          <span class="step-icon">{{ tool.icon }}</span>
+          <div>
+            <div class="step-name">{{ tool.name }}</div>
+            <div class="step-cat">{{ tool.category }}</div>
+          </div>
+        </div>
+      </a>
+      {% if not loop.last %}
+      <span class="step-arrow">→</span>
+      {% endif %}
+      {% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="wf-footer">
+      <span class="step-count">{{ wf.steps | length }} tools</span>
+      <a href="/generators/{{ first_step }}" class="wf-start-btn">
+        Start workflow →
+      </a>
+    </div>
+
+  </div>
+  {% endfor %}
+
+  <div class="empty-state hidden" id="empty-state">
+    <div style="font-size:2rem">⛓</div>
+    <p>No workflows match the selected filter.</p>
+  </div>
+
+  </div><!-- /workflow-grid -->
+</div>
+
+<script>
+  function filterTag(btn) {
+    document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    const filter = btn.dataset.filter;
+    let visible = 0;
+    document.querySelectorAll('.wf-card').forEach(card => {
+      const tags = card.dataset.tags;
+      const show = filter === 'All' || tags.includes(filter);
+      card.classList.toggle('hidden', !show);
+      if (show) visible++;
+    });
+    document.getElementById('empty-state').classList.toggle('hidden', visible > 0);
+  }
+</script>
+</body>
+</html>
