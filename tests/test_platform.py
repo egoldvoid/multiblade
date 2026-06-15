@@ -87,6 +87,32 @@ class TestPageRoutes:
         assert r.status_code == 200
         assert b"Command Generators" in r.data
 
+    def test_workflows_page(self, client):
+        r = client.get("/generators/workflows")
+        assert r.status_code == 200
+        assert b"Attack Workflows" in r.data
+
+    def test_workflows_shows_all_chains(self, client):
+        import html
+        from app import WORKFLOWS
+        r = client.get("/generators/workflows")
+        for wf in WORKFLOWS:
+            assert html.escape(wf["name"]).encode() in r.data
+
+    def test_workflows_step_links_resolve(self, client):
+        """Every tool slug in every workflow must have a valid generator page."""
+        from app import WORKFLOWS
+        for wf in WORKFLOWS:
+            for slug in wf["steps"]:
+                r = client.get(f"/generators/{slug}")
+                assert r.status_code == 200, f"Workflow '{wf['name']}' step '{slug}' 404'd"
+
+    def test_workflows_nav_link_present(self, client):
+        """The Workflows nav link must appear in pages that use _nav.html."""
+        r = client.get("/generators/workflows")
+        assert b"Workflows" in r.data
+        assert b"/generators/workflows" in r.data
+
     def test_generator_tool_known_slug(self, client):
         r = client.get("/generators/nmap")
         assert r.status_code == 200
