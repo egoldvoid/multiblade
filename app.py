@@ -68,6 +68,39 @@ def _security_headers(response):
 
 SEV_ORDER = [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]
 
+# System directory prefixes that must never be registered as watch folders.
+_SYSTEM_PATH_PREFIXES = (
+    "/etc", "/usr", "/bin", "/sbin", "/lib", "/lib64",
+    "/boot", "/sys", "/proc", "/dev",
+    "/System", "/Library", "/private/etc",
+)
+
+
+def _body_json() -> dict:
+    """Return request JSON body as a dict; non-dict bodies (arrays, scalars) return {}."""
+    body = request.get_json(silent=True)
+    return body if isinstance(body, dict) else {}
+
+
+def _str_field(val, default: str = "", max_len: int = None) -> str:
+    """Coerce a JSON field to str safely. Non-string types return default."""
+    if not isinstance(val, str):
+        return default
+    return val[:max_len] if max_len else val
+
+
+def _int_param(name: str, default: int, min_val: int = None, max_val: int = None) -> int:
+    """Parse an integer query parameter, clamping to [min_val, max_val]."""
+    try:
+        v = int(request.args.get(name, default))
+    except (ValueError, TypeError):
+        v = default
+    if min_val is not None:
+        v = max(min_val, v)
+    if max_val is not None:
+        v = min(max_val, v)
+    return v
+
 
 def _allowed_file(filename: str) -> bool:
     lower = filename.lower()
@@ -283,8 +316,8 @@ def analyze():
 
 @app.route("/api/scans")
 def api_scans():
-    limit  = min(int(request.args.get("limit", 200)), 500)
-    offset = max(0, int(request.args.get("offset", 0)))
+    limit  = _int_param("limit",  default=200, min_val=1, max_val=500)
+    offset = _int_param("offset", default=0,   min_val=0)
     return jsonify(database.get_scans(limit, offset))
 
 
@@ -308,14 +341,19 @@ def api_delete_scan(scan_id):
 def api_update_scan(scan_id):
     if not _csrf_check():
         return jsonify({"error": "Forbidden"}), 403
-    body   = request.get_json(silent=True) or {}
+    body   = _body_json()
     notes  = body.get("notes")
     status = body.get("status")
     valid_statuses = {"new", "reviewed", "escalated", "false_positive"}
+    if status is not None and not isinstance(status, str):
+        return jsonify({"error": "Invalid status"}), 400
     if status and status not in valid_statuses:
         return jsonify({"error": "Invalid status"}), 400
-    if notes is not None and len(notes) > 10_000:
-        return jsonify({"error": "Notes exceeds maximum length (10 000 chars)"}), 400
+    if notes is not None:
+        if not isinstance(notes, str):
+            return jsonify({"error": "notes must be a string"}), 400
+        if len(notes) > 10_000:
+            return jsonify({"error": "Notes exceeds maximum length (10 000 chars)"}), 400
     database.update_scan(scan_id, notes=notes, status=status)
     return jsonify({"ok": True})
 
@@ -372,9 +410,9 @@ def api_yara_drafts():
 def api_save_yara_draft():
     if not _csrf_check():
         return jsonify({"error": "Forbidden"}), 403
-    body = request.get_json(silent=True) or {}
-    name    = (body.get("name") or "Untitled").strip()[:80]
-    content = (body.get("content") or "").strip()
+    body    = _body_json()
+    name    = (_str_field(body.get("name"), "Untitled", max_len=80) or "Untitled")
+    content = _str_field(body.get("content"), "", max_len=None)
     if len(content) > 65_536:
         return jsonify({"error": "YARA rule content too large (max 64 KB)"}), 400
     draft_id = database.save_yara_draft(name, content)
@@ -385,10 +423,13 @@ def api_save_yara_draft():
 def api_update_yara_draft(draft_id):
     if not _csrf_check():
         return jsonify({"error": "Forbidden"}), 403
-    body    = request.get_json(silent=True) or {}
+    body    = _body_json()
     content = body.get("content")
-    if content is not None and len(content) > 65_536:
-        return jsonify({"error": "YARA rule content too large (max 64 KB)"}), 400
+    if content is not None:
+        if not isinstance(content, str):
+            return jsonify({"error": "content must be a string"}), 400
+        if len(content) > 65_536:
+            return jsonify({"error": "YARA rule content too large (max 64 KB)"}), 400
     database.update_yara_draft(draft_id, content=content)
     return jsonify({"ok": True})
 
@@ -406,8 +447,8 @@ def api_yara_test():
     if not _csrf_check():
         return jsonify({"error": "Forbidden"}), 403
 
-    body    = request.get_json(silent=True) or {}
-    rule    = (body.get("rule") or "").strip()
+    body    = _body_json()
+    rule    = _str_field(body.get("rule")).strip()
     scan_id = body.get("scan_id")
 
     if not rule:
@@ -453,12 +494,12 @@ def api_get_custom_checks():
 def api_save_custom_check():
     if not _csrf_check():
         return jsonify({"error": "Forbidden"}), 403
-    body = request.get_json(silent=True) or {}
-    name        = (body.get("name") or "").strip()[:80]
-    type_       = (body.get("type") or "").strip()
-    pattern     = (body.get("pattern") or "").strip()
-    severity    = (body.get("severity") or "medium").strip().lower()
-    description = (body.get("description") or "").strip()[:200]
+    body        = _body_json()
+    name        = _str_field(body.get("name"), max_len=80).strip()
+    type_       = _str_field(body.get("type")).strip()
+    pattern     = _str_field(body.get("pattern")).strip()
+    severity    = _str_field(body.get("severity"), "medium").strip().lower()
+    description = _str_field(body.get("description"), max_len=200).strip()
 
     if not name or not type_ or not pattern:
         return jsonify({"error": "name, type, and pattern are required"}), 400
@@ -500,7 +541,7 @@ def api_delete_custom_check(check_id):
 def api_toggle_custom_check(check_id):
     if not _csrf_check():
         return jsonify({"error": "Forbidden"}), 403
-    body    = request.get_json(silent=True) or {}
+    body    = _body_json()
     enabled = bool(body.get("enabled", True))
     database.toggle_custom_check(check_id, enabled)
     return jsonify({"ok": True})
@@ -524,13 +565,18 @@ def api_get_watch_folders():
 def api_add_watch_folder():
     if not _csrf_check():
         return jsonify({"error": "Forbidden"}), 403
-    body = request.get_json(silent=True) or {}
-    path = (body.get("path") or "").strip()
+    body = _body_json()
+    path = _str_field(body.get("path")).strip()
     if not path:
         return jsonify({"error": "path is required"}), 400
-    if not os.path.isdir(path):
-        return jsonify({"error": f"Directory not found: {path}"}), 400
-    folder_id = database.add_watch_folder(path)
+    # Resolve symlinks and .. so that /tmp/../etc becomes /private/etc
+    real = os.path.realpath(path)
+    if not os.path.isdir(real):
+        return jsonify({"error": "Directory not found"}), 400
+    if real == "/" or any(real == p or real.startswith(p + os.sep)
+                          for p in _SYSTEM_PATH_PREFIXES):
+        return jsonify({"error": "Path is a restricted system directory"}), 400
+    folder_id = database.add_watch_folder(real)
     return jsonify({"id": folder_id})
 
 
@@ -546,7 +592,7 @@ def api_delete_watch_folder(folder_id):
 def api_toggle_watch_folder(folder_id):
     if not _csrf_check():
         return jsonify({"error": "Forbidden"}), 403
-    body    = request.get_json(silent=True) or {}
+    body    = _body_json()
     enabled = bool(body.get("enabled", True))
     database.toggle_watch_folder(folder_id, enabled)
     return jsonify({"ok": True})
@@ -571,8 +617,8 @@ def api_scan_watch_folder(folder_id):
                     ".tar", ".tgz", ".tbz2", ".txz"}
     try:
         entries = [e for e in os.scandir(path) if e.is_file()]
-    except OSError as e:
-        return jsonify({"error": str(e)}), 400
+    except OSError:
+        return jsonify({"error": "Cannot read watch folder — check permissions"}), 400
 
     for entry in entries:
         lower = entry.name.lower()
@@ -588,8 +634,8 @@ def api_scan_watch_folder(folder_id):
             results.append({"filename": entry.name, "scan_id": scan_id,
                              "risk_score": data["metrics"].get("risk_score", 0),
                              "safe": data["safe"]})
-        except Exception as e:
-            results.append({"filename": entry.name, "error": str(e)})
+        except Exception:
+            results.append({"filename": entry.name, "error": "Scan failed"})
 
     database.mark_folder_scanned(folder_id)
     return jsonify({"scanned": len(results), "results": results})

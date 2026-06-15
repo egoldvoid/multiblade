@@ -1093,6 +1093,143 @@ class TestInputValidation:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PENTEST — TYPE CONFUSION, PARAMETER SAFETY, WATCH FOLDER RESTRICTION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestTypeConfusion:
+    """Non-string values for string fields must never cause 500s."""
+
+    def _post_json(self, client, url, body):
+        return client.post(url, data=json.dumps(body), content_type="application/json")
+
+    def _patch_json(self, client, url, body):
+        return client.patch(url, data=json.dumps(body), content_type="application/json")
+
+    def test_custom_check_array_name(self, client):
+        r = self._post_json(client, "/api/custom-checks",
+                            {"name": ["arr"], "type": "string", "pattern": "x", "severity": "low"})
+        assert r.status_code == 400
+
+    def test_custom_check_dict_pattern(self, client):
+        r = self._post_json(client, "/api/custom-checks",
+                            {"name": "ok", "type": "string", "pattern": {"k": "v"}, "severity": "low"})
+        assert r.status_code == 400
+
+    def test_custom_check_int_severity_defaults(self, client):
+        """Non-string severity coerces to default 'medium' — check still created."""
+        r = self._post_json(client, "/api/custom-checks",
+                            {"name": "ok", "type": "string", "pattern": "x", "severity": 42})
+        assert r.status_code == 200
+
+    def test_yara_rule_as_array(self, client):
+        r = self._post_json(client, "/api/yara-test", {"rule": [1, 2, 3]})
+        assert r.status_code == 400
+
+    def test_yara_draft_body_as_json_array(self, client):
+        r = client.post("/api/yara-drafts",
+                        data="[1,2,3]", content_type="application/json")
+        assert r.status_code == 200
+
+    def test_yara_draft_name_as_integer(self, client):
+        """Integer name should be treated as empty → default to 'Untitled'."""
+        r = self._post_json(client, "/api/yara-drafts",
+                            {"name": 9999, "content": "rule ok { condition: false }"})
+        assert r.status_code == 200
+
+    def test_yara_draft_content_as_list(self, client):
+        r = self._post_json(client, "/api/yara-drafts",
+                            {"name": "x", "content": [1, 2, 3]})
+        # content defaults to "" — still creates draft
+        assert r.status_code == 200
+
+    def test_yara_draft_update_content_as_dict(self, client):
+        cr = self._post_json(client, "/api/yara-drafts", {"name": "t", "content": "x"})
+        did = cr.get_json()["id"]
+        r = self._patch_json(client, f"/api/yara-drafts/{did}", {"content": {"bad": True}})
+        assert r.status_code == 400
+
+    def test_notes_as_list(self, client):
+        sid = database.save_scan(_make_result())
+        r = self._patch_json(client, f"/api/scans/{sid}", {"notes": ["a", "b"]})
+        assert r.status_code == 400
+
+    def test_notes_as_integer(self, client):
+        sid = database.save_scan(_make_result())
+        r = self._patch_json(client, f"/api/scans/{sid}", {"notes": 12345})
+        assert r.status_code == 400
+
+    def test_status_as_integer(self, client):
+        sid = database.save_scan(_make_result())
+        r = self._patch_json(client, f"/api/scans/{sid}", {"status": 0})
+        assert r.status_code == 400
+
+
+class TestParameterSafety:
+    """Query parameters with non-integer values must be safely clamped, not crash."""
+
+    def test_limit_string(self, client):
+        assert client.get("/api/scans?limit=abc").status_code == 200
+
+    def test_offset_string(self, client):
+        assert client.get("/api/scans?offset=xyz").status_code == 200
+
+    def test_limit_scientific_notation(self, client):
+        assert client.get("/api/scans?limit=1e10").status_code == 200
+
+    def test_offset_float(self, client):
+        assert client.get("/api/scans?offset=1.5").status_code == 200
+
+    def test_limit_negative(self, client):
+        assert client.get("/api/scans?limit=-1").status_code == 200
+
+    def test_offset_negative_clamped(self, client):
+        r = client.get("/api/scans?offset=-999")
+        assert r.status_code == 200
+
+    def test_limit_max_clamped(self, client):
+        """limit > 500 must be silently clamped, not crash."""
+        r = client.get("/api/scans?limit=9999999")
+        assert r.status_code == 200
+
+
+class TestWatchFolderSecurity:
+    """Watch folder must reject system directories and path traversal."""
+
+    def _add(self, client, path):
+        return client.post("/api/watch-folders",
+                           data=json.dumps({"path": path}),
+                           content_type="application/json")
+
+    def test_etc_rejected(self, client):
+        assert self._add(client, "/etc").status_code == 400
+
+    def test_usr_rejected(self, client):
+        assert self._add(client, "/usr").status_code == 400
+
+    def test_dev_rejected(self, client):
+        assert self._add(client, "/dev").status_code == 400
+
+    def test_path_traversal_to_etc(self, client):
+        assert self._add(client, "/tmp/../etc").status_code == 400
+
+    def test_root_rejected(self, client):
+        assert self._add(client, "/").status_code == 400
+
+    def test_valid_tmpdir_accepted(self, client, tmp_path):
+        assert self._add(client, str(tmp_path)).status_code == 200
+
+    def test_scan_error_no_path_leak(self, client, tmp_path):
+        """OSError during scan must not include filesystem path in response."""
+        fid = self._add(client, str(tmp_path)).get_json()["id"]
+        # Remove the directory so scandir fails
+        import shutil
+        shutil.rmtree(str(tmp_path))
+        r = client.post(f"/api/watch-folders/{fid}/scan",
+                        data="{}", content_type="application/json")
+        assert str(tmp_path) not in r.get_data(as_text=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # FILE UPLOAD PIPELINE  (/analyze)
 # ═══════════════════════════════════════════════════════════════════════════════
 
