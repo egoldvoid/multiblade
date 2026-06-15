@@ -211,6 +211,22 @@
 
     ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
     @keyframes fade-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+    /* Responsive: stack columns on narrow screens */
+    @media (max-width:860px) {
+      .page { grid-template-columns:1fr; min-height:auto; }
+      .form-col { overflow-y:visible;max-height:none;border-right:none;border-bottom:1px solid var(--border); }
+      .preview-col { position:static;height:auto;padding:20px 20px 60px; }
+      .form-header { position:static; }
+      .related-grid { grid-template-columns:1fr; }
+    }
+    @media (max-width:520px) {
+      .preview-col { padding:16px 16px 60px; }
+      .back-row { flex-wrap:wrap; }
+      .cmd-toolbar { flex-wrap:wrap; }
+      .btn-danger { margin-left:0; }
+      .format-toggle + .share-btn { margin-left:4px; }
+    }
   </style>
 </head>
 <body>
