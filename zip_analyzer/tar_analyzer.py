@@ -30,7 +30,7 @@ def _risk_label(score):
 class TarAnalyzer:
     """Scan TAR archives for the same threat classes as ZipAnalyzer."""
 
-    def analyze(self, path: Union[str, Path]) -> AnalysisResult:
+    def analyze(self, path: Union[str, Path], custom_checks=None) -> AnalysisResult:
         path = str(path)
         result = AnalysisResult(path=path)
 

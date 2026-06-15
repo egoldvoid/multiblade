@@ -2,6 +2,8 @@
 
 import io
 import json
+import re
+import tarfile
 import zipfile
 
 import pytest
@@ -1088,3 +1090,519 @@ class TestInputValidation:
             "content": "x" * 65_537,
         })
         assert r.status_code == 400
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FILE UPLOAD PIPELINE  (/analyze)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _zip_bytes(files: dict) -> bytes:
+    """Build an in-memory zip. files = {name: content (str or bytes)}."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for name, content in files.items():
+            zf.writestr(name, content)
+    return buf.getvalue()
+
+
+def _tar_bytes(files: dict, suffix=".tar") -> bytes:
+    buf = io.BytesIO()
+    mode = "w:gz" if suffix in (".tgz", ".tar.gz") else "w:"
+    with tarfile.open(fileobj=buf, mode=mode) as tf:
+        for name, content in files.items():
+            data = content.encode() if isinstance(content, str) else content
+            ti = tarfile.TarInfo(name=name)
+            ti.size = len(data)
+            tf.addfile(ti, io.BytesIO(data))
+    return buf.getvalue()
+
+
+def _upload(client, file_bytes, filename="test.zip"):
+    return client.post(
+        "/analyze",
+        data={"file": (io.BytesIO(file_bytes), filename)},
+        content_type="multipart/form-data",
+    )
+
+
+class TestFileUpload:
+
+    def test_valid_zip_returns_200(self, client):
+        r = _upload(client, _zip_bytes({"readme.txt": "hello"}))
+        assert r.status_code == 200
+        body = r.get_json()
+        assert "findings" in body
+        assert "safe" in body
+        assert "filesize" in body
+
+    def test_scan_saved_to_history(self, client):
+        _upload(client, _zip_bytes({"readme.txt": "ok"}))
+        scans = client.get("/api/scans").get_json()
+        assert len(scans) == 1
+
+    def test_dangerous_extension_detected(self, client):
+        r = _upload(client, _zip_bytes({"payload.exe": b"\x4d\x5a" + b"\x00" * 10}))
+        body = r.get_json()
+        checks = {f["check"] for f in body["findings"]}
+        assert "dangerous_extension" in checks
+
+    def test_path_traversal_detected(self, client):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            info = zipfile.ZipInfo("../../../etc/passwd")
+            zf.writestr(info, "root:x:0:0")
+        r = _upload(client, buf.getvalue())
+        body = r.get_json()
+        checks = {f["check"] for f in body["findings"]}
+        assert "path_traversal" in checks
+
+    def test_zip_bomb_ratio_detected(self, client):
+        """File of 50 000 null bytes compresses to ~50 bytes → ratio ~1000:1."""
+        r = _upload(client, _zip_bytes({"bomb.txt": b"\x00" * 50_000}))
+        body = r.get_json()
+        checks = {f["check"] for f in body["findings"]}
+        assert "zip_bomb" in checks
+
+    def test_malformed_zip_returns_200_with_error(self, client):
+        """Corrupt uploads must not 500 — analyzer returns an error result."""
+        r = _upload(client, b"this is not a zip file PK garbage")
+        assert r.status_code == 200
+        body = r.get_json()
+        # Either an error field is set or findings are empty — either is acceptable
+        assert body.get("error") or body.get("findings") is not None
+
+    def test_unknown_extension_rejected(self, client):
+        r = _upload(client, b"data", filename="malware.exe")
+        assert r.status_code == 400
+
+    def test_no_file_part_rejected(self, client):
+        r = client.post("/analyze", data={}, content_type="multipart/form-data")
+        assert r.status_code == 400
+
+    def test_empty_filename_rejected(self, client):
+        r = client.post(
+            "/analyze",
+            data={"file": (io.BytesIO(b"x"), "")},
+            content_type="multipart/form-data",
+        )
+        assert r.status_code == 400
+
+    def test_tar_upload_analysed(self, client):
+        r = _upload(client, _tar_bytes({"readme.txt": "ok"}), filename="archive.tar")
+        assert r.status_code == 200
+        assert "findings" in r.get_json()
+
+    def test_tgz_upload_analysed(self, client):
+        r = _upload(client, _tar_bytes({"f.txt": "x"}, suffix=".tgz"), filename="archive.tgz")
+        assert r.status_code == 200
+
+    def test_custom_check_applied_during_scan(self, client):
+        """A saved custom check must fire when the archive contains a match."""
+        client.post(
+            "/api/custom-checks",
+            data=json.dumps({"name": "find-secret", "type": "string",
+                             "pattern": "BEGIN RSA PRIVATE KEY", "severity": "critical"}),
+            content_type="application/json",
+        )
+        r = _upload(client, _zip_bytes({"key.txt": "-----BEGIN RSA PRIVATE KEY-----"}))
+        body = r.get_json()
+        custom_hits = [f for f in body["findings"] if f["check"].startswith("custom_")]
+        assert len(custom_hits) >= 1
+        assert custom_hits[0]["severity"] == "critical"
+
+    def test_response_has_finding_counts(self, client):
+        r = _upload(client, _zip_bytes({"ok.txt": "safe content"}))
+        body = r.get_json()
+        assert set(body["finding_counts"].keys()) == {"critical", "high", "medium", "low", "info"}
+
+    def test_response_has_metrics(self, client):
+        r = _upload(client, _zip_bytes({"ok.txt": "safe"}))
+        body = r.get_json()
+        assert "metrics" in body
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CUSTOM CHECKS API — CRUD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestCustomChecksApi:
+
+    def _create(self, client, **kw):
+        defaults = {"name": "test", "type": "string", "pattern": "evil", "severity": "high"}
+        defaults.update(kw)
+        return client.post(
+            "/api/custom-checks",
+            data=json.dumps(defaults),
+            content_type="application/json",
+        )
+
+    def test_list_empty(self, client):
+        r = client.get("/api/custom-checks")
+        assert r.status_code == 200
+        assert r.get_json() == []
+
+    def test_create_returns_id(self, client):
+        r = self._create(client)
+        assert r.status_code == 200
+        assert "id" in r.get_json()
+
+    def test_create_appears_in_list(self, client):
+        self._create(client, name="my-check")
+        checks = client.get("/api/custom-checks").get_json()
+        assert any(c["name"] == "my-check" for c in checks)
+
+    def test_create_missing_name_rejected(self, client):
+        r = self._create(client, name="")
+        assert r.status_code == 400
+
+    def test_create_missing_pattern_rejected(self, client):
+        r = self._create(client, pattern="")
+        assert r.status_code == 400
+
+    def test_create_invalid_type_rejected(self, client):
+        r = self._create(client, type="glob")
+        assert r.status_code == 400
+
+    def test_create_invalid_severity_rejected(self, client):
+        r = self._create(client, severity="nuclear")
+        assert r.status_code == 400
+
+    def test_delete_removes_check(self, client):
+        check_id = self._create(client).get_json()["id"]
+        r = client.delete(
+            f"/api/custom-checks/{check_id}",
+            content_type="application/json",
+        )
+        assert r.status_code == 200
+        assert all(c["id"] != check_id for c in client.get("/api/custom-checks").get_json())
+
+    def test_toggle_disables_check(self, client):
+        check_id = self._create(client).get_json()["id"]
+        client.post(
+            f"/api/custom-checks/{check_id}/toggle",
+            data=json.dumps({"enabled": False}),
+            content_type="application/json",
+        )
+        checks = client.get("/api/custom-checks").get_json()
+        match = next(c for c in checks if c["id"] == check_id)
+        assert match["enabled"] == 0
+
+    def test_toggle_re_enables_check(self, client):
+        check_id = self._create(client).get_json()["id"]
+        for enabled in (False, True):
+            client.post(
+                f"/api/custom-checks/{check_id}/toggle",
+                data=json.dumps({"enabled": enabled}),
+                content_type="application/json",
+            )
+        match = next(c for c in client.get("/api/custom-checks").get_json()
+                     if c["id"] == check_id)
+        assert match["enabled"] == 1
+
+    def test_all_valid_severities_accepted(self, client):
+        for sev in ("critical", "high", "medium", "low", "info"):
+            r = self._create(client, name=f"sev-{sev}", severity=sev)
+            assert r.status_code == 200
+
+    def test_all_valid_types_accepted(self, client):
+        for t in ("string", "extension", "filename"):
+            r = self._create(client, name=f"type-{t}", type=t, pattern=".sh" if t == "extension" else "x")
+            assert r.status_code == 200
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# YARA DRAFTS API — CRUD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestYaraDraftsApi:
+
+    def _create(self, client, name="test", content="rule ok { condition: false }"):
+        return client.post(
+            "/api/yara-drafts",
+            data=json.dumps({"name": name, "content": content}),
+            content_type="application/json",
+        )
+
+    def test_list_empty(self, client):
+        assert client.get("/api/yara-drafts").get_json() == []
+
+    def test_create_and_list(self, client):
+        self._create(client, name="my-rule")
+        drafts = client.get("/api/yara-drafts").get_json()
+        assert any(d["name"] == "my-rule" for d in drafts)
+
+    def test_create_returns_id(self, client):
+        r = self._create(client)
+        assert r.status_code == 200
+        assert "id" in r.get_json()
+
+    def test_update_content(self, client):
+        draft_id = self._create(client).get_json()["id"]
+        new_content = "rule updated { condition: true }"
+        r = client.patch(
+            f"/api/yara-drafts/{draft_id}",
+            data=json.dumps({"content": new_content}),
+            content_type="application/json",
+        )
+        assert r.status_code == 200
+        drafts = client.get("/api/yara-drafts").get_json()
+        match = next(d for d in drafts if d["id"] == draft_id)
+        assert match["content"] == new_content
+
+    def test_delete_removes_draft(self, client):
+        draft_id = self._create(client).get_json()["id"]
+        client.delete(f"/api/yara-drafts/{draft_id}", content_type="application/json")
+        assert all(d["id"] != draft_id for d in client.get("/api/yara-drafts").get_json())
+
+    def test_empty_name_defaults_to_untitled(self, client):
+        r = client.post(
+            "/api/yara-drafts",
+            data=json.dumps({"name": "", "content": "x"}),
+            content_type="application/json",
+        )
+        assert r.status_code == 200
+        drafts = client.get("/api/yara-drafts").get_json()
+        assert any(d["name"] == "Untitled" for d in drafts)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# WATCH FOLDER API
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestWatchFolderApi:
+
+    def test_list_empty(self, client):
+        assert client.get("/api/watch-folders").get_json() == []
+
+    def test_add_valid_path(self, client, tmp_path):
+        r = client.post(
+            "/api/watch-folders",
+            data=json.dumps({"path": str(tmp_path)}),
+            content_type="application/json",
+        )
+        assert r.status_code == 200
+        assert "id" in r.get_json()
+
+    def test_add_valid_path_appears_in_list(self, client, tmp_path):
+        client.post(
+            "/api/watch-folders",
+            data=json.dumps({"path": str(tmp_path)}),
+            content_type="application/json",
+        )
+        folders = client.get("/api/watch-folders").get_json()
+        assert any(f["path"] == str(tmp_path) for f in folders)
+
+    def test_add_nonexistent_path_rejected(self, client):
+        r = client.post(
+            "/api/watch-folders",
+            data=json.dumps({"path": "/nonexistent/path/that/does/not/exist"}),
+            content_type="application/json",
+        )
+        assert r.status_code == 400
+
+    def test_add_missing_path_rejected(self, client):
+        r = client.post(
+            "/api/watch-folders",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+        assert r.status_code == 400
+
+    def test_delete_watch_folder(self, client, tmp_path):
+        folder_id = client.post(
+            "/api/watch-folders",
+            data=json.dumps({"path": str(tmp_path)}),
+            content_type="application/json",
+        ).get_json()["id"]
+        r = client.delete(
+            f"/api/watch-folders/{folder_id}",
+            content_type="application/json",
+        )
+        assert r.status_code == 200
+        assert all(f["id"] != folder_id for f in client.get("/api/watch-folders").get_json())
+
+    def test_toggle_watch_folder(self, client, tmp_path):
+        folder_id = client.post(
+            "/api/watch-folders",
+            data=json.dumps({"path": str(tmp_path)}),
+            content_type="application/json",
+        ).get_json()["id"]
+        client.post(
+            f"/api/watch-folders/{folder_id}/toggle",
+            data=json.dumps({"enabled": False}),
+            content_type="application/json",
+        )
+        folders = client.get("/api/watch-folders").get_json()
+        match = next(f for f in folders if f["id"] == folder_id)
+        assert match["enabled"] == 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CAMPAIGN CLUSTERING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestCampaignClustering:
+
+    def _scan_with_ip(self, ip: str):
+        """Build a minimal scan result dict containing a specific IP."""
+        return {
+            "filename": f"scan_{ip}.zip",
+            "filesize": 512,
+            "safe": False,
+            "error": None,
+            "max_severity": "high",
+            "finding_counts": {"critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0},
+            "findings": [],
+            "metrics": {
+                "risk_score": 50,
+                "risk_label": "HIGH",
+                "confidence": 80,
+                "mitre_techniques": [],
+                "ioc_summary": {
+                    "ips":    [{"ip": ip, "type": "public"}],
+                    "urls":   [],
+                    "onions": [],
+                    "total":  1,
+                },
+                "file_hashes": [],
+            },
+        }
+
+    def test_no_campaigns_with_single_scan(self, client):
+        database.save_scan(self._scan_with_ip("10.0.0.1"))
+        campaigns = client.get("/api/campaigns").get_json()
+        assert campaigns == []
+
+    def test_shared_ip_creates_campaign(self, client):
+        database.save_scan(self._scan_with_ip("1.2.3.4"))
+        database.save_scan(self._scan_with_ip("1.2.3.4"))
+        campaigns = client.get("/api/campaigns").get_json()
+        assert len(campaigns) >= 1
+        indicators = {c["indicator"] for c in campaigns}
+        assert "1.2.3.4" in indicators
+
+    def test_different_ips_no_campaign(self, client):
+        database.save_scan(self._scan_with_ip("10.0.0.1"))
+        database.save_scan(self._scan_with_ip("10.0.0.2"))
+        campaigns = client.get("/api/campaigns").get_json()
+        assert campaigns == []
+
+    def test_campaign_has_expected_fields(self, client):
+        database.save_scan(self._scan_with_ip("5.5.5.5"))
+        database.save_scan(self._scan_with_ip("5.5.5.5"))
+        campaign = client.get("/api/campaigns").get_json()[0]
+        assert "indicator" in campaign
+        assert "scan_count" in campaign
+        assert "scans" in campaign
+        assert campaign["scan_count"] == 2
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IOC PIVOT WITH REAL DATA
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestIocPivot:
+
+    def _save_scan_with_url(self, url):
+        return database.save_scan({
+            "filename": "test.zip", "filesize": 100, "safe": False, "error": None,
+            "max_severity": "high",
+            "finding_counts": {"critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0},
+            "findings": [],
+            "metrics": {
+                "risk_score": 40, "risk_label": "HIGH", "confidence": 90,
+                "mitre_techniques": [],
+                "ioc_summary": {"ips": [], "urls": [url], "onions": [], "total": 1},
+                "file_hashes": [],
+            },
+        })
+
+    def test_pivot_finds_matching_url(self, client):
+        self._save_scan_with_url("https://evil.example.com/payload")
+        r = client.get("/api/ioc-pivot?q=evil.example")
+        assert r.status_code == 200
+        results = r.get_json()
+        assert len(results) >= 1
+        assert any("evil.example" in item["value"] for item in results)
+
+    def test_pivot_returns_empty_for_nonmatch(self, client):
+        self._save_scan_with_url("https://good.example.com/safe")
+        r = client.get("/api/ioc-pivot?q=definitely.not.there")
+        assert r.status_code == 200
+        assert r.get_json() == []
+
+    def test_pivot_result_has_scan_id(self, client):
+        sid = self._save_scan_with_url("https://track.me/c2")
+        r = client.get("/api/ioc-pivot?q=track.me")
+        results = r.get_json()
+        assert any(item["scan_id"] == sid for item in results)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GENERATOR TOOL DATA INTEGRITY
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestGeneratorDataIntegrity:
+    """Quality gate: every tool in TOOLS must meet the minimum data bar."""
+
+    @pytest.fixture(autouse=True)
+    def _load(self):
+        from zip_analyzer.tool_data import TOOLS, TOOLS_BY_SLUG
+        self.tools = TOOLS
+        self.by_slug = TOOLS_BY_SLUG
+
+    def test_no_duplicate_slugs(self):
+        slugs = [t["slug"] for t in self.tools]
+        assert len(slugs) == len(set(slugs)), "Duplicate slugs found"
+
+    def test_tools_by_slug_covers_all_tools(self):
+        for tool in self.tools:
+            assert tool["slug"] in self.by_slug
+
+    def test_all_colors_valid_hex(self):
+        _COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+        bad = [t["slug"] for t in self.tools if not _COLOR_RE.match(t.get("color", ""))]
+        assert bad == [], f"Invalid colors on: {bad}"
+
+    def test_every_tool_has_at_least_one_section(self):
+        bad = [t["slug"] for t in self.tools if not t.get("sections")]
+        assert bad == [], f"Tools with no sections: {bad}"
+
+    def test_every_tool_has_at_least_one_preset(self):
+        bad = [t["slug"] for t in self.tools if not t.get("presets")]
+        assert bad == [], f"Tools with no presets: {bad}"
+
+    def test_every_tool_has_required_fields(self):
+        required = {"slug", "name", "category", "tier", "color", "desc",
+                    "sections", "presets"}
+        for tool in self.tools:
+            missing = required - set(tool.keys())
+            assert not missing, f"{tool['slug']} missing: {missing}"
+
+    def test_tier_values_valid(self):
+        valid_tiers = {1, 2, 3}
+        bad = [t["slug"] for t in self.tools if t.get("tier") not in valid_tiers]
+        assert bad == [], f"Invalid tier values on: {bad}"
+
+    def test_every_section_has_at_least_one_field(self):
+        bad = []
+        for tool in self.tools:
+            for section in tool.get("sections", []):
+                if not section.get("fields"):
+                    bad.append(f"{tool['slug']}:{section.get('id', '?')}")
+        assert bad == [], f"Sections with no fields: {bad}"
+
+    def test_preset_values_reference_valid_field_ids(self):
+        """Preset keys must correspond to field ids defined in the tool's sections."""
+        bad = []
+        for tool in self.tools:
+            field_ids = {
+                f["id"]
+                for section in tool.get("sections", [])
+                for f in section.get("fields", [])
+            }
+            for preset in tool.get("presets", []):
+                for key in preset.get("vals", {}).keys():
+                    if key not in field_ids:
+                        bad.append(f"{tool['slug']}/{preset.get('label','?')}: unknown field '{key}'")
+        assert bad == [], f"Preset references unknown fields:\n" + "\n".join(bad[:10])
