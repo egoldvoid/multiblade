@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Encoder / Decoder — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;--ease:cubic-bezier(0.16,1,0.3,1);
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:800px;height:800px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-300px;left:-150px;animation:d1 24s ease-in-out infinite alternate;}
+    .blob-2{width:600px;height:600px;background:radial-gradient(circle,#ea580c0e,transparent 70%);bottom:-200px;right:-100px;animation:d2 28s ease-in-out infinite alternate;}
+    @keyframes d1{to{transform:translate(50px,40px) scale(1.07)}} @keyframes d2{to{transform:translate(-40px,-50px) scale(1.1)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .page{position:relative;z-index:1;padding:0 0 80px;}
+
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 16px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:0;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;}
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);margin-left:auto;}
+
+    /* Transform selector */
+    .transforms-row{display:flex;flex-wrap:wrap;gap:6px;padding:20px 40px 0;}
+    .tx-chip{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:6px 14px;border-radius:99px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.75rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;user-select:none;
+    }
+    .tx-chip:hover{border-color:var(--border-hi);color:var(--text);}
+    .tx-chip.active{border-color:#fb923c;color:#fb923c;background:#fb923c18;}
+
+    /* Main layout */
+    .encode-layout{display:grid;grid-template-columns:1fr auto 1fr;gap:0;padding:20px 40px 0;align-items:start;}
+    @media(max-width:760px){.encode-layout{grid-template-columns:1fr;}.swap-col{display:none;}.panel+.panel{margin-top:16px;}.encode-layout{padding:16px 20px 0;}.transforms-row{padding:16px 20px 0;}}
+
+    .panel{display:flex;flex-direction:column;gap:0;background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+    .panel-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 14px;border-bottom:1px solid var(--border);background:var(--s2);
+    }
+    .panel-label{font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);}
+    .panel-actions{display:flex;gap:6px;}
+    .pnl-btn{
+      display:inline-flex;align-items:center;gap:4px;
+      padding:4px 10px;border-radius:7px;border:1px solid var(--border);
+      background:transparent;color:var(--text-dim);font-size:0.7rem;font-weight:600;
+      cursor:pointer;font-family:inherit;transition:all 0.15s;
+    }
+    .pnl-btn:hover{background:var(--s3);color:var(--text);border-color:var(--border-hi);}
+    .pnl-btn.copied{background:#22d3a518;border-color:#22d3a540;color:#22d3a5;}
+
+    textarea.panel-text{
+      width:100%;min-height:280px;resize:vertical;
+      background:transparent;border:none;outline:none;
+      padding:14px 16px;
+      font-family:'Fira Code',monospace;font-size:0.82rem;line-height:1.6;color:#c4c9f5;
+    }
+    .output-text{
+      padding:14px 16px;min-height:280px;
+      font-family:'Fira Code',monospace;font-size:0.82rem;line-height:1.6;color:#c4c9f5;
+      word-break:break-all;white-space:pre-wrap;
+    }
+    .output-text.error{color:#f87171;}
+
+    /* Swap arrow */
+    .swap-col{display:flex;align-items:center;justify-content:center;padding:0 12px;margin-top:52px;}
+    .swap-btn{
+      display:flex;align-items:center;justify-content:center;
+      width:36px;height:36px;border-radius:50%;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:1rem;cursor:pointer;
+      transition:all 0.15s;
+    }
+    .swap-btn:hover{border-color:var(--border-hi);color:var(--text);background:var(--s2);}
+
+    /* Transform descriptions */
+    .tx-desc{padding:14px 40px 0;font-size:0.78rem;color:var(--text-dim);}
+
+    /* JWT breakdown */
+    .jwt-breakdown{padding:16px 40px 0;display:none;}
+    .jwt-breakdown.visible{display:block;}
+    .jwt-parts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+    @media(max-width:760px){.jwt-parts{grid-template-columns:1fr;}.jwt-breakdown{padding:12px 20px 0;}}
+    .jwt-part{background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+    .jwt-part-head{padding:8px 12px;border-bottom:1px solid var(--border);background:var(--s2);font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;}
+    .jwt-part-body{padding:10px 12px;font-family:'Fira Code',monospace;font-size:0.76rem;color:#c4c9f5;word-break:break-all;white-space:pre-wrap;min-height:60px;}
+    .jwt-head-color{color:#f472b6;}
+    .jwt-payload-color{color:#60a5fa;}
+    .jwt-sig-color{color:#4ade80;}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="page page-with-nav">
+
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/" class="back-link">← Home</a>
+      <span class="page-title">Encoder / Decoder</span>
+      <span class="page-sub" id="tx-name-label">URL encode</span>
+    </div>
+  </div>
+
+  <!-- Transform chips -->
+  <div class="transforms-row">
+    <button class="tx-chip active" data-tx="url-encode"   onclick="setTx(this)">URL encode</button>
+    <button class="tx-chip"        data-tx="url-decode"   onclick="setTx(this)">URL decode</button>
+    <button class="tx-chip"        data-tx="b64-encode"   onclick="setTx(this)">Base64 encode</button>
+    <button class="tx-chip"        data-tx="b64-decode"   onclick="setTx(this)">Base64 decode</button>
+    <button class="tx-chip"        data-tx="hex-encode"   onclick="setTx(this)">Hex encode</button>
+    <button class="tx-chip"        data-tx="hex-decode"   onclick="setTx(this)">Hex decode</button>
+    <button class="tx-chip"        data-tx="html-encode"  onclick="setTx(this)">HTML encode</button>
+    <button class="tx-chip"        data-tx="html-decode"  onclick="setTx(this)">HTML decode</button>
+    <button class="tx-chip"        data-tx="unicode"      onclick="setTx(this)">Unicode escape</button>
+    <button class="tx-chip"        data-tx="rot13"        onclick="setTx(this)">ROT13</button>
+    <button class="tx-chip"        data-tx="jwt"          onclick="setTx(this)">JWT decode</button>
+    <button class="tx-chip"        data-tx="md5"          onclick="setTx(this)">MD5 hash</button>
+    <button class="tx-chip"        data-tx="sha256"       onclick="setTx(this)">SHA-256 hash</button>
+  </div>
+
+  <!-- Panels -->
+  <div class="encode-layout">
+    <div class="panel" id="input-panel">
+      <div class="panel-head">
+        <span class="panel-label">Input</span>
+        <div class="panel-actions">
+          <button class="pnl-btn" onclick="clearInput()">Clear</button>
+          <button class="pnl-btn" onclick="pasteInput()">Paste</button>
+        </div>
+      </div>
+      <textarea class="panel-text" id="input-text" placeholder="Paste your input here…" oninput="transform()"></textarea>
+    </div>
+
+    <div class="swap-col">
+      <button class="swap-btn" title="Swap input ↔ output" onclick="swapPanels()">⇄</button>
+    </div>
+
+    <div class="panel" id="output-panel">
+      <div class="panel-head">
+        <span class="panel-label">Output</span>
+        <div class="panel-actions">
+          <button class="pnl-btn" id="copy-out-btn" onclick="copyOutput()">Copy</button>
+          <button class="pnl-btn" onclick="useAsInput()">Use as input →</button>
+        </div>
+      </div>
+      <div class="output-text" id="output-text"></div>
+    </div>
+  </div>
+
+  <!-- JWT breakdown (shown only for JWT mode) -->
+  <div class="jwt-breakdown" id="jwt-breakdown">
+    <div class="jwt-parts">
+      <div class="jwt-part">
+        <div class="jwt-part-head jwt-head-color">Header</div>
+        <div class="jwt-part-body" id="jwt-header"></div>
+      </div>
+      <div class="jwt-part">
+        <div class="jwt-part-head jwt-payload-color">Payload</div>
+        <div class="jwt-part-body" id="jwt-payload"></div>
+      </div>
+      <div class="jwt-part">
+        <div class="jwt-part-head jwt-sig-color">Signature (raw)</div>
+        <div class="jwt-part-body" id="jwt-sig"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentTx = 'url-encode';
+
+const TX_LABELS = {
+  'url-encode':'URL encode','url-decode':'URL decode',
+  'b64-encode':'Base64 encode','b64-decode':'Base64 decode',
+  'hex-encode':'Hex encode','hex-decode':'Hex decode',
+  'html-encode':'HTML encode','html-decode':'HTML decode',
+  'unicode':'Unicode escape','rot13':'ROT13',
+  'jwt':'JWT decode','md5':'MD5 hash','sha256':'SHA-256 hash',
+};
+
+function setTx(btn) {
+  document.querySelectorAll('.tx-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  currentTx = btn.dataset.tx;
+  document.getElementById('tx-name-label').textContent = TX_LABELS[currentTx] || currentTx;
+  const jwtDiv = document.getElementById('jwt-breakdown');
+  jwtDiv.classList.toggle('visible', currentTx === 'jwt');
+  transform();
+}
+
+function rot13(s) {
+  return s.replace(/[a-zA-Z]/g, c => {
+    const base = c <= 'Z' ? 65 : 97;
+    return String.fromCharCode(((c.charCodeAt(0) - base + 13) % 26) + base);
+  });
+}
+
+function hexEncode(s) {
+  return Array.from(new TextEncoder().encode(s)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function hexDecode(s) {
+  const clean = s.replace(/\s/g,'');
+  if (clean.length % 2 !== 0) throw new Error('Odd hex length');
+  return new TextDecoder().decode(new Uint8Array(clean.match(/.{2}/g).map(b => parseInt(b,16))));
+}
+
+function htmlEncode(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function htmlDecode(s) {
+  const ta = document.createElement('textarea');
+  ta.innerHTML = s;
+  return ta.value;
+}
+
+async function sha256hex(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// Simple MD5 (reference implementation — not cryptographically secure use)
+function md5(input) {
+  function safeAdd(x,y){const lsw=(x&0xffff)+(y&0xffff);return((x>>16)+(y>>16)+(lsw>>16))<<16|lsw&0xffff;}
+  function bitRotateLeft(num,cnt){return num<<cnt|num>>>32-cnt;}
+  function md5cmn(q,a,b,x,s,t){return safeAdd(bitRotateLeft(safeAdd(safeAdd(a,q),safeAdd(x,t)),s),b);}
+  function md5ff(a,b,c,d,x,s,t){return md5cmn(b&c|~b&d,a,b,x,s,t);}
+  function md5gg(a,b,c,d,x,s,t){return md5cmn(b&d|c&~d,a,b,x,s,t);}
+  function md5hh(a,b,c,d,x,s,t){return md5cmn(b^c^d,a,b,x,s,t);}
+  function md5ii(a,b,c,d,x,s,t){return md5cmn(c^(b|~d),a,b,x,s,t);}
+  const bytes=new TextEncoder().encode(input);
+  const numBits=bytes.length*8;
+  const padded=new Uint8Array(Math.ceil((bytes.length+9)/64)*64);
+  padded.set(bytes);padded[bytes.length]=0x80;
+  const view=new DataView(padded.buffer);
+  view.setUint32(padded.length-8,numBits>>>0,true);
+  view.setUint32(padded.length-4,Math.floor(numBits/2**32)>>>0,true);
+  let a=0x67452301,b=0xefcdab89,c=0x98badcfe,d=0x10325476;
+  for(let i=0;i<padded.length;i+=64){
+    const M=[];for(let j=0;j<16;j++)M.push(view.getUint32(i+j*4,true));
+    let [aa,bb,cc,dd]=[a,b,c,d];
+    a=md5ff(a,b,c,d,M[0],7,-680876936);d=md5ff(d,a,b,c,M[1],12,-389564586);c=md5ff(c,d,a,b,M[2],17,606105819);b=md5ff(b,c,d,a,M[3],22,-1044525330);
+    a=md5ff(a,b,c,d,M[4],7,-176418897);d=md5ff(d,a,b,c,M[5],12,1200080426);c=md5ff(c,d,a,b,M[6],17,-1473231341);b=md5ff(b,c,d,a,M[7],22,-45705983);
+    a=md5ff(a,b,c,d,M[8],7,1770035416);d=md5ff(d,a,b,c,M[9],12,-1958414417);c=md5ff(c,d,a,b,M[10],17,-42063);b=md5ff(b,c,d,a,M[11],22,-1990404162);
+    a=md5ff(a,b,c,d,M[12],7,1804603682);d=md5ff(d,a,b,c,M[13],12,-40341101);c=md5ff(c,d,a,b,M[14],17,-1502002290);b=md5ff(b,c,d,a,M[15],22,1236535329);
+    a=md5gg(a,b,c,d,M[1],5,-165796510);d=md5gg(d,a,b,c,M[6],9,-1069501632);c=md5gg(c,d,a,b,M[11],14,643717713);b=md5gg(b,c,d,a,M[0],20,-373897302);
+    a=md5gg(a,b,c,d,M[5],5,-701558691);d=md5gg(d,a,b,c,M[10],9,38016083);c=md5gg(c,d,a,b,M[15],14,-660478335);b=md5gg(b,c,d,a,M[4],20,-405537848);
+    a=md5gg(a,b,c,d,M[9],5,568446438);d=md5gg(d,a,b,c,M[14],9,-1019803690);c=md5gg(c,d,a,b,M[3],14,-187363961);b=md5gg(b,c,d,a,M[8],20,1163531501);
+    a=md5gg(a,b,c,d,M[13],5,-1444681467);d=md5gg(d,a,b,c,M[2],9,-51403784);c=md5gg(c,d,a,b,M[7],14,1735328473);b=md5gg(b,c,d,a,M[12],20,-1926607734);
+    a=md5hh(a,b,c,d,M[5],4,-378558);d=md5hh(d,a,b,c,M[8],11,-2022574463);c=md5hh(c,d,a,b,M[11],16,1839030562);b=md5hh(b,c,d,a,M[14],23,-35309556);
+    a=md5hh(a,b,c,d,M[1],4,-1530992060);d=md5hh(d,a,b,c,M[4],11,1272893353);c=md5hh(c,d,a,b,M[7],16,-155497632);b=md5hh(b,c,d,a,M[10],23,-1094730640);
+    a=md5hh(a,b,c,d,M[13],4,681279174);d=md5hh(d,a,b,c,M[0],11,-358537222);c=md5hh(c,d,a,b,M[3],16,-722521979);b=md5hh(b,c,d,a,M[6],23,76029189);
+    a=md5hh(a,b,c,d,M[9],4,-640364487);d=md5hh(d,a,b,c,M[12],11,-421815835);c=md5hh(c,d,a,b,M[15],16,530742520);b=md5hh(b,c,d,a,M[2],23,-995338651);
+    a=md5ii(a,b,c,d,M[0],6,-198630844);d=md5ii(d,a,b,c,M[7],10,1126891415);c=md5ii(c,d,a,b,M[14],15,-1416354905);b=md5ii(b,c,d,a,M[5],21,-57434055);
+    a=md5ii(a,b,c,d,M[12],6,1700485571);d=md5ii(d,a,b,c,M[3],10,-1894986606);c=md5ii(c,d,a,b,M[10],15,-1051523);b=md5ii(b,c,d,a,M[1],21,-2054922799);
+    a=md5ii(a,b,c,d,M[8],6,1873313359);d=md5ii(d,a,b,c,M[15],10,-30611744);c=md5ii(c,d,a,b,M[6],15,-1560198380);b=md5ii(b,c,d,a,M[13],21,1309151649);
+    a=md5ii(a,b,c,d,M[4],6,-145523070);d=md5ii(d,a,b,c,M[11],10,-1120210379);c=md5ii(c,d,a,b,M[2],15,718787259);b=md5ii(b,c,d,a,M[9],21,-343485551);
+    a=safeAdd(a,aa);b=safeAdd(b,bb);c=safeAdd(c,cc);d=safeAdd(d,dd);
+  }
+  const result=new Uint8Array(16);const rv=new DataView(result.buffer);
+  rv.setUint32(0,a,true);rv.setUint32(4,b,true);rv.setUint32(8,c,true);rv.setUint32(12,d,true);
+  return Array.from(result).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function transform() {
+  const input = document.getElementById('input-text').value;
+  const outEl  = document.getElementById('output-text');
+  outEl.classList.remove('error');
+  if (!input) { outEl.textContent = ''; return; }
+
+  try {
+    let out = '';
+    switch (currentTx) {
+      case 'url-encode':  out = encodeURIComponent(input); break;
+      case 'url-decode':  out = decodeURIComponent(input); break;
+      case 'b64-encode':  out = btoa(unescape(encodeURIComponent(input))); break;
+      case 'b64-decode':  out = decodeURIComponent(escape(atob(input))); break;
+      case 'hex-encode':  out = hexEncode(input); break;
+      case 'hex-decode':  out = hexDecode(input); break;
+      case 'html-encode': out = htmlEncode(input); break;
+      case 'html-decode': out = htmlDecode(input); break;
+      case 'unicode':     out = Array.from(input).map(c => c.codePointAt(0) > 127 ? `\\u${c.codePointAt(0).toString(16).padStart(4,'0')}` : c).join(''); break;
+      case 'rot13':       out = rot13(input); break;
+      case 'jwt':         out = decodeJWT(input); break;
+      case 'md5':         out = md5(input); break;
+      case 'sha256':      out = await sha256hex(input); break;
+    }
+    outEl.textContent = out;
+  } catch (e) {
+    outEl.classList.add('error');
+    outEl.textContent = `Error: ${e.message}`;
+  }
+}
+
+function decodeJWT(token) {
+  const parts = token.trim().split('.');
+  if (parts.length < 2) throw new Error('Not a valid JWT (need at least 2 parts)');
+  function b64url(s) {
+    s = s.replace(/-/g,'+').replace(/_/g,'/');
+    while (s.length % 4) s += '=';
+    return JSON.stringify(JSON.parse(decodeURIComponent(escape(atob(s)))), null, 2);
+  }
+  try {
+    document.getElementById('jwt-header').textContent  = b64url(parts[0]);
+    document.getElementById('jwt-payload').textContent = b64url(parts[1]);
+    document.getElementById('jwt-sig').textContent     = parts[2] || '(none)';
+    return `Header:\n${b64url(parts[0])}\n\nPayload:\n${b64url(parts[1])}`;
+  } catch(e) {
+    throw new Error('Failed to decode JWT — is the input valid?');
+  }
+}
+
+function clearInput() {
+  document.getElementById('input-text').value = '';
+  document.getElementById('output-text').textContent = '';
+}
+
+async function pasteInput() {
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById('input-text').value = text;
+    transform();
+  } catch(e) { /* permission denied — ignore */ }
+}
+
+function copyOutput() {
+  const text = document.getElementById('output-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-out-btn');
+    btn.textContent = '✓ Copied'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1400);
+  });
+}
+
+function useAsInput() {
+  const out = document.getElementById('output-text').textContent;
+  document.getElementById('input-text').value = out;
+  transform();
+}
+
+function swapPanels() {
+  const input  = document.getElementById('input-text');
+  const output = document.getElementById('output-text');
+  input.value  = output.textContent;
+  transform();
+}
+</script>
+</body>
+</html>

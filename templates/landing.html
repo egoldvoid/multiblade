@@ -18,9 +18,8 @@
     body {
       background: var(--bg); color: var(--text);
       font-family: 'Inter', system-ui, sans-serif;
-      font-size: 14px; line-height: 1.6; min-height: 100vh;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      overflow-x: hidden;
+      font-size: 14px; line-height: 1.6;
+      min-height: 100vh; overflow-x: hidden;
     }
 
     /* Ambient */
@@ -39,129 +38,150 @@
       mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
     }
 
-    /* Content */
-    .content { position: relative; z-index: 1; width: 100%; max-width: 960px; padding: 48px 32px; text-align: center; }
+    /* Layout */
+    .page { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 56px 32px 80px; }
 
     /* Brand */
-    .brand { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 20px; animation: rise 0.7s var(--ease) both; }
+    .brand { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 20px; animation: rise 0.6s var(--ease) both; }
     .brand-hex {
-      width: 54px; height: 54px;
+      width: 48px; height: 48px;
       background: linear-gradient(135deg, var(--accent), #7c3aed);
       clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-      display: grid; place-items: center; font-family: 'Syne', sans-serif;
-      font-size: 22px; font-weight: 800; color: #fff;
+      display: grid; place-items: center;
+      font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: #fff;
       box-shadow: 0 0 32px var(--accent-glow), 0 0 80px #6366f122;
     }
-    .brand-text { text-align: left; }
-    .brand-name {
-      font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800;
-      letter-spacing: 0.14em; color: var(--text); line-height: 1;
-    }
-    .brand-tagline { font-size: 0.72rem; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px; }
+    .brand-name { font-family: 'Syne', sans-serif; font-size: 1.9rem; font-weight: 800; letter-spacing: 0.14em; line-height: 1; }
+    .brand-tagline { font-size: 0.68rem; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px; }
 
     /* Hero */
-    .hero { margin-bottom: 56px; animation: rise 0.7s 0.1s var(--ease) both; }
+    .hero { text-align: center; margin-bottom: 52px; animation: rise 0.6s 0.08s var(--ease) both; }
     .hero h1 {
       font-family: 'Syne', sans-serif;
-      font-size: clamp(2.4rem, 5vw, 3.8rem);
-      font-weight: 800; line-height: 1.08; letter-spacing: -0.02em;
+      font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+      font-weight: 800; line-height: 1.1; letter-spacing: -0.02em;
       background: linear-gradient(150deg, #e2e6ff 15%, var(--accent-hi) 55%, #a855f7 95%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-      margin-bottom: 18px;
+      margin-bottom: 14px;
     }
-    .hero p { font-size: 1.05rem; color: var(--text-dim); max-width: 520px; margin: 0 auto; line-height: 1.7; }
+    .hero p { font-size: 1rem; color: var(--text-dim); max-width: 540px; margin: 0 auto; line-height: 1.7; }
 
-    /* Mode cards */
-    .mode-grid {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 20px; margin-bottom: 40px;
-      animation: rise 0.7s 0.18s var(--ease) both;
+    /* Feature sections */
+    .sections { display: flex; flex-direction: column; gap: 36px; margin-bottom: 48px; }
+
+    .section-block { animation: rise 0.6s var(--ease) both; }
+    .section-block:nth-child(1) { animation-delay: 0.14s; }
+    .section-block:nth-child(2) { animation-delay: 0.20s; }
+    .section-block:nth-child(3) { animation-delay: 0.26s; }
+
+    .section-label {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;
+      margin-bottom: 12px;
     }
-    @media (max-width: 640px) { .mode-grid { grid-template-columns: 1fr; } }
+    .section-label-line { flex: 1; height: 1px; background: var(--border); }
 
-    .mode-card {
+    /* Card grids within each section */
+    .card-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .card-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    @media (max-width: 900px) {
+      .card-grid-2 { grid-template-columns: 1fr; }
+      .card-grid-3 { grid-template-columns: 1fr 1fr; }
+      .card-grid-4 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 560px) {
+      .card-grid-3, .card-grid-4 { grid-template-columns: 1fr; }
+    }
+
+    /* Feature card */
+    .feat-card {
       background: var(--s1); border: 1.5px solid var(--border);
-      border-radius: 20px; padding: 36px 32px;
+      border-radius: 16px; padding: 22px 24px;
       text-decoration: none; color: inherit;
-      display: flex; flex-direction: column; align-items: flex-start; gap: 18px;
+      display: flex; flex-direction: column; gap: 10px;
       position: relative; overflow: hidden;
-      transition: border-color 0.25s, box-shadow 0.3s, transform 0.2s;
+      transition: border-color 0.2s, box-shadow 0.25s, transform 0.18s;
     }
-    .mode-card::before {
+    .feat-card::before {
       content: ''; position: absolute; inset: 0; border-radius: inherit;
-      background: radial-gradient(ellipse 70% 55% at 50% 0%, var(--card-glow), transparent 70%);
-      opacity: 0; transition: opacity 0.3s;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, var(--card-glow, transparent), transparent 70%);
+      opacity: 0; transition: opacity 0.25s;
     }
-    .mode-card:hover { border-color: var(--card-border); transform: translateY(-3px); box-shadow: 0 16px 56px -16px var(--card-shadow); }
-    .mode-card:hover::before { opacity: 1; }
+    .feat-card:not(.soon):hover { border-color: var(--card-border, var(--border-hi)); transform: translateY(-2px); box-shadow: 0 12px 40px -12px var(--card-shadow, #00000060); }
+    .feat-card:not(.soon):hover::before { opacity: 1; }
+    .feat-card.soon { opacity: 0.5; cursor: default; }
 
-    .mode-card.generators {
-      --card-glow: #6366f120;
-      --card-border: #6366f160;
-      --card-shadow: #6366f144;
-    }
-    .mode-card.analyzer {
-      --card-glow: #22d3a518;
-      --card-border: #22d3a560;
-      --card-shadow: #22d3a540;
-    }
+    /* Large 2-col cards get extra padding */
+    .card-grid-2 .feat-card { padding: 28px 30px; }
 
-    .card-icon-row { display: flex; align-items: center; gap: 14px; position: relative; z-index: 1; }
-    .card-icon {
-      width: 52px; height: 52px; border-radius: 14px;
-      display: grid; place-items: center; font-size: 1.6rem; flex-shrink: 0;
+    /* Card anatomy */
+    .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; position: relative; z-index: 1; }
+    .card-icon-badge {
+      width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+      display: grid; place-items: center; font-size: 1.4rem;
+      background: var(--icon-bg, #6366f118); border: 1px solid var(--icon-border, #6366f130);
+      box-shadow: 0 0 16px var(--icon-glow, #6366f118);
     }
-    .generators .card-icon { background: #6366f118; border: 1px solid #6366f140; box-shadow: 0 0 20px #6366f120; }
-    .analyzer  .card-icon { background: #22d3a518; border: 1px solid #22d3a540; box-shadow: 0 0 20px #22d3a520; }
+    .card-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .badge {
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 99px;
+    }
+    .badge-live { background: #22d3a518; color: #22d3a5; border: 1px solid #22d3a530; }
+    .badge-soon { background: #f59e0b18; color: #f59e0b; border: 1px solid #f59e0b30; }
+    .badge-new  { background: #6366f118; color: #818cf8; border: 1px solid #6366f130; }
 
-    .card-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
-    .generators .card-label { color: var(--accent-hi); }
-    .analyzer   .card-label { color: #22d3a5; }
+    .card-label-sm { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--card-accent, var(--accent-hi)); position: relative; z-index: 1; margin-top: 4px; }
+    .card-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; position: relative; z-index: 1; }
+    .card-grid-2 .card-title { font-size: 1.35rem; }
+    .card-desc { font-size: 0.79rem; color: var(--text-dim); line-height: 1.6; position: relative; z-index: 1; }
+    .card-grid-2 .card-desc { font-size: 0.84rem; }
 
-    .card-title {
-      font-family: 'Syne', sans-serif; font-size: 1.5rem;
-      font-weight: 800; letter-spacing: -0.01em;
-      line-height: 1.15; position: relative; z-index: 1;
+    .card-pills { display: flex; gap: 6px; flex-wrap: wrap; position: relative; z-index: 1; }
+    .pill {
+      font-size: 0.66rem; color: var(--text-faint);
+      background: var(--s2); border: 1px solid var(--border);
+      border-radius: 99px; padding: 2px 9px; white-space: nowrap;
     }
-    .card-desc {
-      font-size: 0.85rem; color: var(--text-dim); line-height: 1.65;
-      position: relative; z-index: 1;
-    }
-
-    /* Bullet list inside cards */
-    .card-features {
-      list-style: none; display: flex; flex-direction: column; gap: 7px;
-      position: relative; z-index: 1; width: 100%;
-    }
-    .card-features li {
-      display: flex; align-items: center; gap: 9px;
-      font-size: 0.78rem; color: var(--text-dim);
-    }
-    .feat-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-    .generators .feat-dot { background: var(--accent-hi); box-shadow: 0 0 6px var(--accent); }
-    .analyzer   .feat-dot { background: #22d3a5; box-shadow: 0 0 6px #22d3a5; }
 
     .card-cta {
-      display: inline-flex; align-items: center; gap: 8px;
-      margin-top: auto; font-size: 0.82rem; font-weight: 600;
-      position: relative; z-index: 1;
-      transition: gap 0.2s;
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 0.78rem; font-weight: 600; color: var(--card-accent, var(--accent-hi));
+      margin-top: auto; position: relative; z-index: 1;
+      transition: gap 0.15s;
     }
-    .mode-card:hover .card-cta { gap: 12px; }
-    .generators .card-cta { color: var(--accent-hi); }
-    .analyzer   .card-cta { color: #22d3a5; }
+    .feat-card:not(.soon):hover .card-cta { gap: 11px; }
 
-    /* Footer stat strip */
+    /* Section accent colours */
+    .sec-generate .section-label { color: var(--accent-hi); }
+    .sec-analyze  .section-label { color: #22d3a5; }
+    .sec-reference .section-label { color: #fb923c; }
+    .sec-platform .section-label { color: #c084fc; }
+
+    /* Card colour themes */
+    .theme-indigo { --card-glow:#6366f110; --card-border:#6366f160; --card-shadow:#6366f140; --card-accent:#818cf8; --icon-bg:#6366f118; --icon-border:#6366f130; --icon-glow:#6366f114; }
+    .theme-violet { --card-glow:#7c3aed10; --card-border:#7c3aed60; --card-shadow:#7c3aed40; --card-accent:#a78bfa; --icon-bg:#7c3aed18; --icon-border:#7c3aed30; --icon-glow:#7c3aed14; }
+    .theme-teal   { --card-glow:#22d3a510; --card-border:#22d3a560; --card-shadow:#22d3a540; --card-accent:#22d3a5;  --icon-bg:#22d3a518; --icon-border:#22d3a530; --icon-glow:#22d3a514; }
+    .theme-green  { --card-glow:#4ade8010; --card-border:#4ade8050; --card-shadow:#4ade8030; --card-accent:#4ade80;  --icon-bg:#4ade8018; --icon-border:#4ade8030; --icon-glow:#4ade8014; }
+    .theme-orange { --card-glow:#fb923c10; --card-border:#fb923c50; --card-shadow:#fb923c30; --card-accent:#fb923c;  --icon-bg:#fb923c18; --icon-border:#fb923c30; --icon-glow:#fb923c14; }
+    .theme-amber  { --card-glow:#f59e0b10; --card-border:#f59e0b50; --card-shadow:#f59e0b30; --card-accent:#fbbf24;  --icon-bg:#f59e0b18; --icon-border:#f59e0b30; --icon-glow:#f59e0b14; }
+    .theme-pink   { --card-glow:#f472b610; --card-border:#f472b650; --card-shadow:#f472b630; --card-accent:#f472b6;  --icon-bg:#f472b618; --icon-border:#f472b630; --icon-glow:#f472b614; }
+    .theme-purple { --card-glow:#c084fc10; --card-border:#c084fc50; --card-shadow:#c084fc30; --card-accent:#c084fc;  --icon-bg:#c084fc18; --icon-border:#c084fc30; --icon-glow:#c084fc14; }
+    .theme-sky    { --card-glow:#38bdf810; --card-border:#38bdf850; --card-shadow:#38bdf830; --card-accent:#38bdf8;  --icon-bg:#38bdf818; --icon-border:#38bdf830; --icon-glow:#38bdf814; }
+
+    /* Stat strip */
     .stat-strip {
-      display: flex; align-items: center; justify-content: center; gap: 32px;
-      animation: rise 0.7s 0.28s var(--ease) both;
+      display: flex; align-items: center; justify-content: center; gap: 36px;
+      animation: rise 0.6s 0.32s var(--ease) both;
+      padding-top: 8px; border-top: 1px solid var(--border);
     }
     .stat-item { text-align: center; }
-    .stat-val { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text); line-height: 1; }
-    .stat-lbl { font-size: 0.65rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 3px; }
-    .stat-divider { width: 1px; height: 36px; background: var(--border); }
+    .stat-val { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1; }
+    .stat-lbl { font-size: 0.62rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 3px; }
+    .stat-divider { width: 1px; height: 32px; background: var(--border); }
 
-    @keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
     ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   </style>
 </head>
@@ -174,66 +194,274 @@
 </div>
 <div class="grid-ov" aria-hidden="true"></div>
 
-<div class="content">
+<div class="page">
 
+  <!-- Brand -->
   <div class="brand">
     <div class="brand-hex">V</div>
-    <div class="brand-text">
+    <div>
       <div class="brand-name">VANTAGE</div>
       <div class="brand-tagline">Security Operations Platform</div>
     </div>
   </div>
 
+  <!-- Hero -->
   <div class="hero">
     <h1>Every tool.<br/>One platform.</h1>
-    <p>Build perfect CLI commands for {{ tool_count }}+ tools, or drop an archive and get a full threat report — YARA, MITRE ATT&amp;CK, IOC extraction, VirusTotal.</p>
+    <p>Command generators, shell builders, encoders, file analysis, and reference libraries — everything a security practitioner needs in one place.</p>
   </div>
 
-  <div class="mode-grid">
+  <div class="sections">
 
-    <a href="/generators" class="mode-card generators">
-      <div class="card-icon-row">
-        <div class="card-icon">⚙</div>
-        <div class="card-label">Command Generators</div>
+    <!-- ── GENERATE ──────────────────────────────────────────────────────── -->
+    <div class="section-block sec-generate">
+      <div class="section-label">
+        <span>Generate</span>
+        <span class="section-label-line"></span>
       </div>
-      <div class="card-title">Build any<br/>CLI command.</div>
-      <ul class="card-features">
-        <li><span class="feat-dot"></span>{{ tool_count }} tools — nmap, ffuf, nuclei, sqlmap, and more</li>
-        <li><span class="feat-dot"></span>Form-driven with flag explanations</li>
-        <li><span class="feat-dot"></span>Editable output, presets, one-click copy</li>
-        <li><span class="feat-dot"></span>Search and filter by category</li>
-      </ul>
-      <div class="card-cta">Open generators →</div>
-    </a>
+      <div class="card-grid-2">
 
-    <a href="/platform" class="mode-card analyzer">
-      <div class="card-icon-row">
-        <div class="card-icon">🛡️</div>
-        <div class="card-label">Security Analyzer</div>
+        <a href="/generators" class="feat-card theme-indigo">
+          <div class="card-head">
+            <div class="card-icon-badge">⚙</div>
+            <div class="card-badges"><span class="badge badge-live">{{ tool_count }} tools</span></div>
+          </div>
+          <div class="card-label-sm">Command Generators</div>
+          <div class="card-title">Build any CLI command.</div>
+          <div class="card-desc">Form-driven builders for {{ tool_count }} security tools — nmap, ffuf, nuclei, sqlmap, Burp, and more. Flag explanations, presets, one-click copy.</div>
+          <div class="card-pills">
+            <span class="pill">{{ category_count }} categories</span>
+            <span class="pill">Presets</span>
+            <span class="pill">Install hints</span>
+          </div>
+          <div class="card-cta">Open generators →</div>
+        </a>
+
+        <a href="/generators/revshells" class="feat-card theme-violet">
+          <div class="card-head">
+            <div class="card-icon-badge">🐚</div>
+            <div class="card-badges"><span class="badge badge-new">New</span></div>
+          </div>
+          <div class="card-label-sm">Reverse Shell Generator</div>
+          <div class="card-title">One-click reverse shells.</div>
+          <div class="card-desc">Pick your OS and language — bash, Python, PowerShell, PHP, Ruby, Perl, nc, socat, and more. Enter your listener IP and port, get the exact one-liner.</div>
+          <div class="card-pills">
+            <span class="pill">20+ shell types</span>
+            <span class="pill">URL encoding</span>
+            <span class="pill">Base64 wrap</span>
+          </div>
+          <div class="card-cta">Build a shell →</div>
+        </a>
+
       </div>
-      <div class="card-title">Scan archives.<br/>Hunt threats.</div>
-      <ul class="card-features">
-        <li><span class="feat-dot"></span>20+ static checks: zip bombs, path traversal, PE imports</li>
-        <li><span class="feat-dot"></span>YARA rules, VirusTotal, custom detections</li>
-        <li><span class="feat-dot"></span>Triage queue, campaign clustering, IOC pivot</li>
-        <li><span class="feat-dot"></span>STIX 2.1 and ATT&amp;CK Navigator export</li>
-      </ul>
-      <div class="card-cta">Open platform →</div>
-    </a>
+    </div>
 
-  </div>
+    <!-- ── TRANSFORM ─────────────────────────────────────────────────────── -->
+    <div class="section-block sec-reference">
+      <div class="section-label">
+        <span>Transform</span>
+        <span class="section-label-line"></span>
+      </div>
+      <div class="card-grid-2">
 
+        <a href="/tools/encode" class="feat-card theme-orange">
+          <div class="card-head">
+            <div class="card-icon-badge">🔄</div>
+            <div class="card-badges"><span class="badge badge-new">New</span></div>
+          </div>
+          <div class="card-label-sm">Encoder / Decoder</div>
+          <div class="card-title">Transform any payload.</div>
+          <div class="card-desc">URL encode/decode, Base64, hex, HTML entities, Unicode escapes, ROT13, JWT decode — live, in-browser, no server round-trip.</div>
+          <div class="card-pills">
+            <span class="pill">URL</span>
+            <span class="pill">Base64</span>
+            <span class="pill">Hex</span>
+            <span class="pill">JWT</span>
+            <span class="pill">ROT13</span>
+          </div>
+          <div class="card-cta">Open encoder →</div>
+        </a>
+
+        <a href="/tools/hashid" class="feat-card theme-amber">
+          <div class="card-head">
+            <div class="card-icon-badge">#</div>
+            <div class="card-badges"><span class="badge badge-new">New</span></div>
+          </div>
+          <div class="card-label-sm">Hash Identifier</div>
+          <div class="card-title">Paste hash → crack it.</div>
+          <div class="card-desc">Identify MD5, SHA-1, bcrypt, NTLM, Argon2, and 30+ more by pattern. Get the exact hashcat mode and john format pre-filled — ready to copy.</div>
+          <div class="card-pills">
+            <span class="pill">30+ algorithms</span>
+            <span class="pill">hashcat mode</span>
+            <span class="pill">john format</span>
+          </div>
+          <div class="card-cta">Identify hash →</div>
+        </a>
+
+      </div>
+    </div>
+
+    <!-- ── ANALYZE ───────────────────────────────────────────────────────── -->
+    <div class="section-block sec-analyze">
+      <div class="section-label">
+        <span>Analyze</span>
+        <span class="section-label-line"></span>
+      </div>
+      <div class="card-grid-2">
+
+        <a href="/platform" class="feat-card theme-teal">
+          <div class="card-head">
+            <div class="card-icon-badge">🛡️</div>
+            <div class="card-badges"><span class="badge badge-live">Live</span></div>
+          </div>
+          <div class="card-label-sm">Security Analyzer</div>
+          <div class="card-title">Scan archives. Hunt threats.</div>
+          <div class="card-desc">Drop a zip or tar — get YARA hits, VirusTotal lookups, MITRE ATT&amp;CK mappings, IOC extraction, and STIX 2.1 export. Zip bombs, path traversal, PE imports.</div>
+          <div class="card-pills">
+            <span class="pill">20+ checks</span>
+            <span class="pill">YARA</span>
+            <span class="pill">VirusTotal</span>
+            <span class="pill">ATT&amp;CK</span>
+          </div>
+          <div class="card-cta">Open analyzer →</div>
+        </a>
+
+        <a href="/generators/workflows" class="feat-card theme-pink">
+          <div class="card-head">
+            <div class="card-icon-badge">⛓</div>
+            <div class="card-badges"><span class="badge badge-live">10 workflows</span></div>
+          </div>
+          <div class="card-label-sm">Attack Workflows</div>
+          <div class="card-title">Curated attack chains.</div>
+          <div class="card-desc">Pre-built sequences for full recon, web app audits, cloud enum, credential attacks, mobile assessments, and more — each step links to the right generator.</div>
+          <div class="card-pills">
+            <span class="pill">External Recon</span>
+            <span class="pill">Cloud</span>
+            <span class="pill">Credential</span>
+          </div>
+          <div class="card-cta">View workflows →</div>
+        </a>
+
+      </div>
+    </div>
+
+    <!-- ── REFERENCE ─────────────────────────────────────────────────────── -->
+    <div class="section-block sec-platform">
+      <div class="section-label">
+        <span>Reference</span>
+        <span class="section-label-line"></span>
+      </div>
+      <div class="card-grid-4">
+
+        <div class="feat-card theme-sky soon">
+          <div class="card-head">
+            <div class="card-icon-badge">🌐</div>
+            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+          </div>
+          <div class="card-label-sm">Port Reference</div>
+          <div class="card-title">Port → service → tool.</div>
+          <div class="card-desc">Click any port number — see what runs there and which generator to use next.</div>
+        </div>
+
+        <div class="feat-card theme-purple soon">
+          <div class="card-head">
+            <div class="card-icon-badge">🔥</div>
+            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+          </div>
+          <div class="card-label-sm">CVE Lookup</div>
+          <div class="card-title">Search exploits fast.</div>
+          <div class="card-desc">Find CVEs by keyword, product, or CVSS score. Direct links to Exploit-DB and PoC repos.</div>
+        </div>
+
+        <div class="feat-card theme-green soon">
+          <div class="card-head">
+            <div class="card-icon-badge">📚</div>
+            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+          </div>
+          <div class="card-label-sm">Wordlist Browser</div>
+          <div class="card-title">Right list, right tool.</div>
+          <div class="card-desc">Browse SecLists and common wordlists with descriptions — paired to the generator that uses them.</div>
+        </div>
+
+        <div class="feat-card theme-violet soon">
+          <div class="card-head">
+            <div class="card-icon-badge">🛡</div>
+            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+          </div>
+          <div class="card-label-sm">MITRE ATT&amp;CK</div>
+          <div class="card-title">Technique browser.</div>
+          <div class="card-desc">Browse tactics and techniques, each mapped to the tools in Vantage that execute them.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── ENGAGE ────────────────────────────────────────────────────────── -->
+    <div class="section-block sec-platform">
+      <div class="section-label">
+        <span>Engage</span>
+        <span class="section-label-line"></span>
+      </div>
+      <div class="card-grid-4">
+
+        <div class="feat-card theme-indigo soon">
+          <div class="card-head">
+            <div class="card-icon-badge">📋</div>
+            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+          </div>
+          <div class="card-label-sm">Saved Playbooks</div>
+          <div class="card-title">Bookmark your commands.</div>
+          <div class="card-desc">Save generated commands per engagement — target, notes, full command history.</div>
+        </div>
+
+        <div class="feat-card theme-teal soon">
+          <div class="card-head">
+            <div class="card-icon-badge">🎯</div>
+            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+          </div>
+          <div class="card-label-sm">Global Target</div>
+          <div class="card-title">Set target once.</div>
+          <div class="card-desc">Pin an IP or domain at the top — auto-fills the target field across every generator.</div>
+        </div>
+
+        <div class="feat-card theme-orange soon">
+          <div class="card-head">
+            <div class="card-icon-badge">📊</div>
+            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+          </div>
+          <div class="card-label-sm">Active Directory</div>
+          <div class="card-title">Windows attack toolkit.</div>
+          <div class="card-desc">BloodHound, CrackMapExec, Impacket, Kerbrute, evil-winrm — full AD attack chain generators.</div>
+        </div>
+
+        <div class="feat-card theme-pink soon">
+          <div class="card-head">
+            <div class="card-icon-badge">💥</div>
+            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+          </div>
+          <div class="card-label-sm">Exploitation</div>
+          <div class="card-title">searchsploit + MSF.</div>
+          <div class="card-desc">searchsploit, msfvenom payload builder, and sqlmap — exploitation generators in one place.</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /sections -->
+
+  <!-- Stat strip -->
   <div class="stat-strip">
     <div class="stat-item"><div class="stat-val">{{ tool_count }}</div><div class="stat-lbl">Tools</div></div>
     <div class="stat-divider"></div>
+    <div class="stat-item"><div class="stat-val">{{ category_count }}</div><div class="stat-lbl">Categories</div></div>
+    <div class="stat-divider"></div>
     <div class="stat-item"><div class="stat-val">20+</div><div class="stat-lbl">Scan Checks</div></div>
     <div class="stat-divider"></div>
-    <div class="stat-item"><div class="stat-val">25</div><div class="stat-lbl">YARA Rules</div></div>
+    <div class="stat-item"><div class="stat-val">10</div><div class="stat-lbl">Workflows</div></div>
     <div class="stat-divider"></div>
-    <div class="stat-item"><div class="stat-val">{{ category_count }}</div><div class="stat-lbl">Categories</div></div>
+    <div class="stat-item"><div class="stat-val">25</div><div class="stat-lbl">YARA Rules</div></div>
   </div>
 
-</div>
-
+</div><!-- /page -->
 </body>
 </html>

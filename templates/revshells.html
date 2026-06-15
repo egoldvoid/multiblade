@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reverse Shell Generator — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;--ease:cubic-bezier(0.16,1,0.3,1);
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:800px;height:800px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-300px;left:-150px;animation:d1 24s ease-in-out infinite alternate;}
+    .blob-2{width:600px;height:600px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-200px;right:-100px;animation:d2 28s ease-in-out infinite alternate;}
+    @keyframes d1{to{transform:translate(50px,40px) scale(1.07)}} @keyframes d2{to{transform:translate(-40px,-50px) scale(1.1)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .page{position:relative;z-index:1;padding:0 0 100px;}
+
+    /* Header */
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 20px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;flex-shrink:0;}
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);margin-left:auto;}
+
+    /* Config bar */
+    .config-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;}
+    .config-group{display:flex;flex-direction:column;gap:5px;}
+    .config-label{font-size:0.65rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);}
+    .config-input{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:9px 14px;color:var(--text);font-family:inherit;font-size:0.88rem;
+      outline:none;transition:border-color 0.15s,box-shadow 0.15s;min-width:160px;
+    }
+    .config-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    .config-input.ip{min-width:200px;}
+    .config-input.port{min-width:90px;}
+
+    /* Shell type chips */
+    .shell-chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 40px 0;}
+    .shell-chip{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:5px 12px;border-radius:99px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;user-select:none;
+    }
+    .shell-chip:hover{border-color:var(--border-hi);color:var(--text);}
+    .shell-chip.active{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+    .chip-os{font-size:0.8rem;}
+
+    /* Grid of shells */
+    .shells-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(480px,1fr));gap:16px;padding:20px 40px 0;}
+    @media(max-width:680px){.shells-grid{grid-template-columns:1fr;padding:16px 20px 0;}.shell-chips{padding:0 20px;}.page-header{padding:16px 20px 16px;}.config-bar{gap:8px;}}
+
+    /* Shell card */
+    .shell-card{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      overflow:hidden;transition:border-color 0.2s,box-shadow 0.2s;
+    }
+    .shell-card:hover{border-color:var(--border-hi);box-shadow:0 8px 32px -8px #00000060;}
+    .shell-card.hidden{display:none;}
+
+    .shell-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 16px;border-bottom:1px solid var(--border);
+      background:var(--s2);
+    }
+    .shell-name{display:flex;align-items:center;gap:8px;}
+    .shell-os-icon{font-size:1rem;}
+    .shell-title{font-size:0.82rem;font-weight:700;color:var(--text);}
+    .shell-tag{font-size:0.6rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:2px 7px;border-radius:99px;}
+    .tag-bash  {background:#22d3a518;color:#22d3a5;border:1px solid #22d3a530;}
+    .tag-python{background:#f59e0b18;color:#fbbf24;border:1px solid #f59e0b30;}
+    .tag-ps    {background:#6366f118;color:#818cf8;border:1px solid #6366f130;}
+    .tag-php   {background:#7c3aed18;color:#a78bfa;border:1px solid #7c3aed30;}
+    .tag-ruby  {background:#dc262618;color:#f87171;border:1px solid #dc262630;}
+    .tag-perl  {background:#ea580c18;color:#fb923c;border:1px solid #ea580c30;}
+    .tag-nc    {background:#0891b218;color:#22d3ee;border:1px solid #0891b230;}
+    .tag-java  {background:#ca8a0418;color:#fbbf24;border:1px solid #ca8a0430;}
+    .tag-go    {background:#0d948118;color:#2dd4bf;border:1px solid #0d948130;}
+    .tag-rust  {background:#92400e18;color:#d97706;border:1px solid #92400e30;}
+    .tag-lua   {background:#1d4ed818;color:#60a5fa;border:1px solid #1d4ed830;}
+    .tag-awk   {background:#71717a18;color:#a1a1aa;border:1px solid #71717a30;}
+
+    .shell-actions{display:flex;gap:6px;}
+    .shell-btn{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:5px 10px;border-radius:7px;border:1px solid var(--border);
+      background:transparent;color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      cursor:pointer;font-family:inherit;transition:all 0.15s;
+    }
+    .shell-btn:hover{background:var(--s3);color:var(--text);border-color:var(--border-hi);}
+    .shell-btn.copied{background:#22d3a518;border-color:#22d3a540;color:#22d3a5;}
+
+    .shell-body{padding:14px 16px;}
+    .shell-cmd{
+      font-family:'Fira Code',monospace;font-size:0.78rem;line-height:1.65;
+      color:#c4c9f5;word-break:break-all;white-space:pre-wrap;
+      background:var(--s2);border-radius:8px;padding:12px 14px;
+      border:1px solid var(--border);
+      min-height:48px;
+    }
+
+    /* Options row */
+    .shell-opts{display:flex;gap:8px;padding:10px 16px 12px;flex-wrap:wrap;}
+    .opt-btn{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:4px 10px;border-radius:99px;border:1.5px solid var(--border);
+      background:transparent;color:var(--text-faint);font-size:0.68rem;font-weight:600;
+      cursor:pointer;font-family:inherit;transition:all 0.15s;
+    }
+    .opt-btn:hover{border-color:var(--border-hi);color:var(--text-dim);}
+    .opt-btn.active{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    /* Empty state */
+    .empty-state{grid-column:1/-1;text-align:center;padding:80px 20px;color:var(--text-faint);}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="page page-with-nav">
+
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/" class="back-link">← Home</a>
+      <span class="page-title">Reverse Shell Generator</span>
+      <span class="page-sub" id="shell-count-label">{{ shells | length }} shells</span>
+    </div>
+
+    <div class="config-bar">
+      <div class="config-group">
+        <label class="config-label" for="input-ip">Listener IP</label>
+        <input id="input-ip" class="config-input ip" type="text" placeholder="10.10.14.1" value="10.10.14.1" oninput="rebuildAll()" />
+      </div>
+      <div class="config-group">
+        <label class="config-label" for="input-port">Port</label>
+        <input id="input-port" class="config-input port" type="number" placeholder="4444" value="4444" min="1" max="65535" oninput="rebuildAll()" />
+      </div>
+    </div>
+  </div>
+
+  <!-- OS filter chips -->
+  <div class="shell-chips" id="os-chips">
+    <button class="shell-chip active" data-filter="all" onclick="filterOS(this)">All</button>
+    <button class="shell-chip" data-filter="linux"   onclick="filterOS(this)"><span class="chip-os">🐧</span> Linux</button>
+    <button class="shell-chip" data-filter="windows" onclick="filterOS(this)"><span class="chip-os">🪟</span> Windows</button>
+    <button class="shell-chip" data-filter="macos"   onclick="filterOS(this)"><span class="chip-os">🍎</span> macOS</button>
+    <button class="shell-chip" data-filter="web"     onclick="filterOS(this)"><span class="chip-os">🌐</span> Web</button>
+    <button class="shell-chip" data-filter="any"     onclick="filterOS(this)"><span class="chip-os">✦</span> Any OS</button>
+  </div>
+
+  <div class="shells-grid" id="shells-grid">
+    {% for sh in shells %}
+    <div class="shell-card" id="sc-{{ sh.id }}" data-os="{{ sh.os }}">
+      <div class="shell-head">
+        <div class="shell-name">
+          <span class="shell-os-icon">{{ sh.os_icon }}</span>
+          <span class="shell-title">{{ sh.name }}</span>
+          <span class="shell-tag tag-{{ sh.tag }}">{{ sh.tag }}</span>
+        </div>
+        <div class="shell-actions">
+          <button class="shell-btn" id="btn-b64-{{ sh.id }}" onclick="toggleB64('{{ sh.id }}')" title="Wrap in base64">⊕ b64</button>
+          <button class="shell-btn" id="btn-url-{{ sh.id }}" onclick="toggleURL('{{ sh.id }}')" title="URL-encode">⊕ url</button>
+          <button class="shell-btn" id="btn-copy-{{ sh.id }}" onclick="copyShell('{{ sh.id }}')" title="Copy">Copy</button>
+        </div>
+      </div>
+      <div class="shell-body">
+        <div class="shell-cmd" id="cmd-{{ sh.id }}" data-raw="{{ sh.template | e }}"></div>
+      </div>
+    </div>
+    {% endfor %}
+    <div class="empty-state hidden" id="empty-state">
+      <div style="font-size:2rem">🐚</div>
+      <p>No shells match the selected OS filter.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// State
+const state = {
+  b64: {},   // shell id → bool
+  url: {},   // shell id → bool
+};
+
+function getIP()   { return document.getElementById('input-ip').value.trim()   || '10.10.14.1'; }
+function getPort() { return document.getElementById('input-port').value.trim() || '4444'; }
+
+function buildCmd(raw, ip, port) {
+  return raw.replace(/{IP}/g, ip).replace(/{PORT}/g, port);
+}
+
+function renderShell(id) {
+  const raw  = document.querySelector(`#cmd-${id}`).dataset.raw;
+  const cmd  = buildCmd(raw, getIP(), getPort());
+  let   out  = cmd;
+
+  if (state.b64[id]) {
+    // base64-encode the inner payload, wrap in a bash -c 'echo ... | base64 -d | bash' style
+    try { out = btoa(unescape(encodeURIComponent(cmd))); } catch(e) { out = btoa(cmd); }
+    out = `echo ${out} | base64 -d | bash`;
+  }
+  if (state.url[id]) {
+    out = encodeURIComponent(out);
+  }
+
+  document.getElementById(`cmd-${id}`).textContent = out;
+}
+
+function rebuildAll() {
+  document.querySelectorAll('.shell-cmd').forEach(el => {
+    renderShell(el.id.replace('cmd-', ''));
+  });
+}
+
+function toggleB64(id) {
+  state.b64[id] = !state.b64[id];
+  document.getElementById(`btn-b64-${id}`).classList.toggle('active', !!state.b64[id]);
+  renderShell(id);
+}
+
+function toggleURL(id) {
+  state.url[id] = !state.url[id];
+  document.getElementById(`btn-url-${id}`).classList.toggle('active', !!state.url[id]);
+  renderShell(id);
+}
+
+function copyShell(id) {
+  const text = document.getElementById(`cmd-${id}`).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById(`btn-copy-${id}`);
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1400);
+  });
+}
+
+function filterOS(btn) {
+  document.querySelectorAll('.shell-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const filter = btn.dataset.filter;
+  let visible = 0;
+  document.querySelectorAll('.shell-card').forEach(card => {
+    const os = card.dataset.os;
+    const show = filter === 'all' || os === filter || os === 'any';
+    card.classList.toggle('hidden', !show);
+    if (show) visible++;
+  });
+  document.getElementById('empty-state').classList.toggle('hidden', visible > 0);
+  document.getElementById('shell-count-label').textContent = `${visible} shells`;
+}
+
+// Initial render
+rebuildAll();
+</script>
+</body>
+</html>

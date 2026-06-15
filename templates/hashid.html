@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hash Identifier — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;--ease:cubic-bezier(0.16,1,0.3,1);
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:800px;height:800px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-300px;left:-150px;animation:d1 24s ease-in-out infinite alternate;}
+    .blob-2{width:600px;height:600px;background:radial-gradient(circle,#f59e0b0e,transparent 70%);bottom:-200px;right:-100px;animation:d2 28s ease-in-out infinite alternate;}
+    @keyframes d1{to{transform:translate(50px,40px) scale(1.07)}} @keyframes d2{to{transform:translate(-40px,-50px) scale(1.1)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .page{position:relative;z-index:1;padding:0 0 100px;}
+
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 20px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;}
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+
+    /* Input */
+    .hash-input-wrap{position:relative;}
+    .hash-input{
+      width:100%;background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:14px 48px 14px 18px;
+      font-family:'Fira Code',monospace;font-size:0.9rem;color:var(--text);
+      outline:none;transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    .hash-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    .hash-input::placeholder{color:var(--text-faint);}
+    .hash-clear{
+      position:absolute;right:14px;top:50%;transform:translateY(-50%);
+      background:none;border:none;color:var(--text-faint);cursor:pointer;
+      font-size:1rem;padding:4px;transition:color 0.15s;
+    }
+    .hash-clear:hover{color:var(--text-dim);}
+
+    /* Main result area */
+    .result-area{padding:20px 40px 0;}
+    @media(max-width:680px){.result-area{padding:16px 20px 0;}.page-header{padding:16px 20px 16px;}}
+
+    /* Idle state */
+    .idle-hint{
+      text-align:center;padding:60px 20px;color:var(--text-faint);
+      display:flex;flex-direction:column;align-items:center;gap:12px;
+    }
+    .idle-icon{font-size:2.5rem;}
+    .idle-hint p{font-size:0.82rem;max-width:380px;line-height:1.7;}
+    .example-hashes{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px;}
+    .ex-hash{
+      font-family:'Fira Code',monospace;font-size:0.68rem;padding:4px 10px;
+      background:var(--s1);border:1px solid var(--border);border-radius:6px;
+      color:var(--text-dim);cursor:pointer;transition:all 0.15s;max-width:260px;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .ex-hash:hover{border-color:var(--border-hi);color:var(--text);}
+
+    /* Results */
+    .results-grid{display:grid;gap:14px;}
+    .match-card{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      overflow:hidden;transition:border-color 0.2s;
+    }
+    .match-card.primary{border-color:#f59e0b60;box-shadow:0 0 24px #f59e0b12;}
+    .match-card:hover{border-color:var(--border-hi);}
+
+    .match-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 18px;border-bottom:1px solid var(--border);background:var(--s2);
+      gap:12px;flex-wrap:wrap;
+    }
+    .match-left{display:flex;align-items:center;gap:10px;}
+    .confidence-badge{
+      font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      padding:3px 8px;border-radius:99px;
+    }
+    .conf-high  {background:#22d3a518;color:#22d3a5;border:1px solid #22d3a530;}
+    .conf-medium{background:#f59e0b18;color:#fbbf24;border:1px solid #f59e0b30;}
+    .conf-low   {background:#6366f118;color:#818cf8;border:1px solid #6366f130;}
+
+    .match-name{font-size:0.92rem;font-weight:700;color:var(--text);}
+    .match-meta{font-size:0.72rem;color:var(--text-faint);}
+
+    .match-body{padding:16px 18px;display:flex;flex-direction:column;gap:14px;}
+
+    /* Cracking commands */
+    .crack-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    @media(max-width:600px){.crack-grid{grid-template-columns:1fr;}}
+    .crack-block{background:var(--s2);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+    .crack-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:7px 12px;border-bottom:1px solid var(--border);
+    }
+    .crack-tool{font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);}
+    .crack-copy{
+      background:none;border:none;color:var(--text-faint);cursor:pointer;
+      font-size:0.68rem;font-weight:600;font-family:inherit;
+      padding:2px 7px;border-radius:5px;border:1px solid transparent;
+      transition:all 0.15s;
+    }
+    .crack-copy:hover{background:var(--s3);color:var(--text-dim);border-color:var(--border);}
+    .crack-copy.copied{color:#22d3a5;}
+    .crack-cmd{
+      padding:9px 12px;
+      font-family:'Fira Code',monospace;font-size:0.75rem;color:#c4c9f5;
+      word-break:break-all;white-space:pre-wrap;
+    }
+
+    /* Hash info */
+    .hash-info-row{display:flex;gap:20px;flex-wrap:wrap;}
+    .hash-info-item{display:flex;flex-direction:column;gap:2px;}
+    .hash-info-label{font-size:0.62rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);}
+    .hash-info-val{font-size:0.82rem;color:var(--text-dim);}
+
+    /* No match */
+    .no-match{text-align:center;padding:48px 20px;color:var(--text-faint);}
+    .no-match p{font-size:0.82rem;margin-top:8px;}
+
+    /* Length pill */
+    .len-pill{
+      font-size:0.65rem;font-family:'Fira Code',monospace;
+      background:var(--s2);border:1px solid var(--border);
+      padding:2px 8px;border-radius:99px;color:var(--text-dim);
+    }
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="page page-with-nav">
+
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/" class="back-link">← Home</a>
+      <span class="page-title">Hash Identifier</span>
+    </div>
+    <div class="hash-input-wrap">
+      <input id="hash-input" class="hash-input" type="text"
+             placeholder="Paste a hash — e.g. 5f4dcc3b5aa765d61d8327deb882cf99"
+             oninput="identifyHash(this.value)" autocomplete="off" spellcheck="false" />
+      <button class="hash-clear" onclick="clearHash()" title="Clear">✕</button>
+    </div>
+  </div>
+
+  <div class="result-area" id="result-area">
+    <div class="idle-hint" id="idle-hint">
+      <div class="idle-icon">#</div>
+      <p>Paste any hash above — MD5, SHA-1, NTLM, bcrypt, Argon2, and 30+ more. Instantly see the algorithm, hashcat mode, and john format.</p>
+      <div class="example-hashes">
+        <span class="ex-hash" onclick="loadExample('5f4dcc3b5aa765d61d8327deb882cf99')"           title="MD5">5f4dcc3b5aa765d61d8327deb882cf99</span>
+        <span class="ex-hash" onclick="loadExample('5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8')"  title="SHA-1">5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8</span>
+        <span class="ex-hash" onclick="loadExample('$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW')" title="bcrypt">$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW</span>
+        <span class="ex-hash" onclick="loadExample('8846f7eaee8fb117ad06bdd830b7586c')"            title="NTLM">8846f7eaee8fb117ad06bdd830b7586c</span>
+        <span class="ex-hash" onclick="loadExample('$argon2i$v=19$m=65536,t=2,p=4$c29tZXNhbHQ$RdescudvJCsgt3ub+b+dWRWJTmaaJObG')" title="Argon2">$argon2i$v=19$m=65536…</span>
+      </div>
+    </div>
+    <div id="results-container" class="results-grid" style="display:none;"></div>
+  </div>
+
+</div>
+
+<script>
+// Hash database: each entry has pattern tests, name, bits, hashcat mode, john format, notes
+const HASH_DB = [
+  // ── MD variants ────────────────────────────────────────────────────────────
+  { name:"MD5",          bits:128, len:[32],  hex:true,  hc:"0",   john:"md5",      confidence:"high",
+    note:"Extremely common — passwords, file checksums. Broken — do not use for security.",
+    refs:["hashcat -m 0 hash.txt wordlist.txt","john --format=md5 --wordlist=rockyou.txt hash.txt"] },
+  { name:"MD4",          bits:128, len:[32],  hex:true,  hc:"900", john:"md4",      confidence:"medium",
+    note:"Older Windows auth (LM/NTLM chain). Rarely seen standalone.",
+    refs:[] },
+  { name:"MD2",          bits:128, len:[32],  hex:true,  hc:"",    john:"md2",      confidence:"low",
+    note:"Obsolete. Practically never encountered.",
+    refs:[] },
+
+  // ── SHA variants ───────────────────────────────────────────────────────────
+  { name:"SHA-1",        bits:160, len:[40],  hex:true,  hc:"100", john:"sha1",     confidence:"high",
+    note:"Git commits, TLS certs (deprecated), older password storage.",
+    refs:["hashcat -m 100 hash.txt wordlist.txt","john --format=sha1 --wordlist=rockyou.txt hash.txt"] },
+  { name:"SHA-224",      bits:224, len:[56],  hex:true,  hc:"1300",john:"sha224",   confidence:"high", note:"SHA-2 family variant.", refs:[] },
+  { name:"SHA-256",      bits:256, len:[64],  hex:true,  hc:"1400",john:"sha256",   confidence:"high",
+    note:"Very common — JWT signatures, TLS, file integrity.",
+    refs:["hashcat -m 1400 hash.txt wordlist.txt","john --format=sha256 --wordlist=rockyou.txt hash.txt"] },
+  { name:"SHA-384",      bits:384, len:[96],  hex:true,  hc:"10800",john:"sha384",  confidence:"high", note:"SHA-2 variant.", refs:[] },
+  { name:"SHA-512",      bits:512, len:[128], hex:true,  hc:"1700",john:"sha512",   confidence:"high",
+    note:"Strong but fast — use bcrypt/Argon2 for passwords instead.",
+    refs:["hashcat -m 1700 hash.txt wordlist.txt","john --format=sha512 --wordlist=rockyou.txt hash.txt"] },
+  { name:"SHA3-256",     bits:256, len:[64],  hex:true,  hc:"17300",john:"sha3-256",confidence:"medium", note:"SHA-3 family. Same length as SHA-256 — context clues needed.", refs:[] },
+  { name:"SHA3-512",     bits:512, len:[128], hex:true,  hc:"17500",john:"sha3-512",confidence:"medium", note:"SHA-3 family. Same length as SHA-512 — context clues needed.", refs:[] },
+
+  // ── Windows / AD ──────────────────────────────────────────────────────────
+  { name:"NTLM",         bits:128, len:[32],  hex:true,  hc:"1000",john:"NT",       confidence:"medium",
+    note:"Windows password hashes — from /etc/passwd, SAM dump, secretsdump. MD4(UTF16-LE(pass)).",
+    refs:["hashcat -m 1000 hash.txt wordlist.txt","john --format=NT --wordlist=rockyou.txt hash.txt"] },
+  { name:"LM",           bits:64,  len:[32],  hex:true,  hc:"3000",john:"LM",       confidence:"medium",
+    note:"Legacy Windows (pre-Vista). Two 7-char DES chunks, all uppercase.",
+    refs:["hashcat -m 3000 hash.txt wordlist.txt"] },
+  { name:"NetNTLMv1",    bits:null, len:null, pattern:/^[a-f0-9]+::[^:]+:[a-f0-9]{48}:[a-f0-9]{48}:[a-f0-9]{16}$/i,
+    hc:"5500", john:"netntlm", confidence:"high",
+    note:"Challenge-response from Responder/ntlmrelayx captures.",
+    refs:["hashcat -m 5500 hash.txt wordlist.txt","john --format=netntlm --wordlist=rockyou.txt hash.txt"] },
+  { name:"NetNTLMv2",    bits:null, len:null, pattern:/^[^:]+::[^:]+:[a-f0-9]{16}:[a-f0-9]{32}:[a-f0-9]+$/i,
+    hc:"5600", john:"netntlmv2", confidence:"high",
+    note:"Modern Windows challenge-response. Commonly captured via Responder.",
+    refs:["hashcat -m 5600 hash.txt wordlist.txt","john --format=netntlmv2 --wordlist=rockyou.txt hash.txt"] },
+
+  // ── *nix crypt ────────────────────────────────────────────────────────────
+  { name:"MD5crypt ($1$)", bits:null, len:null, pattern:/^\$1\$[./A-Za-z0-9]{0,8}\$[./A-Za-z0-9]{22}$/,
+    hc:"500",  john:"md5crypt", confidence:"high",
+    note:"Linux /etc/shadow MD5crypt. Slow variant of MD5.",
+    refs:["hashcat -m 500 hash.txt wordlist.txt","john --format=md5crypt --wordlist=rockyou.txt hash.txt"] },
+  { name:"SHA-256crypt ($5$)", bits:null, len:null, pattern:/^\$5\$/,
+    hc:"7400", john:"sha256crypt", confidence:"high",
+    note:"Linux /etc/shadow SHA-256crypt.",
+    refs:["hashcat -m 7400 hash.txt wordlist.txt"] },
+  { name:"SHA-512crypt ($6$)", bits:null, len:null, pattern:/^\$6\$/,
+    hc:"1800", john:"sha512crypt", confidence:"high",
+    note:"Linux /etc/shadow SHA-512crypt — default on most modern Linux distros.",
+    refs:["hashcat -m 1800 hash.txt wordlist.txt","john --format=sha512crypt --wordlist=rockyou.txt hash.txt"] },
+  { name:"yescrypt ($y$)", bits:null, len:null, pattern:/^\$y\$/,
+    hc:"",     john:"yescrypt", confidence:"high",
+    note:"Newer Linux default (Debian 11+, Fedora 35+). Very slow — GPU cracking difficult.",
+    refs:["john --format=yescrypt --wordlist=rockyou.txt hash.txt"] },
+
+  // ── bcrypt ────────────────────────────────────────────────────────────────
+  { name:"bcrypt",       bits:null, len:null, pattern:/^\$2[abxy]\$\d{2}\$/,
+    hc:"3200", john:"bcrypt", confidence:"high",
+    note:"Deliberately slow — standard for modern web apps. Work factor in the hash.",
+    refs:["hashcat -m 3200 hash.txt wordlist.txt","john --format=bcrypt --wordlist=rockyou.txt hash.txt"] },
+
+  // ── Argon2 ────────────────────────────────────────────────────────────────
+  { name:"Argon2i",  bits:null, len:null, pattern:/^\$argon2i\$/,
+    hc:"",     john:"argon2", confidence:"high",
+    note:"Memory-hard KDF. GPU cracking largely impractical.", refs:[] },
+  { name:"Argon2id", bits:null, len:null, pattern:/^\$argon2id\$/,
+    hc:"",     john:"argon2", confidence:"high",
+    note:"Preferred Argon2 variant (hybrid). State-of-the-art password hashing.", refs:[] },
+
+  // ── PBKDF2 / scrypt ───────────────────────────────────────────────────────
+  { name:"PBKDF2-SHA256 (Django)", bits:null, len:null, pattern:/^pbkdf2_sha256\$/,
+    hc:"20000",john:"django",  confidence:"high",
+    note:"Django default password hasher.",
+    refs:["hashcat -m 20000 hash.txt wordlist.txt"] },
+  { name:"scrypt",       bits:null, len:null, pattern:/^\$scrypt\$/,
+    hc:"8900", john:"scrypt", confidence:"high",
+    note:"Memory-hard. Used by some Linux distros and crypto wallets.", refs:[] },
+
+  // ── Application-specific ─────────────────────────────────────────────────
+  { name:"MySQL 4.x",    bits:null, len:[16], hex:true,  hc:"200", john:"mysql",    confidence:"medium",
+    note:"Old MySQL password() function. 16-char hex.",
+    refs:["hashcat -m 200 hash.txt wordlist.txt"] },
+  { name:"MySQL 5.x",    bits:null, len:[41], pattern:/^\*[A-F0-9]{40}$/, hc:"300", john:"mysql-sha1", confidence:"high",
+    note:"MySQL password() — SHA1(SHA1(pass)) with leading asterisk.",
+    refs:["hashcat -m 300 hash.txt wordlist.txt"] },
+  { name:"MSSQL (2000)", bits:null, len:null, pattern:/^0x0100[a-f0-9]{88}$/i,
+    hc:"131",  john:"mssql", confidence:"high", note:"SQL Server 2000 password hash.", refs:[] },
+  { name:"MSSQL (2012+)",bits:null, len:null, pattern:/^0x0200[a-f0-9]{136}$/i,
+    hc:"1731", john:"mssql12", confidence:"high", note:"SQL Server 2012+ — SHA-512 based.", refs:[] },
+  { name:"WPA-PBKDF2",   bits:null, len:[64], hex:true,  hc:"2500",john:"wpapsk",   confidence:"low",
+    note:"64-char hex could be WPA PSK. Requires .hccapx capture file.",
+    refs:["hashcat -m 2500 capture.hccapx wordlist.txt"] },
+  { name:"Kerberos 5 TGS (AS-REP)", bits:null, len:null, pattern:/^\$krb5asrep\$/,
+    hc:"18200",john:"krb5asrep", confidence:"high",
+    note:"AS-REP roasting output (accounts with pre-auth disabled).",
+    refs:["hashcat -m 18200 hash.txt wordlist.txt","john --format=krb5asrep --wordlist=rockyou.txt hash.txt"] },
+  { name:"Kerberos 5 TGS (SPN)",   bits:null, len:null, pattern:/^\$krb5tgs\$/,
+    hc:"13100",john:"krb5tgs", confidence:"high",
+    note:"Kerberoasting output from GetUserSPNs / Rubeus.",
+    refs:["hashcat -m 13100 hash.txt wordlist.txt","john --format=krb5tgs --wordlist=rockyou.txt hash.txt"] },
+
+  // ── BLAKE / RIPEMD / Whirlpool ────────────────────────────────────────────
+  { name:"BLAKE2b-512",  bits:512, len:[128], hex:true,  hc:"600", john:"",         confidence:"medium", note:"Modern fast hash.", refs:[] },
+  { name:"RIPEMD-160",   bits:160, len:[40],  hex:true,  hc:"6000",john:"ripemd160",confidence:"medium", note:"Same length as SHA-1 — look for context.", refs:[] },
+  { name:"Whirlpool",    bits:512, len:[128], hex:true,  hc:"6100",john:"whirlpool",confidence:"low",    note:"Same length as SHA-512 — context needed.", refs:[] },
+  { name:"CRC32",        bits:32,  len:[8],   hex:true,  hc:"11500",john:"crc32",   confidence:"medium", note:"Non-cryptographic checksum. 8 hex chars.", refs:[] },
+
+  // ── NTDS / Kerberos special ───────────────────────────────────────────────
+  { name:"NTDS hash (domain)",  bits:null, len:null, pattern:/^[a-z0-9]+:[0-9]+:[a-f0-9]{32}:[a-f0-9]{32}::$/i,
+    hc:"1000", john:"NT", confidence:"high",
+    note:"secretsdump / impacket NTDS output format: user:rid:lm:ntlm::",
+    refs:["hashcat -m 1000 ntlm.txt wordlist.txt"] },
+];
+
+// ── Identification logic ────────────────────────────────────────────────────
+
+function identifyHash(raw) {
+  const hash = raw.trim();
+  const idleEl   = document.getElementById('idle-hint');
+  const resEl    = document.getElementById('results-container');
+
+  if (!hash) {
+    idleEl.style.display = 'flex';
+    resEl.style.display  = 'none';
+    return;
+  }
+  idleEl.style.display = 'none';
+  resEl.style.display  = 'grid';
+
+  const len     = hash.length;
+  const isHex   = /^[0-9a-fA-F]+$/.test(hash);
+  const matches = [];
+
+  for (const entry of HASH_DB) {
+    let match = false;
+    let conf  = entry.confidence;
+
+    if (entry.pattern) {
+      match = entry.pattern.test(hash);
+    } else if (entry.len && entry.hex) {
+      match = entry.len.includes(len) && isHex;
+      if (match && entry.len.length > 1) conf = 'low';
+    }
+
+    if (match) matches.push({ ...entry, conf });
+  }
+
+  // Sort: high → medium → low
+  const order = { high: 0, medium: 1, low: 2 };
+  matches.sort((a, b) => order[a.conf] - order[b.conf]);
+
+  if (matches.length === 0) {
+    resEl.innerHTML = `
+      <div class="no-match">
+        <div style="font-size:1.8rem">#</div>
+        <p>No known hash format matched for ${hash.length}-char input.</p>
+        <p style="margin-top:8px;font-size:0.72rem;">This could be a custom hash, HMAC, or non-hex encoding.</p>
+      </div>`;
+    return;
+  }
+
+  resEl.innerHTML = matches.map((m, i) => renderMatch(m, hash, i === 0)).join('');
+}
+
+function renderMatch(m, hash, isPrimary) {
+  const crackHtml = renderCrackCommands(m, hash);
+  const infoHtml  = renderInfo(m, hash);
+  return `
+  <div class="match-card ${isPrimary ? 'primary' : ''}">
+    <div class="match-head">
+      <div class="match-left">
+        <span class="confidence-badge conf-${m.conf}">${m.conf} confidence</span>
+        <span class="match-name">${m.name}</span>
+      </div>
+      <span class="match-meta">${m.note || ''}</span>
+    </div>
+    <div class="match-body">
+      ${infoHtml}
+      ${crackHtml}
+    </div>
+  </div>`;
+}
+
+function renderInfo(m, hash) {
+  const bits  = m.bits ? `${m.bits} bits` : '—';
+  const hcMode = m.hc  ? m.hc  : 'N/A';
+  const johnFmt = m.john ? m.john : 'N/A';
+  const hashLen = hash.length;
+  return `
+  <div class="hash-info-row">
+    <div class="hash-info-item">
+      <span class="hash-info-label">Hash length</span>
+      <span class="hash-info-val"><span class="len-pill">${hashLen} chars</span></span>
+    </div>
+    <div class="hash-info-item">
+      <span class="hash-info-label">Output size</span>
+      <span class="hash-info-val">${bits}</span>
+    </div>
+    <div class="hash-info-item">
+      <span class="hash-info-label">hashcat -m</span>
+      <span class="hash-info-val" style="font-family:'Fira Code',monospace">${hcMode}</span>
+    </div>
+    <div class="hash-info-item">
+      <span class="hash-info-label">john --format</span>
+      <span class="hash-info-val" style="font-family:'Fira Code',monospace">${johnFmt}</span>
+    </div>
+  </div>`;
+}
+
+function renderCrackCommands(m, hash) {
+  if (!m.refs || m.refs.length === 0) {
+    if (!m.hc && !m.john) return '<p style="font-size:0.78rem;color:var(--text-faint)">No standard cracking command — this algorithm may not be supported by hashcat/john.</p>';
+    return '';
+  }
+  const blocks = m.refs.map((cmd, i) => {
+    const tool = cmd.startsWith('hashcat') ? 'hashcat' : cmd.startsWith('john') ? 'john' : 'cmd';
+    const id = `cc-${m.name.replace(/\W/g,'-')}-${i}`;
+    return `
+    <div class="crack-block">
+      <div class="crack-head">
+        <span class="crack-tool">${tool}</span>
+        <button class="crack-copy" id="${id}" onclick="copyCrack('${id}', this)">${tool === 'hashcat' ? '⚡' : '🔑'} Copy</button>
+      </div>
+      <div class="crack-cmd" id="cmd-${id}">${escHtml(cmd)}</div>
+    </div>`;
+  }).join('');
+  return `<div class="crack-grid">${blocks}</div>`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function copyCrack(id, btn) {
+  const text = document.getElementById(`cmd-${id}`).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1400);
+  });
+}
+
+function loadExample(hash) {
+  const input = document.getElementById('hash-input');
+  input.value = hash;
+  identifyHash(hash);
+}
+
+function clearHash() {
+  document.getElementById('hash-input').value = '';
+  identifyHash('');
+}
+</script>
+</body>
+</html>

