@@ -194,7 +194,7 @@ _T1 = [
     {
         "slug": "sqlmap", "name": "sqlmap", "full_name": "sqlmap",
         "desc": "Automatic SQL injection detection and database takeover tool.",
-        "category": "Vulnerability", "tier": 1, "icon": "💉", "color": "#ff3b30",
+        "category": "Vulnerability", "tier": 1, "icon": "💉", "color": "#ff6b2b",
         "sections": [
             S("tgt", "Target", "🎯",
               F("u", "-u", "URL (-u) *", "Target URL with parameter(s)", "https://target.com/page?id=1"),
@@ -944,7 +944,7 @@ _T2 = [
     {
         "slug": "hydra", "name": "hydra", "full_name": "Hydra",
         "desc": "Parallelized online password cracker supporting 50+ protocols.",
-        "category": "Credentials", "tier": 2, "icon": "🐉", "color": "#ff3b30",
+        "category": "Credentials", "tier": 2, "icon": "🐉", "color": "#f97316",
         "sections": [
             S("tgt", "Target", "🎯",
               F("target", "", "Target *", "IP/hostname (or module://host/path)", "192.168.1.1"),
@@ -985,7 +985,7 @@ _T2 = [
     {
         "slug": "hashcat", "name": "hashcat", "full_name": "Hashcat",
         "desc": "World's fastest GPU-based password recovery tool.",
-        "category": "Credentials", "tier": 2, "icon": "💥", "color": "#ff3b30",
+        "category": "Credentials", "tier": 2, "icon": "💥", "color": "#f97316",
         "sections": [
             S("mode", "Attack Mode", "⚡",
               Sel("a", "-a", "Attack mode (-a) *", "Type of attack",
@@ -1657,7 +1657,7 @@ _T3 = [
 
     {"slug":"medusa","name":"medusa","full_name":"Medusa",
      "desc":"Speedy, massively parallel, modular login brute-forcer.",
-     "category":"Credentials","tier":3,"icon":"🐍","color":"#ff3b30",
+     "category":"Credentials","tier":3,"icon":"🐍","color":"#f97316",
      "sections":[S("tgt","Target","🎯",F("h","-h","Host (-h) *","Target IP or hostname","192.168.1.1"),
        F("H","-H","Host file (-H)","File of hosts","hosts.txt")),
       S("creds","Credentials","🔑",F("u","-u","Username (-u)","Single username","admin"),
@@ -1672,7 +1672,7 @@ _T3 = [
 
     {"slug":"john","name":"john","full_name":"John the Ripper",
      "desc":"Password cracker supporting 100+ hash types with wordlist, rules, and incremental modes.",
-     "category":"Credentials","tier":3,"icon":"🔨","color":"#ff3b30",
+     "category":"Credentials","tier":3,"icon":"🔨","color":"#f97316",
      "sections":[S("tgt","Target","🎯",Tgt("hashes.txt","File containing hashes to crack")),
       S("mode","Mode","⚡",
        F("wordlist","--wordlist","Wordlist (--wordlist)","Dictionary file","/usr/share/wordlists/rockyou.txt"),
@@ -1684,7 +1684,7 @@ _T3 = [
 
     {"slug":"kerbrute","name":"kerbrute","full_name":"Kerbrute",
      "desc":"Enumerate valid AD usernames and password-spray via Kerberos pre-auth.",
-     "category":"Credentials","tier":3,"icon":"🐕","color":"#ff3b30",
+     "category":"Credentials","tier":3,"icon":"🐕","color":"#f97316",
      "sections":[S("cmd","Command","⚡",Sel("subcommand","","Subcommand *","Operation mode",_opts(("userenum","userenum"),("passwordspray","passwordspray"),("bruteuser","bruteuser"),("bruteforce","bruteforce")))),
       S("tgt","Target","🎯",
        F("dc","--dc","Domain controller (--dc) *","DC IP or hostname","192.168.1.1"),
@@ -1699,7 +1699,7 @@ _T3 = [
 
     {"slug":"spray","name":"spray","full_name":"Spray",
      "desc":"Password spraying tool for Active Directory — avoids account lockout.",
-     "category":"Credentials","tier":3,"icon":"💦","color":"#ff3b30",
+     "category":"Credentials","tier":3,"icon":"💦","color":"#f97316",
      "sections":[S("tgt","Target","🎯",
        Sel("mode","","Mode *","Target service",_opts(("owa","owa"),("lync","lync"),("smtp","smtp"),("autodiscover","autodiscover"),("adfs","adfs"))),
        F("u","-u","URL (-u) *","Target URL","https://mail.TARGET.com/owa"),),
@@ -2039,7 +2039,7 @@ _UNIX = [
 
     {"slug":"grep","name":"grep","full_name":"grep",
      "desc":"Search for patterns in files or piped input. The essential text search tool.",
-     "category":"Unix & Shell","tier":1,"icon":"🔎","color":"#60a5fa",
+     "category":"Unix & Shell","tier":1,"icon":"🔎","color":"#10b981",
      "sections":[
        S("pattern","Pattern","🎯",
          F("pattern","","Pattern *","Regex or string to search for","error|failed|exception"),
@@ -2082,7 +2082,7 @@ _UNIX = [
 
     {"slug":"wget","name":"wget","full_name":"GNU Wget",
      "desc":"Non-interactive file downloader — HTTP, HTTPS, FTP, recursive site mirrors.",
-     "category":"Unix & Shell","tier":1,"icon":"⬇","color":"#60a5fa",
+     "category":"Unix & Shell","tier":1,"icon":"⬇","color":"#10b981",
      "sections":[
        S("tgt","Target","🎯",Tgt("https://example.com/file.zip","URL to download")),
        S("output","Output","📄",
@@ -2123,7 +2123,7 @@ _UNIX = [
 
     {"slug":"find","name":"find","full_name":"find",
      "desc":"Search for files and directories by name, type, size, time, permissions, and more.",
-     "category":"Unix & Shell","tier":1,"icon":"🗂","color":"#60a5fa",
+     "category":"Unix & Shell","tier":1,"icon":"🗂","color":"#10b981",
      "sections":[
        S("tgt","Search Path","🎯",Tgt(". or /path/to/search","Starting directory (. for current)")),
        S("name","Name & Type","📁",
@@ -2157,7 +2157,7 @@ _UNIX = [
 
     {"slug":"ssh","name":"ssh","full_name":"OpenSSH Client",
      "desc":"Secure Shell — remote login, command execution, tunnels, and key management.",
-     "category":"Unix & Shell","tier":1,"icon":"🔐","color":"#60a5fa",
+     "category":"Unix & Shell","tier":1,"icon":"🔐","color":"#10b981",
      "sections":[
        S("tgt","Connection","🎯",
          F("user_host","","user@host *","Remote target in user@host format","user@192.168.1.1"),
@@ -2190,7 +2190,7 @@ _UNIX = [
 
     {"slug":"rsync","name":"rsync","full_name":"rsync",
      "desc":"Fast, versatile remote and local file copying with delta transfers.",
-     "category":"Unix & Shell","tier":1,"icon":"🔄","color":"#60a5fa",
+     "category":"Unix & Shell","tier":1,"icon":"🔄","color":"#10b981",
      "sections":[
        S("tgt","Source & Destination","🎯",
          F("src","","Source *","Source path or user@host:path","./local/dir/"),
@@ -2219,7 +2219,7 @@ _UNIX = [
 
     {"slug":"scp","name":"scp","full_name":"Secure Copy",
      "desc":"Copy files between hosts over SSH. Simpler than rsync for one-off transfers.",
-     "category":"Unix & Shell","tier":2,"icon":"📤","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"📤","color":"#10b981",
      "sections":[
        S("tgt","Source & Destination","🎯",
          F("src","","Source *","Local path or user@host:path","user@host:/remote/file.txt"),
@@ -2241,7 +2241,7 @@ _UNIX = [
 
     {"slug":"awk","name":"awk","full_name":"awk",
      "desc":"Text processing — extract columns, filter rows, compute values from structured text.",
-     "category":"Unix & Shell","tier":2,"icon":"✂","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"✂","color":"#10b981",
      "sections":[
        S("prog","Program","📜",
          F("prog","","Program *","awk program: pattern { action }","'{print $2}'"),
@@ -2268,7 +2268,7 @@ _UNIX = [
 
     {"slug":"sed","name":"sed","full_name":"sed (stream editor)",
      "desc":"Stream editor — substitute, delete, insert, and transform text line-by-line.",
-     "category":"Unix & Shell","tier":2,"icon":"📝","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"📝","color":"#10b981",
      "sections":[
        S("prog","Expression","📜",
          F("e","-e","Expression (-e) *","sed expression: s/old/new/flags or /pattern/d","s/old/new/g"),
@@ -2296,7 +2296,7 @@ _UNIX = [
 
     {"slug":"curl-unix","name":"curl","full_name":"curl (Unix patterns)",
      "desc":"Same as the full curl generator, but with common Unix one-liner patterns.",
-     "category":"Unix & Shell","tier":2,"icon":"🌐","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"🌐","color":"#10b981",
      "sections":[
        S("tgt","Target","🎯",Tgt("https://example.com","URL to fetch")),
        S("common","Common Patterns","💡",
@@ -2307,7 +2307,7 @@ _UNIX = [
 
     {"slug":"jq","name":"jq","full_name":"jq",
      "desc":"Command-line JSON processor — filter, transform, and format JSON data.",
-     "category":"Unix & Shell","tier":1,"icon":"{}","color":"#60a5fa",
+     "category":"Unix & Shell","tier":1,"icon":"{}","color":"#10b981",
      "sections":[
        S("filter","Filter","📜",
          F("filter","","Filter *","jq filter expression","."),
@@ -2340,7 +2340,7 @@ _UNIX = [
 
     {"slug":"xargs","name":"xargs","full_name":"xargs",
      "desc":"Build and execute commands from stdin — parallelise, batch, and chain tools.",
-     "category":"Unix & Shell","tier":2,"icon":"🔗","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"🔗","color":"#10b981",
      "sections":[
        S("cmd","Command","⚡",
          F("cmd","","Command *","Command to run (piped input replaces {} or appended)","rm -f"),
@@ -2366,7 +2366,7 @@ _UNIX = [
 
     {"slug":"tar","name":"tar","full_name":"tar",
      "desc":"Create, extract, and list archive files (.tar, .tar.gz, .tar.bz2, .tar.xz).",
-     "category":"Unix & Shell","tier":2,"icon":"📦","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"📦","color":"#10b981",
      "sections":[
        S("mode","Mode","⚡",
          Sel("mode","","Mode *","Operation",
@@ -2393,7 +2393,7 @@ _UNIX = [
 
     {"slug":"ps","name":"ps","full_name":"ps",
      "desc":"Report process status. Find PID, resource usage, and command lines.",
-     "category":"Unix & Shell","tier":2,"icon":"📊","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"📊","color":"#10b981",
      "sections":[
        S("opts","Options","🔧",
          T("-e","Show all processes"),T("-f","Full-format listing"),T("-l","Long format"),
@@ -2415,7 +2415,7 @@ _UNIX = [
 
     {"slug":"netstat","name":"ss","full_name":"ss / netstat",
      "desc":"Show socket statistics — listening ports, connections, and network state.",
-     "category":"Unix & Shell","tier":2,"icon":"🌐","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"🌐","color":"#10b981",
      "sections":[
        S("opts","Options","🔧",
          T("-t","Show TCP sockets"),T("-u","Show UDP sockets"),T("-l","Show listening sockets"),
@@ -2433,7 +2433,7 @@ _UNIX = [
 
     {"slug":"cut","name":"cut","full_name":"cut",
      "desc":"Cut sections from each line — extract columns from delimited or fixed-width text.",
-     "category":"Unix & Shell","tier":2,"icon":"✂","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"✂","color":"#10b981",
      "sections":[
        S("mode","Mode","⚡",
          Sel("mode","","Mode *","What to cut by",
@@ -2452,7 +2452,7 @@ _UNIX = [
 
     {"slug":"sort","name":"sort","full_name":"sort",
      "desc":"Sort lines of text. Alphabetical, numeric, unique, reverse, and by field.",
-     "category":"Unix & Shell","tier":2,"icon":"🔢","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"🔢","color":"#10b981",
      "sections":[
        S("opts","Options","🔧",
          T("-n","Numeric sort"),T("-r","Reverse order"),T("-u","Unique — remove duplicates"),
@@ -2473,7 +2473,7 @@ _UNIX = [
 
     {"slug":"uniq","name":"uniq","full_name":"uniq",
      "desc":"Report or omit repeated lines. Best used after sort.",
-     "category":"Unix & Shell","tier":2,"icon":"🔁","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"🔁","color":"#10b981",
      "sections":[
        S("opts","Options","🔧",
          T("-c","Prefix lines with count"),T("-d","Only print duplicate lines"),
@@ -2491,7 +2491,7 @@ _UNIX = [
 
     {"slug":"wc","name":"wc","full_name":"wc (word count)",
      "desc":"Count lines, words, characters, and bytes in files or piped input.",
-     "category":"Unix & Shell","tier":2,"icon":"🔢","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"🔢","color":"#10b981",
      "sections":[
        S("opts","Options","🔧",
          T("-l","Count lines only"),T("-w","Count words only"),T("-c","Count bytes only"),
@@ -2507,7 +2507,7 @@ _UNIX = [
 
     {"slug":"tr","name":"tr","full_name":"tr (translate)",
      "desc":"Translate, squeeze, or delete characters from stdin.",
-     "category":"Unix & Shell","tier":2,"icon":"🔀","color":"#60a5fa",
+     "category":"Unix & Shell","tier":2,"icon":"🔀","color":"#10b981",
      "sections":[
        S("chars","Characters","📜",
          F("set1","","Set1 *","Characters to translate FROM","a-z"),
