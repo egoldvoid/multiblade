@@ -191,6 +191,24 @@
     .bd-desc { color:var(--text-dim);line-height:1.4; }
     .bd-empty { font-size:0.77rem;color:var(--text-faint);padding:10px 0;text-align:center; }
 
+    /* Related tools */
+    .related-section { flex-shrink:0;margin-top:20px; }
+    .related-hdr { display:flex;align-items:center;gap:8px;margin-bottom:10px; }
+    .related-title { font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint); }
+    .related-line { flex:1;height:1px;background:var(--border); }
+    .related-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:8px; }
+    .rel-card {
+      display:flex;align-items:center;gap:9px;padding:9px 11px;
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);
+      text-decoration:none;color:inherit;transition:border-color 0.15s,background 0.15s;
+    }
+    .rel-card:hover { border-color:var(--tc);background:var(--s2); }
+    .rel-icon { font-size:1.1rem;flex-shrink:0;width:28px;text-align:center; }
+    .rel-name { font-family:'Syne',sans-serif;font-size:0.78rem;font-weight:800; }
+    .rel-full { font-size:0.63rem;color:var(--text-faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .rel-arrow { margin-left:auto;font-size:0.7rem;color:var(--text-faint);transition:transform 0.15s,color 0.15s;flex-shrink:0; }
+    .rel-card:hover .rel-arrow { transform:translateX(2px);color:var(--tc); }
+
     ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
     @keyframes fade-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   </style>
@@ -324,6 +342,29 @@ const TOOL = {{ tool | tojson }};
         <div class="bd-empty">Fill in the form to see flag explanations</div>
       </div>
     </div>
+
+    {% if related %}
+    <div class="related-section">
+      <div class="related-hdr">
+        <span class="related-title">More in {{ tool.category }}</span>
+        <div class="related-line"></div>
+      </div>
+      <div class="related-grid">
+        {% for r in related %}
+        <a class="rel-card" href="/generators/{{ r.slug }}" style="--tc:{{ r.color }}">
+          <span class="rel-icon">{{ r.icon }}</span>
+          <div>
+            <div class="rel-name">{{ r.name }}</div>
+            {% if r.full_name != r.name %}
+            <div class="rel-full">{{ r.full_name }}</div>
+            {% endif %}
+          </div>
+          <span class="rel-arrow">→</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
 
   </div><!-- /preview-col -->
 

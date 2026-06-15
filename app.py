@@ -158,7 +158,10 @@ def generator_tool(slug):
     tool = get_tool(slug)
     if not tool:
         return jsonify({"error": "Tool not found"}), 404
-    return render_template("generator_tool.html", tool=tool, active_page="generators")
+    related = [t for t in get_all_tools()
+               if t["category"] == tool["category"] and t["slug"] != slug][:4]
+    return render_template("generator_tool.html", tool=tool,
+                           related=related, active_page="generators")
 
 
 @app.route("/analyzer")
