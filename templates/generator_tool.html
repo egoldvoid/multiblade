@@ -47,6 +47,13 @@
       background:var(--tc)14;color:var(--tc);margin-left:auto;flex-shrink:0;
     }
     .tool-desc-header { font-size:0.78rem;color:var(--text-dim);margin-top:8px;line-height:1.5; }
+    .save-btn {
+      background:none;border:1px solid var(--border);cursor:pointer;
+      padding:3px 10px;border-radius:6px;font-size:0.88rem;
+      color:var(--text-faint);transition:all 0.15s;line-height:1.5;flex-shrink:0;
+    }
+    .save-btn:hover { border-color:#f59e0b80;color:#f59e0b; }
+    .save-btn.saved { border-color:#f59e0b60;color:#f59e0b;background:#f59e0b0a; }
 
     /* Preset row */
     .presets-row { display:flex;gap:5px;flex-wrap:wrap;padding:10px 24px;border-bottom:1px solid var(--border); }
@@ -191,6 +198,7 @@ const TOOL = {{ tool | tojson }};
       <div class="back-row">
         <a href="/generators" class="back-link">← All generators</a>
         <span class="cat-badge">{{ tool.category }}</span>
+        <button class="save-btn" id="save-btn" title="Save to favorites">☆</button>
       </div>
       <div class="tool-header">
         <div class="tool-icon-badge">{{ tool.icon }}</div>
@@ -472,6 +480,30 @@ document.addEventListener('keydown', e => {
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+/* ── Favorites ───────────────────────────────────────────────────────────── */
+(function() {
+  const SLUG     = {{ tool.slug | tojson }};
+  const KEY      = 'vantage_saved';
+  const btn      = document.getElementById('save-btn');
+  let saved      = new Set(JSON.parse(localStorage.getItem(KEY) || '[]'));
+
+  function render() {
+    const on = saved.has(SLUG);
+    btn.textContent = on ? '★' : '☆';
+    btn.title       = on ? 'Remove from saved' : 'Save to favorites';
+    btn.classList.toggle('saved', on);
+  }
+
+  btn.addEventListener('click', () => {
+    if (saved.has(SLUG)) saved.delete(SLUG);
+    else saved.add(SLUG);
+    localStorage.setItem(KEY, JSON.stringify([...saved]));
+    render();
+  });
+
+  render();
+}());
 
 /* ── Init ────────────────────────────────────────────────────────────────── */
 update();

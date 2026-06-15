@@ -186,7 +186,7 @@
 
   <div class="hero">
     <h1>Every tool.<br/>One platform.</h1>
-    <p>Build perfect CLI commands for 95+ security tools, or drop an archive and get a full threat report — YARA, MITRE ATT&amp;CK, IOC extraction, VirusTotal.</p>
+    <p>Build perfect CLI commands for {{ tool_count }}+ tools, or drop an archive and get a full threat report — YARA, MITRE ATT&amp;CK, IOC extraction, VirusTotal.</p>
   </div>
 
   <div class="mode-grid">
@@ -198,7 +198,7 @@
       </div>
       <div class="card-title">Build any<br/>CLI command.</div>
       <ul class="card-features">
-        <li><span class="feat-dot"></span>95 tools — nmap, ffuf, nuclei, sqlmap, and more</li>
+        <li><span class="feat-dot"></span>{{ tool_count }} tools — nmap, ffuf, nuclei, sqlmap, and more</li>
         <li><span class="feat-dot"></span>Form-driven with flag explanations</li>
         <li><span class="feat-dot"></span>Editable output, presets, one-click copy</li>
         <li><span class="feat-dot"></span>Search and filter by category</li>
@@ -224,13 +224,13 @@
   </div>
 
   <div class="stat-strip">
-    <div class="stat-item"><div class="stat-val">95</div><div class="stat-lbl">Tools</div></div>
+    <div class="stat-item"><div class="stat-val">{{ tool_count }}</div><div class="stat-lbl">Tools</div></div>
     <div class="stat-divider"></div>
     <div class="stat-item"><div class="stat-val">20+</div><div class="stat-lbl">Scan Checks</div></div>
     <div class="stat-divider"></div>
     <div class="stat-item"><div class="stat-val">25</div><div class="stat-lbl">YARA Rules</div></div>
     <div class="stat-divider"></div>
-    <div class="stat-item"><div class="stat-val">12</div><div class="stat-lbl">Categories</div></div>
+    <div class="stat-item"><div class="stat-val">{{ category_count }}</div><div class="stat-lbl">Categories</div></div>
   </div>
 
 </div>

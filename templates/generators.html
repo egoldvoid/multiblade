@@ -64,6 +64,33 @@
     }
     .cat-chip:hover { border-color:var(--border-hi);color:var(--text); }
     .cat-chip.active { background:var(--s2);border-color:var(--accent);color:var(--text); }
+    .cat-chip[data-cat="__saved__"] { border-color:#f59e0b30;color:#d97706; }
+    .cat-chip[data-cat="__saved__"]:hover { border-color:#f59e0b80; }
+    .cat-chip[data-cat="__saved__"].active { background:#f59e0b0f;border-color:#f59e0b;color:#fbbf24; }
+
+    /* Tier filter row */
+    .tier-row { display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap; }
+    .tier-label { font-size:0.63rem;font-weight:700;color:var(--text-faint);letter-spacing:0.08em;text-transform:uppercase;margin-right:2px; }
+    .tier-chip {
+      padding:3px 10px;font-family:inherit;font-size:0.67rem;font-weight:600;
+      background:transparent;border:1px solid var(--border);border-radius:999px;
+      color:var(--text-faint);cursor:pointer;transition:all 0.15s;white-space:nowrap;
+    }
+    .tier-chip:hover { border-color:var(--border-hi);color:var(--text-dim); }
+    .tier-chip.active { background:var(--s2);border-color:var(--border-hi);color:var(--text); }
+    .tier-chip[data-tier="1"].active { border-color:var(--accent);color:var(--accent-hi); }
+    .tier-chip[data-tier="2"].active { border-color:#60a5fa;color:#60a5fa; }
+    .tier-chip[data-tier="3"].active { border-color:#6b7099;color:var(--text-dim); }
+
+    /* Star button in card footer */
+    .star-btn {
+      background:none;border:none;cursor:pointer;padding:2px 4px;margin-left:auto;
+      font-size:0.9rem;color:var(--text-faint);line-height:1;
+      transition:color 0.15s,transform 0.15s;border-radius:4px;flex-shrink:0;
+    }
+    .star-btn:hover { color:#f59e0b;transform:scale(1.2); }
+    .star-btn.saved { color:#f59e0b; }
+    .star-btn:focus-visible { outline:2px solid var(--accent);outline-offset:2px; }
 
     /* Tool grid */
     .tool-grid {
@@ -155,10 +182,18 @@
       </div>
       <div class="cat-chips" id="cat-chips">
         <button class="cat-chip active" data-cat="">All</button>
+        <button class="cat-chip" data-cat="__saved__">★ Saved</button>
         {% for cat in categories %}
         <button class="cat-chip" data-cat="{{ cat }}">{{ cat }}</button>
         {% endfor %}
       </div>
+    </div>
+    <div class="tier-row">
+      <span class="tier-label">Tier</span>
+      <button class="tier-chip active" data-tier="">All</button>
+      <button class="tier-chip" data-tier="1">Essential</button>
+      <button class="tier-chip" data-tier="2">Core</button>
+      <button class="tier-chip" data-tier="3">Specialized</button>
     </div>
   </div>
 
@@ -173,6 +208,7 @@
       data-desc="{{ tool.desc | lower }}"
       data-cat="{{ tool.category }}"
       data-tier="{{ tool.tier }}"
+      data-slug="{{ tool.slug }}"
     >
       <span class="tier-badge tier-{{ tool.tier }}">T{{ tool.tier }}</span>
       <div class="card-top">
@@ -188,6 +224,7 @@
       <div class="card-desc">{{ tool.desc }}</div>
       <div class="card-footer">
         <span class="card-sections">{{ tool.sections | length }} sections · {{ tool.presets | length }} presets</span>
+        <button class="star-btn" title="Save tool" aria-label="Save {{ tool.name }}">☆</button>
         <span class="card-arrow">→</span>
       </div>
     </a>
@@ -201,26 +238,63 @@
 </div>
 
 <script>
-  const cards   = Array.from(document.querySelectorAll('.tool-card'));
-  const search  = document.getElementById('search');
-  const chips   = document.querySelectorAll('.cat-chip');
-  const countEl = document.getElementById('result-count');
-  const emptyEl = document.getElementById('empty-state');
-  let activeCat = '';
+  const SAVED_KEY  = 'vantage_saved';
+  const cards      = Array.from(document.querySelectorAll('.tool-card'));
+  const search     = document.getElementById('search');
+  const chips      = document.querySelectorAll('.cat-chip');
+  const tierChips  = document.querySelectorAll('.tier-chip');
+  const countEl    = document.getElementById('result-count');
+  const emptyEl    = document.getElementById('empty-state');
+  let activeCat    = '';
+  let activeTier   = '';
+  let saved        = new Set(JSON.parse(localStorage.getItem(SAVED_KEY) || '[]'));
+
+  function persistSaved() {
+    localStorage.setItem(SAVED_KEY, JSON.stringify([...saved]));
+  }
+
+  function updateStars() {
+    cards.forEach(c => {
+      const btn = c.querySelector('.star-btn');
+      if (!btn) return;
+      const on = saved.has(c.dataset.slug);
+      btn.classList.toggle('saved', on);
+      btn.textContent = on ? '★' : '☆';
+      btn.title = on ? 'Remove from saved' : 'Save tool';
+      btn.setAttribute('aria-label', (on ? 'Unsave ' : 'Save ') + c.dataset.name);
+    });
+  }
 
   function filter() {
     const q   = search.value.toLowerCase().trim();
     let shown = 0;
-    cards.forEach((c, i) => {
-      const matchQ   = !q || c.dataset.name.includes(q) || c.dataset.full.includes(q) || c.dataset.desc.includes(q);
-      const matchCat = !activeCat || c.dataset.cat === activeCat;
-      const visible  = matchQ && matchCat;
+    cards.forEach(c => {
+      const matchQ    = !q || c.dataset.name.includes(q) || c.dataset.full.includes(q) || c.dataset.desc.includes(q);
+      const matchCat  = activeCat === '__saved__' ? saved.has(c.dataset.slug)
+                      : !activeCat || c.dataset.cat === activeCat;
+      const matchTier = !activeTier || c.dataset.tier === activeTier;
+      const visible   = matchQ && matchCat && matchTier;
       c.classList.toggle('hidden', !visible);
-      if (visible) { c.style.animationDelay = (shown++ * 20) + 'ms'; }
+      if (visible) c.style.animationDelay = (shown++ * 20) + 'ms';
     });
     countEl.textContent = shown + ' of ' + cards.length + ' tools';
     emptyEl.style.display = shown === 0 ? 'block' : 'none';
   }
+
+  // Star button clicks (stop propagation so card link isn't followed)
+  cards.forEach(c => {
+    const btn = c.querySelector('.star-btn');
+    if (!btn) return;
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (saved.has(c.dataset.slug)) saved.delete(c.dataset.slug);
+      else saved.add(c.dataset.slug);
+      persistSaved();
+      updateStars();
+      if (activeCat === '__saved__') filter();
+    });
+  });
 
   search.addEventListener('input', filter);
 
@@ -233,14 +307,23 @@
     });
   });
 
-  // Keyboard shortcut: / to focus search
+  tierChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      tierChips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeTier = chip.dataset.tier;
+      filter();
+    });
+  });
+
   document.addEventListener('keydown', e => {
     if (e.key === '/' && document.activeElement !== search) {
       e.preventDefault(); search.focus();
     }
   });
 
-  filter(); // initialise count
+  updateStars();
+  filter();
 </script>
 </body>
 </html>

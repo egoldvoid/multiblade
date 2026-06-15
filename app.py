@@ -32,6 +32,11 @@ _ALLOWED_EXT = {
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = _MAX_MB * 1024 * 1024
 
+
+@app.context_processor
+def inject_tool_stats():
+    return {"tool_count": len(get_all_tools()), "category_count": len(get_categories())}
+
 # Initialise database on startup
 database.init()
 
