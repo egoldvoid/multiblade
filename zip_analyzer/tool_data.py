@@ -2526,9 +2526,753 @@ _UNIX = [
 ]  # end _UNIX
 
 
+# ── New category colour constants ─────────────────────────────────────────────
+_CC = "#a855f7"   # Cloud & Infra (matches existing tools)
+_FC = "#f472b6"   # Forensics
+_RC = "#c084fc"   # Reverse Engineering
+_PC = "#fb923c"   # Password & Crypto
+
+
+# ── Cloud & Infra — new tools (9) ────────────────────────────────────────────
+
+_CLOUD_NEW = [
+
+    {"slug":"aws","name":"aws","full_name":"AWS CLI",
+     "desc":"Official CLI for Amazon Web Services — enumerate IAM, EC2, S3, Lambda, and more.",
+     "category":"Cloud & Infra","tier":2,"icon":"☁️","color":_CC,
+     "sections":[
+       S("tgt","Service & Action","🎯",
+         F("svc","","Service","AWS service (s3, ec2, iam, lambda, sts, rds…)","s3"),
+         F("subcmd","","Subcommand","Action for that service","ls"),
+       ),
+       S("opts","Options","🔧",
+         F("region","--region","Region","AWS region","us-east-1"),
+         F("profile","--profile","Profile","Named credential profile","default"),
+         Sel("output","--output","Output format","",_opts(("json","json"),("table","table"),("text","text"),("yaml","yaml"))),
+         T("--no-cli-pager","Disable pager output"),
+       ),
+     ],
+     "presets":[
+       P("List S3 buckets",{"svc":"s3","subcmd":"ls"}),
+       P("List IAM users",{"svc":"iam","subcmd":"list-users","output":"json"}),
+       P("Describe EC2 instances",{"svc":"ec2","subcmd":"describe-instances","region":"us-east-1","output":"json"}),
+       P("Get caller identity",{"svc":"sts","subcmd":"get-caller-identity"}),
+     ]},
+
+    {"slug":"gcloud","name":"gcloud","full_name":"Google Cloud CLI",
+     "desc":"Official CLI for Google Cloud Platform — enumerate compute, IAM, storage, and more.",
+     "category":"Cloud & Infra","tier":2,"icon":"🌩","color":_CC,
+     "sections":[
+       S("tgt","Group & Command","🎯",
+         F("group","","Group","gcloud group (compute, iam, storage, functions…)","compute"),
+         F("sub","","Command","Subcommand within that group","instances list"),
+       ),
+       S("opts","Options","🔧",
+         F("project","--project","Project","GCP project ID","my-project-123"),
+         F("region","--region","Region","Compute region","us-central1"),
+         F("zone","--zone","Zone","Compute zone","us-central1-a"),
+         Sel("format","--format","Format","Output format",_opts(("json","json"),("table","table"),("yaml","yaml"),("text","text"))),
+       ),
+     ],
+     "presets":[
+       P("List compute instances",{"group":"compute","sub":"instances list","format":"json"}),
+       P("List storage buckets",{"group":"storage","sub":"ls"}),
+       P("List IAM roles",{"group":"iam","sub":"roles list","format":"json"}),
+       P("List Cloud Functions",{"group":"functions","sub":"list","format":"json"}),
+     ]},
+
+    {"slug":"az","name":"az","full_name":"Azure CLI",
+     "desc":"Official Microsoft Azure CLI — enumerate VMs, storage, IAM, and more.",
+     "category":"Cloud & Infra","tier":2,"icon":"🔷","color":_CC,
+     "sections":[
+       S("tgt","Group & Command","🎯",
+         F("group","","Group","az group (vm, storage, network, role, ad…)","vm"),
+         F("sub","","Command","Subcommand within that group","list"),
+       ),
+       S("opts","Options","🔧",
+         F("subscription","--subscription","Subscription","Subscription ID or name","My Subscription"),
+         F("resource_group","--resource-group","Resource Group","Resource group name","my-rg"),
+         Sel("output","--output","Output","Output format",_opts(("json","json"),("table","table"),("yaml","yaml"))),
+       ),
+     ],
+     "presets":[
+       P("List VMs",{"group":"vm","sub":"list","output":"json"}),
+       P("List storage accounts",{"group":"storage","sub":"account list","output":"json"}),
+       P("List role assignments",{"group":"role","sub":"assignment list","output":"json"}),
+       P("List AD users",{"group":"ad","sub":"user list","output":"json"}),
+     ]},
+
+    {"slug":"kubectl","name":"kubectl","full_name":"Kubernetes CLI",
+     "desc":"CLI for Kubernetes — get pods, exec into containers, list secrets, and more.",
+     "category":"Cloud & Infra","tier":2,"icon":"⎈","color":_CC,
+     "sections":[
+       S("tgt","Resource","🎯",
+         Sel("verb","","Verb","Action to perform",_opts(("get","get"),("describe","describe"),("exec","exec"),("logs","logs"),("apply","apply"),("delete","delete"))),
+         F("resource","","Resource","Resource type (pods, services, secrets…)","pods"),
+         F("name","","Name","Specific resource name (optional)",""),
+       ),
+       S("opts","Options","🔧",
+         F("n","--namespace","Namespace (-n)","Target namespace","default"),
+         F("context","--context","Context","kubeconfig context",""),
+         Sel("output","--output","Output (-o)","Output format",_opts(("json","json"),("yaml","yaml"),("wide","wide"))),
+         T("--all-namespaces","Search all namespaces"),
+       ),
+     ],
+     "presets":[
+       P("Get all pods",{"verb":"get","resource":"pods","all_namespaces":True,"output":"wide"}),
+       P("List secrets",{"verb":"get","resource":"secrets","n":"default"}),
+       P("Get service accounts",{"verb":"get","resource":"serviceaccounts","all_namespaces":True,"output":"json"}),
+       P("Describe nodes",{"verb":"describe","resource":"nodes"}),
+     ]},
+
+    {"slug":"checkov","name":"checkov","full_name":"Checkov",
+     "desc":"IaC static analysis — detect misconfigurations in Terraform, CloudFormation, Kubernetes, and Helm.",
+     "category":"Cloud & Infra","tier":2,"icon":"✔","color":_CC,
+     "sections":[
+       S("tgt","Target","🎯",
+         F("d","-d","Directory (-d)","Directory of IaC files to scan","./infra"),
+         F("file","-f","Single file (-f)","Scan a single file","main.tf"),
+       ),
+       S("opts","Options","🔧",
+         Sel("framework","--framework","Framework","IaC framework to check",_opts(("terraform","terraform"),("cloudformation","cloudformation"),("kubernetes","kubernetes"),("helm","helm"),("arm","arm"))),
+         Sel("output","-o","Output (-o)","Output format",_opts(("cli","cli"),("json","json"),("sarif","sarif"),("junitxml","junitxml"))),
+         F("check","--check","Checks (--check)","Comma-separated check IDs to run","CKV_AWS_1"),
+         F("skip_check","--skip-check","Skip checks","Comma-separated check IDs to skip","CKV2_AWS_1"),
+         T("--compact","Compact — only failed checks"),
+         T("--quiet","Print only failures and errors"),
+       ),
+     ],
+     "presets":[
+       P("Scan Terraform dir",{"d":"./","framework":"terraform","output":"cli","compact":True}),
+       P("Scan K8s manifests",{"d":"./k8s","framework":"kubernetes","output":"json"}),
+       P("Scan CloudFormation",{"d":"./cfn","framework":"cloudformation","output":"sarif"}),
+       P("JSON report",{"d":"./","output":"json","quiet":True}),
+     ]},
+
+    {"slug":"prowler","name":"prowler","full_name":"Prowler",
+     "desc":"Cloud security auditing for AWS, GCP, and Azure — hundreds of CIS/NIST compliance checks.",
+     "category":"Cloud & Infra","tier":2,"icon":"🦁","color":_CC,
+     "sections":[
+       S("tgt","Provider","🎯",
+         Sel("provider","","Provider *","Cloud provider to audit",_opts(("aws","aws"),("gcp","gcp"),("azure","azure"))),
+         F("region","-r","Regions (-r)","AWS region(s) to audit","us-east-1"),
+       ),
+       S("opts","Options","🔧",
+         F("checks","-c","Checks (-c)","Specific check IDs to run","s3_bucket_public_access"),
+         F("services","-s","Services (-s)","Limit audit to these services","s3,iam"),
+         Sel("output_mode","--output-modes","Output mode","Report format",_opts(("json","json"),("html","html"),("csv","csv"))),
+         F("output_dir","-o","Output dir (-o)","Save reports here","prowler-reports"),
+         T("--quiet","Only show FAIL findings"),
+       ),
+     ],
+     "presets":[
+       P("Quick AWS audit",{"provider":"aws","output_mode":"html","output_dir":"prowler-reports"}),
+       P("S3 checks",{"provider":"aws","services":"s3","output_mode":"json","quiet":True}),
+       P("IAM deep-dive",{"provider":"aws","services":"iam","output_mode":"json"}),
+       P("GCP audit",{"provider":"gcp","output_mode":"json","output_dir":"prowler-reports"}),
+     ]},
+
+    {"slug":"terraform","name":"terraform","full_name":"Terraform",
+     "desc":"IaC lifecycle CLI — plan, apply, and audit infrastructure as code.",
+     "category":"Cloud & Infra","tier":3,"icon":"🏗","color":_CC,
+     "sections":[
+       S("cmd","Command","⚡",
+         Sel("subcmd","","Command *","Terraform lifecycle command",_opts(("init","init"),("plan","plan"),("apply","apply"),("destroy","destroy"),("validate","validate"),("state list","state list"),("output","output"))),
+       ),
+       S("opts","Options","🔧",
+         F("var_file","-var-file","Var file (-var-file)","Path to .tfvars file","prod.tfvars"),
+         F("out","-out","Plan output (-out)","Save plan to file","tfplan"),
+         F("target","-target","Target (-target)","Limit to specific resource","aws_s3_bucket.logs"),
+         T("-auto-approve","Skip interactive approval (apply/destroy)"),
+         T("-json","Machine-readable JSON output"),
+       ),
+     ],
+     "presets":[
+       P("Init workspace",{"subcmd":"init"}),
+       P("Plan changes",{"subcmd":"plan","out":"tfplan"}),
+       P("Apply with approval",{"subcmd":"apply","auto_approve":True}),
+       P("Validate config",{"subcmd":"validate","json":True}),
+     ]},
+
+    {"slug":"cloudmapper","name":"cloudmapper","full_name":"CloudMapper",
+     "desc":"AWS account network visualization and attack surface analysis.",
+     "category":"Cloud & Infra","tier":3,"icon":"🗺","color":_CC,
+     "sections":[
+       S("cmd","Command","⚡",
+         Sel("subcmd","","Command *","CloudMapper action",_opts(("collect","collect"),("report","report"),("webserver","webserver"),("prepare","prepare"),("stats","stats"))),
+         F("account","--account","Account name","AWS account alias from config.json","myaccount"),
+       ),
+       S("opts","Options","🔧",
+         F("config","--config","Config file","Path to config.json","config.json"),
+         F("port","--port","Port","Webserver port","8000","number"),
+       ),
+     ],
+     "presets":[
+       P("Collect AWS data",{"subcmd":"collect","account":"myaccount"}),
+       P("Generate report",{"subcmd":"report","account":"myaccount"}),
+       P("Launch viewer",{"subcmd":"webserver","port":"8000"}),
+     ]},
+
+    {"slug":"scoutsuite","name":"scout","full_name":"ScoutSuite",
+     "desc":"Multi-cloud security auditing — comprehensive checks for AWS, GCP, Azure, and more.",
+     "category":"Cloud & Infra","tier":3,"icon":"🔭","color":_CC,
+     "sections":[
+       S("tgt","Provider","🎯",
+         Sel("provider","","Provider *","Cloud provider",_opts(("aws","aws"),("gcp","gcp"),("azure","azure"),("aliyun","aliyun"))),
+         F("report_dir","--report-dir","Report dir","Output directory for HTML report","scoutsuite-report"),
+         F("report_name","--report-name","Report name","Report filename","report"),
+       ),
+       S("opts","Options","🔧",
+         F("regions","--regions","Regions (AWS)","Comma-separated regions","us-east-1,eu-west-1"),
+         T("--no-browser","Don't open browser after scan"),
+       ),
+     ],
+     "presets":[
+       P("Audit AWS",{"provider":"aws","report_dir":"scoutsuite-report","no_browser":True}),
+       P("Audit GCP",{"provider":"gcp","report_dir":"scoutsuite-report"}),
+       P("Audit Azure",{"provider":"azure","report_dir":"scoutsuite-report"}),
+     ]},
+
+]  # end _CLOUD_NEW
+
+
+# ── Forensics & Malware Analysis (10) ────────────────────────────────────────
+
+_FORENSICS = [
+
+    {"slug":"volatility3","name":"vol","full_name":"Volatility 3",
+     "desc":"Memory forensics framework — extract processes, network connections, and artifacts from RAM dumps.",
+     "category":"Forensics","tier":2,"icon":"🧠","color":_FC,
+     "sections":[
+       S("tgt","Image","🎯",
+         F("f","-f","Memory image (-f) *","Path to raw memory dump","memory.vmem"),
+       ),
+       S("plugin","Plugin","🔌",
+         F("plugin","","Plugin *","Volatility plugin to run","windows.pslist.PsList"),
+       ),
+       S("opts","Options","🔧",
+         Sel("output","--output","Output format","",_opts(("default",""),("csv","csv"),("json","json"))),
+         F("output_file","--output-file","Output file","Save output here","vol_out.csv"),
+       ),
+     ],
+     "presets":[
+       P("List processes (Win)",{"f":"memory.vmem","plugin":"windows.pslist.PsList"}),
+       P("Network connections",{"f":"memory.vmem","plugin":"windows.netstat.NetStat"}),
+       P("Dump files (Win)",{"f":"memory.vmem","plugin":"windows.dumpfiles.DumpFiles"}),
+       P("List processes (Linux)",{"f":"memory.vmem","plugin":"linux.pslist.PsList"}),
+     ]},
+
+    {"slug":"binwalk","name":"binwalk","full_name":"Binwalk",
+     "desc":"Firmware and binary analysis — scan for embedded files, calculate entropy, extract contents.",
+     "category":"Forensics","tier":2,"icon":"🔬","color":_FC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("firmware.bin  or  image.img","Firmware image or binary to analyze"),
+       ),
+       S("opts","Options","🔧",
+         T("-e","Extract detected files and data"),
+         T("-M","Recursively scan extracted files (matryoshka)"),
+         T("-E","Calculate and plot file entropy"),
+         T("-B","Scan for common file signatures"),
+         T("-A","Scan for CPU opcodes"),
+         F("C","-C","Output dir (-C)","Extract files to this directory","_extracted"),
+         F("f","-f","Log file (-f)","Save scan results to file","binwalk.log"),
+       ),
+     ],
+     "presets":[
+       P("Signature scan",{"B":True}),
+       P("Extract all",{"e":True,"M":True,"C":"_extracted"}),
+       P("Entropy analysis",{"E":True}),
+       P("Full analysis + extract",{"B":True,"e":True,"E":True,"M":True}),
+     ]},
+
+    {"slug":"exiftool","name":"exiftool","full_name":"ExifTool",
+     "desc":"Read, write, and edit metadata from images, documents, audio, video, and more.",
+     "category":"Forensics","tier":2,"icon":"📷","color":_FC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("photo.jpg  or  document.pdf  or  directory/","File or directory to process"),
+       ),
+       S("opts","Options","🔧",
+         Sel("fmt","","Output format","",_opts(("-json","-json"),("-csv","-csv"),("-xml","-xml"),("-tab","-tab"))),
+         T("-a","Show all duplicate tags"),
+         T("-u","Show unknown tags"),
+         T("-G","Print group name for each tag"),
+         T("-r","Recursively process directories"),
+       ),
+     ],
+     "presets":[
+       P("All metadata",{"a":True,"u":True,"G":True}),
+       P("GPS coordinates",{"a":True}),
+       P("JSON output",{"fmt":"-json","G":True}),
+       P("Recursive scan",{"r":True,"fmt":"-json"}),
+     ]},
+
+    {"slug":"strings","name":"strings","full_name":"strings",
+     "desc":"Extract all printable character sequences from a binary or file.",
+     "category":"Forensics","tier":2,"icon":"📝","color":_FC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("binary_file  or  memory.dump","Binary to extract strings from"),
+       ),
+       S("opts","Options","🔧",
+         F("n","-n","Min length (-n)","Minimum string length (default 4)","4","number"),
+         Sel("encoding","-e","Encoding (-e)","Character encoding",_opts(("single-byte (s)","s"),("16-bit little-endian (l)","l"),("16-bit big-endian (b)","b"),("32-bit little-endian (L)","L"))),
+         T("-a","Scan entire file (not just loadable sections)"),
+       ),
+     ],
+     "presets":[
+       P("Default extract",{"n":"8"}),
+       P("Unicode (UTF-16LE)",{"encoding":"l","n":"4"}),
+       P("Long strings only",{"n":"20"}),
+       P("All sections",{"a":True,"n":"6"}),
+     ]},
+
+    {"slug":"file","name":"file","full_name":"file",
+     "desc":"Determine file type using magic byte signatures — fast identification of unknown files.",
+     "category":"Forensics","tier":2,"icon":"🔍","color":_FC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("mystery_file  or  *.bin","File or glob pattern to identify"),
+       ),
+       S("opts","Options","🔧",
+         T("-b","Brief — omit filenames in output"),
+         T("-i","Output MIME type string"),
+         T("-z","Look inside compressed files"),
+         T("-L","Follow symlinks"),
+         F("m","-m","Magic file (-m)","Custom magic database","/etc/magic"),
+       ),
+     ],
+     "presets":[
+       P("Identify file",{}),
+       P("MIME type",{"i":True}),
+       P("Check compressed",{"z":True}),
+       P("Brief MIME",{"b":True,"i":True}),
+     ]},
+
+    {"slug":"xxd","name":"xxd","full_name":"xxd",
+     "desc":"Hex dump and reverse — view binary files as hex or convert hex back to binary.",
+     "category":"Forensics","tier":2,"icon":"🔢","color":_FC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("binary_file  or  input.bin","File to hex dump"),
+       ),
+       S("opts","Options","🔧",
+         T("-r","Reverse: convert hex dump back to binary"),
+         F("l","-l","Length (-l)","Number of bytes to dump","256","number"),
+         F("s","-s","Seek (-s)","Start offset (e.g. 0x200)","0"),
+         F("c","-c","Cols (-c)","Bytes per row","16","number"),
+         T("-b","Bit dump — binary digits instead of hex"),
+         T("-i","Output as C include array"),
+       ),
+     ],
+     "presets":[
+       P("Full hex dump",{}),
+       P("First 256 bytes",{"l":"256"}),
+       P("From offset 512",{"s":"512","l":"512"}),
+       P("Convert to binary",{"r":True}),
+     ]},
+
+    {"slug":"yara-cli","name":"yara","full_name":"YARA Scanner",
+     "desc":"Scan files and directories with YARA rules to identify malware and suspicious patterns.",
+     "category":"Forensics","tier":2,"icon":"🎯","color":_FC,
+     "sections":[
+       S("tgt","Rules & Target","🎯",
+         F("rules","","Rules file *","YARA rules file or directory","rules/malware.yar"),
+         Tgt("suspicious.exe  or  /samples/","File or directory to scan"),
+       ),
+       S("opts","Options","🔧",
+         T("-r","Scan directory recursively"),
+         T("-s","Print matching strings"),
+         T("-n","Print non-matching files instead"),
+         F("t","-t","Tag filter (-t)","Only match rules with this tag","APT"),
+         T("--fast-scan","Fast scan mode"),
+       ),
+     ],
+     "presets":[
+       P("Scan file",{"rules":"rules/","s":True}),
+       P("Recursive scan",{"rules":"rules/","r":True,"s":True}),
+       P("Fast recursive",{"rules":"rules/","r":True,"fast_scan":True}),
+     ]},
+
+    {"slug":"oletools","name":"olevba","full_name":"oletools (olevba)",
+     "desc":"Analyze VBA macros in Office documents — detect malicious code, extract IOCs.",
+     "category":"Forensics","tier":3,"icon":"📄","color":_FC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("suspicious.doc  or  malware.xlsm","Office document to analyze"),
+       ),
+       S("opts","Options","🔧",
+         T("-a","Auto analysis — detect indicators"),
+         T("-f","Full analysis — maximum detail"),
+         T("-c","Code only — just VBA source"),
+         T("--deobfuscate","Attempt deobfuscation"),
+         T("--json","Output as JSON"),
+         T("--csv","Output as CSV"),
+       ),
+     ],
+     "presets":[
+       P("Analyze macros",{"a":True}),
+       P("Full analysis",{"f":True}),
+       P("Deobfuscate",{"a":True,"deobfuscate":True}),
+       P("JSON report",{"a":True,"json":True}),
+     ]},
+
+    {"slug":"foremost","name":"foremost","full_name":"Foremost",
+     "desc":"File carving — recover deleted or embedded files from disk images and memory dumps.",
+     "category":"Forensics","tier":3,"icon":"🗂","color":_FC,
+     "sections":[
+       S("tgt","Target","🎯",
+         F("i","-i","Input file (-i) *","Disk image or raw file to carve","disk.img"),
+       ),
+       S("opts","Options","🔧",
+         F("o","-o","Output dir (-o)","Directory for recovered files","carved_files"),
+         F("types","-t","File types (-t)","Types to carve: jpg,png,pdf,zip,doc…","jpg,png,pdf,zip"),
+         F("c","-c","Config (-c)","Custom foremost.conf","foremost.conf"),
+         T("-v","Verbose output"),
+         T("-w","Write audit log only (dry run)"),
+       ),
+     ],
+     "presets":[
+       P("Carve all types",{"i":"disk.img","o":"carved_files","v":True}),
+       P("Carve images",{"i":"disk.img","types":"jpg,png,gif","o":"carved_images"}),
+       P("Carve documents",{"i":"disk.img","types":"pdf,doc,docx,xls,zip","o":"carved_docs"}),
+       P("Dry run",{"i":"disk.img","w":True}),
+     ]},
+
+    {"slug":"clamav","name":"clamscan","full_name":"ClamAV",
+     "desc":"Open-source AV scanner — detect malware, trojans, and malicious scripts.",
+     "category":"Forensics","tier":3,"icon":"🛡","color":_FC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("/path/to/scan  or  suspicious.exe","File or directory to scan"),
+       ),
+       S("opts","Options","🔧",
+         T("-r","Recursive directory scan"),
+         T("-i","Only print infected files"),
+         T("--remove","Remove infected files"),
+         F("move","--move","Quarantine dir (--move)","Move infected files here","quarantine/"),
+         F("log","--log","Log file (--log)","Save scan log","clamscan.log"),
+       ),
+     ],
+     "presets":[
+       P("Scan directory",{"r":True,"i":True}),
+       P("Quarantine infected",{"r":True,"i":True,"move":"quarantine/"}),
+       P("Full scan with log",{"r":True,"log":"scan.log"}),
+     ]},
+
+]  # end _FORENSICS
+
+
+# ── Reverse Engineering (8) ───────────────────────────────────────────────────
+
+_RE = [
+
+    {"slug":"ghidra","name":"analyzeHeadless","full_name":"Ghidra (Headless)",
+     "desc":"Ghidra headless analyzer — script binary analysis from the CLI. Launch GUI with `ghidraRun`.",
+     "category":"Reverse Engineering","tier":2,"icon":"🐉","color":_RC,
+     "sections":[
+       S("tgt","Project & Binary","🎯",
+         F("proj_dir","","Project dir *","Ghidra project directory","~/ghidra_projects"),
+         F("proj_name","","Project name *","Project name to create/open","MyProject"),
+       ),
+       S("opts","Options","🔧",
+         F("import","-import","Import binary (-import)","Binary to import and analyze","binary.exe"),
+         F("script","-postScript","Post-script (-postScript)","Analysis script to run","ExportFunctions.java"),
+         F("scriptPath","-scriptPath","Script path (-scriptPath)","Directory containing scripts","./scripts"),
+         T("-overwrite","Overwrite existing project"),
+         T("-deleteProject","Delete project after analysis"),
+       ),
+     ],
+     "presets":[
+       P("Import and analyze",{"proj_dir":"~/ghidra_projects","proj_name":"Analysis","import":"binary.exe","overwrite":True}),
+       P("Run export script",{"proj_dir":"~/ghidra_projects","proj_name":"Analysis","import":"binary.exe","script":"ExportFunctions.java","scriptPath":"./scripts"}),
+       P("Analyze and delete",{"proj_dir":"/tmp/ghidra","proj_name":"Temp","import":"binary","overwrite":True,"deleteProject":True}),
+     ]},
+
+    {"slug":"radare2","name":"r2","full_name":"Radare2",
+     "desc":"Portable reverse engineering framework — disassemble, debug, decompile, and patch binaries.",
+     "category":"Reverse Engineering","tier":2,"icon":"🔱","color":_RC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("binary  or  firmware.bin","Binary or file to analyze"),
+       ),
+       S("opts","Options","🔧",
+         T("-A","Run analysis on all functions (aaa)"),
+         T("-w","Open in write mode"),
+         T("-d","Start in debugger mode"),
+         T("-q","Quiet mode — no banner"),
+         F("c","-c","Commands (-c)","Run r2 commands then exit","aaa; afl; pdf @main"),
+         F("e","-e","Config (-e)","Set configuration variable","scr.color=0"),
+       ),
+     ],
+     "presets":[
+       P("Analyze binary",{"A":True}),
+       P("Non-interactive analyze",{"A":True,"q":True,"c":"aaa; afl; s main; pdf"}),
+       P("Debug binary",{"d":True}),
+       P("Patch binary",{"w":True}),
+     ]},
+
+    {"slug":"gdb","name":"gdb","full_name":"GDB",
+     "desc":"GNU debugger — set breakpoints, inspect memory and registers, analyze core dumps.",
+     "category":"Reverse Engineering","tier":2,"icon":"🐛","color":_RC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("binary  or  core_file","Binary to debug or core dump to inspect"),
+       ),
+       S("opts","Options","🔧",
+         F("pid","--pid","Attach to PID (--pid)","Attach to running process","1234","number"),
+         F("ex","--ex","Command (--ex)","GDB command at startup","run"),
+         F("x","-x","Script file (-x)","GDB script to execute","commands.gdb"),
+         T("--batch","Batch mode — exit after commands"),
+         T("-q","Quiet — no version banner"),
+       ),
+     ],
+     "presets":[
+       P("Debug binary",{"q":True}),
+       P("Attach to process",{"pid":"TARGET_PID","q":True}),
+       P("Run script",{"x":"commands.gdb","batch":True,"q":True}),
+       P("Analyze core dump",{"ex":"info registers","batch":True,"q":True}),
+     ]},
+
+    {"slug":"objdump","name":"objdump","full_name":"objdump",
+     "desc":"Disassemble binaries, display ELF headers, sections, symbols, and relocations.",
+     "category":"Reverse Engineering","tier":2,"icon":"⚙","color":_RC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("binary  or  object_file.o","ELF binary or object file to inspect"),
+       ),
+       S("opts","Options","🔧",
+         T("-d","Disassemble executable sections"),
+         T("-D","Disassemble all sections"),
+         T("-f","Display file headers"),
+         T("-h","Display section headers"),
+         T("-t","Display symbol table"),
+         T("-T","Display dynamic symbol table"),
+         T("-r","Display relocation entries"),
+         T("-C","Demangle C++ symbol names"),
+         Sel("m","-m","Architecture (-m)","Override architecture",_opts(("auto",""),("i386","i386"),("x86-64","i386:x86-64"),("arm","arm"),("aarch64","aarch64"))),
+       ),
+     ],
+     "presets":[
+       P("Disassemble",{"d":True,"C":True}),
+       P("Full disassembly",{"D":True,"C":True}),
+       P("Headers only",{"f":True,"h":True}),
+       P("Symbol table",{"t":True,"T":True,"C":True}),
+     ]},
+
+    {"slug":"nm","name":"nm","full_name":"nm",
+     "desc":"List symbols from object files — functions, globals, undefined imports.",
+     "category":"Reverse Engineering","tier":2,"icon":"🏷","color":_RC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("binary  or  library.so","Object file or shared library to inspect"),
+       ),
+       S("opts","Options","🔧",
+         T("-u","Show only undefined symbols"),
+         T("-D","Display dynamic symbols"),
+         T("-C","Demangle C++ symbol names"),
+         T("-g","Show only external (global) symbols"),
+         T("-n","Sort numerically by address"),
+         T("--size-sort","Sort by symbol size"),
+       ),
+     ],
+     "presets":[
+       P("All symbols",{"C":True}),
+       P("Undefined only",{"u":True,"C":True}),
+       P("Dynamic symbols",{"D":True,"C":True}),
+       P("External symbols",{"g":True,"C":True}),
+     ]},
+
+    {"slug":"strace","name":"strace","full_name":"strace",
+     "desc":"Trace system calls and signals — understand what a process does at the OS level.",
+     "category":"Reverse Engineering","tier":2,"icon":"📞","color":_RC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("command [args]","Command to run under strace"),
+       ),
+       S("opts","Options","🔧",
+         F("p","-p","Attach to PID (-p)","Attach to running process","1234","number"),
+         F("e","-e","Filter (-e)","Trace only these syscalls","trace=open,read,write"),
+         F("o","-o","Output file (-o)","Save trace to file","strace.log"),
+         T("-f","Follow forks — trace child processes too"),
+         T("-v","Verbose — full argument strings"),
+         T("-c","Print summary count at exit"),
+         T("-T","Show time spent in each syscall"),
+       ),
+     ],
+     "presets":[
+       P("Trace binary",{}),
+       P("File syscalls",{"e":"trace=open,openat,read,write,close"}),
+       P("Network syscalls",{"e":"trace=connect,send,recv,socket"}),
+       P("Save trace",{"o":"strace.log","f":True}),
+     ]},
+
+    {"slug":"ltrace","name":"ltrace","full_name":"ltrace",
+     "desc":"Trace library calls — see which shared library functions a process invokes.",
+     "category":"Reverse Engineering","tier":3,"icon":"📚","color":_RC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("binary [args]","Binary to trace"),
+       ),
+       S("opts","Options","🔧",
+         F("p","-p","Attach to PID (-p)","Attach to running process","1234","number"),
+         T("-C","Demangle C++ function names"),
+         F("l","-l","Library filter (-l)","Only trace calls to this library","libssl.so"),
+         F("e","-e","Function filter (-e)","Only trace these function calls","malloc+free"),
+         F("o","-o","Output file (-o)","Save trace","ltrace.log"),
+         T("-f","Follow child processes"),
+       ),
+     ],
+     "presets":[
+       P("Trace library calls",{"C":True}),
+       P("Trace SSL calls",{"l":"libssl*","C":True}),
+       P("Save trace",{"C":True,"o":"ltrace.log","f":True}),
+     ]},
+
+    {"slug":"pwndbg","name":"gdb","full_name":"pwndbg (GDB plugin)",
+     "desc":"GDB enhanced with pwndbg — exploit-dev commands: heap inspection, ROP gadgets, canary detection.",
+     "category":"Reverse Engineering","tier":3,"icon":"💥","color":_RC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("binary","Binary to exploit-develop against"),
+       ),
+       S("opts","Options","🔧",
+         F("ex","--ex","Initial command (--ex)","GDB/pwndbg command at startup","starti"),
+         T("-q","Quiet — suppress banner"),
+         F("x","-x","Script (-x)","pwndbg script file","exploit.py"),
+         T("--batch","Batch mode for scripting"),
+       ),
+     ],
+     "presets":[
+       P("Launch binary",{"q":True,"ex":"starti"}),
+       P("Check protections",{"q":True,"ex":"checksec"}),
+       P("Run exploit script",{"q":True,"x":"exploit.py"}),
+       P("Heap inspection",{"q":True,"ex":"heap"}),
+     ]},
+
+]  # end _RE
+
+
+# ── Password & Crypto (5) ─────────────────────────────────────────────────────
+
+_CRYPTO = [
+
+    {"slug":"openssl","name":"openssl","full_name":"OpenSSL",
+     "desc":"Crypto Swiss army knife — TLS testing, cert inspection, hashing, key generation, encryption.",
+     "category":"Password & Crypto","tier":1,"icon":"🔐","color":_PC,
+     "sections":[
+       S("cmd","Command","⚡",
+         F("subcmd","","Command *","OpenSSL subcommand","s_client  /  x509  /  genrsa  /  dgst"),
+       ),
+       S("opts","Options","🔧",
+         F("connect","-connect","Connect (-connect)","host:port for s_client","target.com:443"),
+         F("in","-in","Input (-in)","Input file","cert.pem"),
+         F("out","-out","Output (-out)","Output file","output.pem"),
+         F("key","-key","Key file (-key)","Private key file","private.key"),
+         Sel("digest","","Digest algorithm","Hash for dgst subcommand",_opts(("-sha256","-sha256"),("-sha512","-sha512"),("-sha1","-sha1"),("-md5","-md5"))),
+         T("-text","Print full text of object"),
+         T("-noout","Don't output encoded version"),
+       ),
+     ],
+     "presets":[
+       P("Test TLS connection",{"subcmd":"s_client","connect":"TARGET:443","text":True}),
+       P("Inspect certificate",{"subcmd":"x509","in":"cert.pem","text":True,"noout":True}),
+       P("Generate RSA-4096 key",{"subcmd":"genrsa","out":"private.key"}),
+       P("SHA-256 hash file",{"subcmd":"dgst","digest":"-sha256","in":"file.bin"}),
+     ]},
+
+    {"slug":"gpg","name":"gpg","full_name":"GPG",
+     "desc":"GNU Privacy Guard — encrypt, decrypt, sign, and verify files and messages.",
+     "category":"Password & Crypto","tier":2,"icon":"🔒","color":_PC,
+     "sections":[
+       S("mode","Operation","⚡",
+         Sel("mode","","Mode *","GPG operation",_opts(("Encrypt (-e)","-e"),("Decrypt (-d)","-d"),("Sign (--sign)","--sign"),("Verify (--verify)","--verify"),("List keys (--list-keys)","--list-keys"))),
+       ),
+       S("opts","Options","🔧",
+         F("recipient","-r","Recipient (-r)","Key ID or email","user@example.com"),
+         F("output","--output","Output file (--output)","Write output here","output.gpg"),
+         T("-a","ASCII armor output"),
+         T("--batch","Non-interactive mode"),
+         Tgt("file_to_process","File to encrypt/decrypt/sign"),
+       ),
+     ],
+     "presets":[
+       P("Encrypt for recipient",{"mode":"-e","a":True,"recipient":"user@example.com","output":"file.gpg"}),
+       P("Decrypt file",{"mode":"-d","output":"decrypted.txt"}),
+       P("Sign file",{"mode":"--sign","a":True,"output":"file.sig"}),
+       P("List keys",{"mode":"--list-keys"}),
+     ]},
+
+    {"slug":"ssh-keygen","name":"ssh-keygen","full_name":"ssh-keygen",
+     "desc":"Generate SSH key pairs, check fingerprints, and convert key formats.",
+     "category":"Password & Crypto","tier":2,"icon":"🗝","color":_PC,
+     "sections":[
+       S("gen","Key Generation","⚡",
+         Sel("t","-t","Key type (-t)","Cryptographic algorithm",_opts(("ed25519","ed25519"),("rsa","rsa"),("ecdsa","ecdsa"))),
+         F("b","-b","Bits (-b)","Key size (RSA only)","4096","number"),
+         F("f","-f","File (-f)","Output key file","~/.ssh/id_ed25519"),
+         F("C","-C","Comment (-C)","Key comment (e.g. user@host)","user@host"),
+       ),
+       S("ops","Operations","🔧",
+         Sel("op","","Operation","Extra operation",_opts(("-l (fingerprint)","-l"),("-F (find in known_hosts)","-F"),("-R (remove from known_hosts)","-R"),("-p (change passphrase)","-p"))),
+       ),
+     ],
+     "presets":[
+       P("Generate Ed25519",{"t":"ed25519","C":"user@host","f":"~/.ssh/id_ed25519"}),
+       P("Generate RSA-4096",{"t":"rsa","b":"4096","C":"user@host","f":"~/.ssh/id_rsa"}),
+       P("Get fingerprint",{"op":"-l","f":"~/.ssh/id_ed25519.pub"}),
+       P("Find in known_hosts",{"op":"-F"}),
+     ]},
+
+    {"slug":"age","name":"age","full_name":"age",
+     "desc":"Modern file encryption — encrypt with age keys, SSH keys, or passphrases. Generate keys with age-keygen.",
+     "category":"Password & Crypto","tier":2,"icon":"🔏","color":_PC,
+     "sections":[
+       S("mode","Mode","⚡",
+         T("-d","Decrypt mode (default: encrypt)"),
+         T("-a","Armor — ASCII/PEM output"),
+       ),
+       S("opts","Options","🔧",
+         F("r","-r","Recipient (-r)","Public key or SSH key","age1..."),
+         F("i","-i","Identity (-i)","Key file for decryption","~/.age/key.txt"),
+         F("o","-o","Output (-o)","Output file","encrypted.age"),
+         Tgt("file_to_encrypt","File to encrypt or decrypt"),
+       ),
+     ],
+     "presets":[
+       P("Encrypt with age key",{"r":"age1...","o":"output.age"}),
+       P("Encrypt with SSH key",{"r":"~/.ssh/id_ed25519.pub","a":True,"o":"output.age"}),
+       P("Decrypt",{"d":True,"i":"~/.age/key.txt","o":"decrypted.txt"}),
+       P("Encrypt armored",{"r":"age1...","a":True,"o":"output.pem"}),
+     ]},
+
+    {"slug":"base64","name":"base64","full_name":"base64",
+     "desc":"Encode or decode base64 — useful for payload crafting, data analysis, and CTFs.",
+     "category":"Password & Crypto","tier":2,"icon":"🔣","color":_PC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("file  or  omit to use stdin","File to encode/decode (omit for stdin)"),
+       ),
+       S("opts","Options","🔧",
+         T("-d","Decode mode (default: encode)"),
+         T("-i","Ignore non-alphabet characters when decoding"),
+         F("w","-w","Wrap (-w)","Wrap encoded lines at N columns (0=disable)","0","number"),
+       ),
+     ],
+     "presets":[
+       P("Encode file",{"w":"0"}),
+       P("Decode file",{"d":True}),
+       P("Decode ignore noise",{"d":True,"i":True}),
+       P("Encode no wrap",{"w":"0"}),
+     ]},
+
+]  # end _CRYPTO
+
+
 # ── Combine all tools ─────────────────────────────────────────────────────────
 
-TOOLS = _T1 + _T2 + _T3 + _UNIX
+TOOLS = _T1 + _T2 + _T3 + _UNIX + _CLOUD_NEW + _FORENSICS + _RE + _CRYPTO
 
 # Lookup by slug
 TOOLS_BY_SLUG = {t["slug"]: t for t in TOOLS}
@@ -2932,6 +3676,135 @@ INSTALL_MAP = {
     "jadx": {
         "brew": "brew install jadx",
         "apt":  "sudo apt install -y jadx",
+    },
+    # ── Cloud & Infra (new) ───────────────────────────────────────────────────
+    "aws": {
+        "brew":    "brew install awscli",
+        "apt":     "sudo apt install -y awscli",
+        "pip":     "pip install awscli",
+    },
+    "gcloud": {
+        "brew":    "brew install --cask google-cloud-sdk",
+        "apt":     "echo 'deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main' | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list && sudo apt install -y google-cloud-cli",
+    },
+    "az": {
+        "brew":    "brew install azure-cli",
+        "apt":     "curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash",
+    },
+    "kubectl": {
+        "brew":    "brew install kubectl",
+        "apt":     "sudo apt install -y kubectl",
+    },
+    "checkov": {
+        "brew":    "brew install checkov",
+        "pip":     "pip install checkov",
+        "docker":  "docker pull bridgecrew/checkov && docker run --rm -t -v $PWD:/tf bridgecrew/checkov -d /tf",
+    },
+    "prowler": {
+        "pip":     "pip install prowler",
+        "docker":  "docker pull toniblyx/prowler && docker run -it --rm toniblyx/prowler",
+    },
+    "terraform": {
+        "brew":    "brew install terraform",
+        "apt":     "wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp.gpg && sudo apt install -y terraform",
+    },
+    "cloudmapper": {
+        "pip":     "pip install cloudmapper",
+    },
+    "scoutsuite": {
+        "pip":     "pip install scoutsuite",
+        "docker":  "docker pull rossja/ncc-scoutsuite && docker run -it --rm rossja/ncc-scoutsuite",
+    },
+    # ── Forensics ─────────────────────────────────────────────────────────────
+    "volatility3": {
+        "pip":     "pip install volatility3",
+        "apt":     "sudo apt install -y volatility3",
+    },
+    "binwalk": {
+        "brew":    "brew install binwalk",
+        "apt":     "sudo apt install -y binwalk",
+        "pip":     "pip install binwalk",
+    },
+    "exiftool": {
+        "brew":    "brew install exiftool",
+        "apt":     "sudo apt install -y libimage-exiftool-perl",
+    },
+    "strings": {
+        "builtin": "Pre-installed on macOS. On Linux: sudo apt install -y binutils (provides the strings command).",
+    },
+    "file": {
+        "builtin": _B,
+    },
+    "xxd": {
+        "builtin": "Bundled with vim on macOS. On Linux: sudo apt install -y xxd  (or part of vim-common).",
+    },
+    "yara-cli": {
+        "brew":    "brew install yara",
+        "apt":     "sudo apt install -y yara",
+        "pip":     "pip install yara-python",
+    },
+    "oletools": {
+        "pip":     "pip install oletools",
+    },
+    "foremost": {
+        "brew":    "brew install foremost",
+        "apt":     "sudo apt install -y foremost",
+    },
+    "clamav": {
+        "brew":    "brew install clamav",
+        "apt":     "sudo apt install -y clamav clamav-daemon && sudo freshclam",
+    },
+    # ── Reverse Engineering ───────────────────────────────────────────────────
+    "ghidra": {
+        "brew":    "brew install --cask ghidra",
+        "apt":     "# Download from https://ghidra-sre.org — unzip and run ghidraRun or analyzeHeadless",
+    },
+    "radare2": {
+        "brew":    "brew install radare2",
+        "apt":     "sudo apt install -y radare2",
+    },
+    "gdb": {
+        "brew":    "brew install gdb",
+        "apt":     "sudo apt install -y gdb",
+        "builtin": "Pre-installed on most Linux distributions.",
+    },
+    "objdump": {
+        "brew":    "brew install binutils  # installs as gobjdump on macOS",
+        "builtin": "Pre-installed on Linux via binutils. On macOS the Apple variant is at /usr/bin/objdump.",
+    },
+    "nm": {
+        "builtin": "Pre-installed on macOS and Linux. On macOS use llvm-nm for full symbol info: brew install llvm.",
+    },
+    "strace": {
+        "apt":     "sudo apt install -y strace",
+        "builtin": "Pre-installed on most Linux distributions. Not available on macOS (use dtruss or dtrace).",
+    },
+    "ltrace": {
+        "apt":     "sudo apt install -y ltrace",
+    },
+    "pwndbg": {
+        "apt":     "git clone https://github.com/pwndbg/pwndbg && cd pwndbg && ./setup.sh",
+        "docker":  "docker pull pwndbg/pwndbg && docker run -it --rm pwndbg/pwndbg",
+    },
+    # ── Password & Crypto ─────────────────────────────────────────────────────
+    "openssl": {
+        "brew":    "brew install openssl",
+        "builtin": "Pre-installed on macOS and most Linux distributions.",
+    },
+    "gpg": {
+        "brew":    "brew install gnupg",
+        "apt":     "sudo apt install -y gnupg",
+    },
+    "ssh-keygen": {
+        "builtin": _B,
+    },
+    "age": {
+        "brew":    "brew install age",
+        "apt":     "sudo apt install -y age",
+        "go":      "go install filippo.io/age/cmd/age@latest",
+    },
+    "base64": {
+        "builtin": _B,
     },
     # ── Unix & Shell ──────────────────────────────────────────────────────────
     "grep":     {"builtin": _B},
