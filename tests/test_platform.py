@@ -72,8 +72,26 @@ def _make_result(filename="test.zip", risk=42, safe=False, findings=None, mitre=
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TestPageRoutes:
-    def test_hub(self, client):
-        assert client.get("/").status_code == 200
+    def test_landing(self, client):
+        r = client.get("/")
+        assert r.status_code == 200
+        assert b"Vantage" in r.data
+
+    def test_platform_hub(self, client):
+        assert client.get("/platform").status_code == 200
+
+    def test_generators_grid(self, client):
+        r = client.get("/generators")
+        assert r.status_code == 200
+        assert b"Command Generators" in r.data
+
+    def test_generator_tool_known_slug(self, client):
+        r = client.get("/generators/nmap")
+        assert r.status_code == 200
+        assert b"nmap" in r.data.lower()
+
+    def test_generator_tool_unknown_slug(self, client):
+        assert client.get("/generators/not-a-real-tool").status_code == 404
 
     def test_analyzer(self, client):
         assert client.get("/analyzer").status_code == 200

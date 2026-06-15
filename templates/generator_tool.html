@@ -47,6 +47,13 @@
       background:var(--tc)14;color:var(--tc);margin-left:auto;flex-shrink:0;
     }
     .tool-desc-header { font-size:0.78rem;color:var(--text-dim);margin-top:8px;line-height:1.5; }
+    .save-btn {
+      background:none;border:1px solid var(--border);cursor:pointer;
+      padding:3px 10px;border-radius:6px;font-size:0.88rem;
+      color:var(--text-faint);transition:all 0.15s;line-height:1.5;flex-shrink:0;
+    }
+    .save-btn:hover { border-color:#f59e0b80;color:#f59e0b; }
+    .save-btn.saved { border-color:#f59e0b60;color:#f59e0b;background:#f59e0b0a; }
 
     /* Preset row */
     .presets-row { display:flex;gap:5px;flex-wrap:wrap;padding:10px 24px;border-bottom:1px solid var(--border); }
@@ -112,6 +119,13 @@
     }
     .fmt-btn.active { background:var(--s2);border-color:var(--tc);color:var(--text); }
     .fmt-btn:hover:not(.active) { border-color:var(--border-hi);color:var(--text); }
+    .share-btn {
+      padding:5px 11px;font-family:inherit;font-size:0.72rem;font-weight:600;
+      background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);
+      color:var(--text-dim);cursor:pointer;transition:all 0.15s;margin-left:8px;
+    }
+    .share-btn:hover { border-color:var(--tc);color:var(--text); }
+    .share-btn.flashed { border-color:var(--tc);color:var(--tc); }
 
     /* Editable command textarea */
     .cmd-textarea {
@@ -154,6 +168,13 @@
       transition:border-color 0.15s,color 0.15s;
     }
     .btn-plain:hover { border-color:var(--tc);color:var(--text); }
+    .btn-danger {
+      padding:8px 12px;background:transparent;color:var(--text-faint);
+      font-family:inherit;font-size:0.78rem;font-weight:500;
+      border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;
+      transition:border-color 0.15s,color 0.15s;margin-left:auto;
+    }
+    .btn-danger:hover { border-color:#f8717180;color:#f87171; }
     .copy-ok { font-size:0.72rem;color:#22c55e;opacity:0;transition:opacity 0.3s;white-space:nowrap; }
 
     /* Breakdown */
@@ -170,8 +191,42 @@
     .bd-desc { color:var(--text-dim);line-height:1.4; }
     .bd-empty { font-size:0.77rem;color:var(--text-faint);padding:10px 0;text-align:center; }
 
+    /* Related tools */
+    .related-section { flex-shrink:0;margin-top:20px; }
+    .related-hdr { display:flex;align-items:center;gap:8px;margin-bottom:10px; }
+    .related-title { font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint); }
+    .related-line { flex:1;height:1px;background:var(--border); }
+    .related-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:8px; }
+    .rel-card {
+      display:flex;align-items:center;gap:9px;padding:9px 11px;
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);
+      text-decoration:none;color:inherit;transition:border-color 0.15s,background 0.15s;
+    }
+    .rel-card:hover { border-color:var(--tc);background:var(--s2); }
+    .rel-icon { font-size:1.1rem;flex-shrink:0;width:28px;text-align:center; }
+    .rel-name { font-family:'Syne',sans-serif;font-size:0.78rem;font-weight:800; }
+    .rel-full { font-size:0.63rem;color:var(--text-faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .rel-arrow { margin-left:auto;font-size:0.7rem;color:var(--text-faint);transition:transform 0.15s,color 0.15s;flex-shrink:0; }
+    .rel-card:hover .rel-arrow { transform:translateX(2px);color:var(--tc); }
+
     ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
     @keyframes fade-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+    /* Responsive: stack columns on narrow screens */
+    @media (max-width:860px) {
+      .page { grid-template-columns:1fr; min-height:auto; }
+      .form-col { overflow-y:visible;max-height:none;border-right:none;border-bottom:1px solid var(--border); }
+      .preview-col { position:static;height:auto;padding:20px 20px 60px; }
+      .form-header { position:static; }
+      .related-grid { grid-template-columns:1fr; }
+    }
+    @media (max-width:520px) {
+      .preview-col { padding:16px 16px 60px; }
+      .back-row { flex-wrap:wrap; }
+      .cmd-toolbar { flex-wrap:wrap; }
+      .btn-danger { margin-left:0; }
+      .format-toggle + .share-btn { margin-left:4px; }
+    }
   </style>
 </head>
 <body>
@@ -191,6 +246,7 @@ const TOOL = {{ tool | tojson }};
       <div class="back-row">
         <a href="/generators" class="back-link">← All generators</a>
         <span class="cat-badge">{{ tool.category }}</span>
+        <button class="save-btn" id="save-btn" title="Save to favorites">☆</button>
       </div>
       <div class="tool-header">
         <div class="tool-icon-badge">{{ tool.icon }}</div>
@@ -268,9 +324,12 @@ const TOOL = {{ tool | tojson }};
 
     <div class="preview-header">
       <div class="preview-title">Command</div>
-      <div class="format-toggle">
-        <button class="fmt-btn active" id="fmt-multi"  onclick="setFmt('multi')">Multi-line</button>
-        <button class="fmt-btn"        id="fmt-single" onclick="setFmt('single')">One-liner</button>
+      <div style="display:flex;align-items:center">
+        <div class="format-toggle">
+          <button class="fmt-btn active" id="fmt-multi"  onclick="setFmt('multi')">Multi-line</button>
+          <button class="fmt-btn"        id="fmt-single" onclick="setFmt('single')">One-liner</button>
+        </div>
+        <button class="share-btn" id="share-btn" onclick="shareConfig()" title="Copy shareable link">Share</button>
       </div>
     </div>
 
@@ -285,7 +344,9 @@ const TOOL = {{ tool | tojson }};
       </span>
       <button class="btn-copy"  onclick="copyCmd()">Copy</button>
       <button class="btn-plain" onclick="copyOneLiner()">Copy one-liner</button>
+      <button class="btn-plain" onclick="downloadScript()">Download .sh</button>
       <span class="copy-ok" id="copy-ok">Copied!</span>
+      <button class="btn-danger" onclick="resetForm()" title="Clear all fields">Reset</button>
     </div>
 
     <div class="breakdown-section">
@@ -297,6 +358,29 @@ const TOOL = {{ tool | tojson }};
         <div class="bd-empty">Fill in the form to see flag explanations</div>
       </div>
     </div>
+
+    {% if related %}
+    <div class="related-section">
+      <div class="related-hdr">
+        <span class="related-title">More in {{ tool.category }}</span>
+        <div class="related-line"></div>
+      </div>
+      <div class="related-grid">
+        {% for r in related %}
+        <a class="rel-card" href="/generators/{{ r.slug }}" style="--tc:{{ r.color }}">
+          <span class="rel-icon">{{ r.icon }}</span>
+          <div>
+            <div class="rel-name">{{ r.name }}</div>
+            {% if r.full_name != r.name %}
+            <div class="rel-full">{{ r.full_name }}</div>
+            {% endif %}
+          </div>
+          <span class="rel-arrow">→</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
 
   </div><!-- /preview-col -->
 
@@ -464,6 +548,42 @@ function flash() {
   setTimeout(() => el.style.opacity = '0', 2000);
 }
 
+/* ── Reset form ──────────────────────────────────────────────────────────── */
+function resetForm() {
+  document.querySelectorAll('[id^="f_"]').forEach(el => {
+    if (el.type === 'checkbox') el.checked = false;
+    else el.value = '';
+  });
+  manualMode = false;
+  refreshSync();
+  history.replaceState({}, '', window.location.pathname);
+  update();
+}
+
+/* ── Download as shell script ────────────────────────────────────────────── */
+function downloadScript() {
+  const cmd  = document.getElementById('cmd-output').value.trim();
+  if (!cmd) return;
+  const name = {{ tool.name | tojson }};
+  const desc = {{ tool.desc | tojson }};
+  const src  = window.location.href;
+  const script = [
+    '#!/usr/bin/env bash',
+    '# Tool: ' + name,
+    '# ' + desc,
+    '# Generated by Vantage — ' + src,
+    '',
+    cmd,
+    ''
+  ].join('\n');
+  const blob = new Blob([script], { type: 'text/x-sh' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = name.toLowerCase().replace(/[^a-z0-9]+/g, '_') + '_cmd.sh';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 /* ── Keyboard shortcut ───────────────────────────────────────────────────── */
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); copyCmd(); }
@@ -472,6 +592,81 @@ document.addEventListener('keydown', e => {
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+/* ── Share / permalink ───────────────────────────────────────────────────── */
+function getFormState() {
+  const state = {};
+  document.querySelectorAll('[id^="f_"]').forEach(el => {
+    const key = el.id.slice(2);
+    if (el.type === 'checkbox') { if (el.checked) state[key] = true; }
+    else if (el.value)          { state[key] = el.value; }
+  });
+  return state;
+}
+
+function setFormState(state) {
+  Object.entries(state).forEach(([key, val]) => {
+    const el = document.getElementById('f_' + key);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = !!val;
+    else el.value = val;
+  });
+  update();
+}
+
+function shareConfig() {
+  const encoded = btoa(JSON.stringify(getFormState()));
+  const url = window.location.origin + window.location.pathname + '?c=' + encodeURIComponent(encoded);
+  history.replaceState({}, '', url);
+  navigator.clipboard?.writeText(url);
+  const btn = document.getElementById('share-btn');
+  btn.textContent = 'Copied!';
+  btn.classList.add('flashed');
+  setTimeout(() => { btn.textContent = 'Share'; btn.classList.remove('flashed'); }, 2000);
+}
+
+// Restore state from URL on load
+(function() {
+  const c = new URLSearchParams(window.location.search).get('c');
+  if (c) {
+    try { setFormState(JSON.parse(atob(decodeURIComponent(c)))); } catch(e) {}
+  }
+}());
+
+/* ── Recently visited tracking ───────────────────────────────────────────── */
+(function() {
+  const SLUG = {{ tool.slug | tojson }};
+  const KEY  = 'vantage_recent';
+  let recent = JSON.parse(localStorage.getItem(KEY) || '[]');
+  recent = recent.filter(s => s !== SLUG);
+  recent.unshift(SLUG);
+  if (recent.length > 15) recent = recent.slice(0, 15);
+  localStorage.setItem(KEY, JSON.stringify(recent));
+}());
+
+/* ── Favorites ───────────────────────────────────────────────────────────── */
+(function() {
+  const SLUG     = {{ tool.slug | tojson }};
+  const KEY      = 'vantage_saved';
+  const btn      = document.getElementById('save-btn');
+  let saved      = new Set(JSON.parse(localStorage.getItem(KEY) || '[]'));
+
+  function render() {
+    const on = saved.has(SLUG);
+    btn.textContent = on ? '★' : '☆';
+    btn.title       = on ? 'Remove from saved' : 'Save to favorites';
+    btn.classList.toggle('saved', on);
+  }
+
+  btn.addEventListener('click', () => {
+    if (saved.has(SLUG)) saved.delete(SLUG);
+    else saved.add(SLUG);
+    localStorage.setItem(KEY, JSON.stringify([...saved]));
+    render();
+  });
+
+  render();
+}());
 
 /* ── Init ────────────────────────────────────────────────────────────────── */
 update();

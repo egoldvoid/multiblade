@@ -32,6 +32,11 @@ _ALLOWED_EXT = {
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = _MAX_MB * 1024 * 1024
 
+
+@app.context_processor
+def inject_tool_stats():
+    return {"tool_count": len(get_all_tools()), "category_count": len(get_categories())}
+
 # Initialise database on startup
 database.init()
 
@@ -153,7 +158,10 @@ def generator_tool(slug):
     tool = get_tool(slug)
     if not tool:
         return jsonify({"error": "Tool not found"}), 404
-    return render_template("generator_tool.html", tool=tool, active_page="generators")
+    related = [t for t in get_all_tools()
+               if t["category"] == tool["category"] and t["slug"] != slug][:4]
+    return render_template("generator_tool.html", tool=tool,
+                           related=related, active_page="generators")
 
 
 @app.route("/analyzer")
