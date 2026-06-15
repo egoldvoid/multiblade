@@ -481,6 +481,17 @@ function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+/* ── Recently visited tracking ───────────────────────────────────────────── */
+(function() {
+  const SLUG = {{ tool.slug | tojson }};
+  const KEY  = 'vantage_recent';
+  let recent = JSON.parse(localStorage.getItem(KEY) || '[]');
+  recent = recent.filter(s => s !== SLUG);
+  recent.unshift(SLUG);
+  if (recent.length > 15) recent = recent.slice(0, 15);
+  localStorage.setItem(KEY, JSON.stringify(recent));
+}());
+
 /* ── Favorites ───────────────────────────────────────────────────────────── */
 (function() {
   const SLUG     = {{ tool.slug | tojson }};

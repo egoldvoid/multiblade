@@ -67,6 +67,9 @@
     .cat-chip[data-cat="__saved__"] { border-color:#f59e0b30;color:#d97706; }
     .cat-chip[data-cat="__saved__"]:hover { border-color:#f59e0b80; }
     .cat-chip[data-cat="__saved__"].active { background:#f59e0b0f;border-color:#f59e0b;color:#fbbf24; }
+    .cat-chip[data-cat="__recent__"] { border-color:#22d3a530;color:#16a77e; }
+    .cat-chip[data-cat="__recent__"]:hover { border-color:#22d3a570; }
+    .cat-chip[data-cat="__recent__"].active { background:#22d3a50a;border-color:#22d3a5;color:#22d3a5; }
 
     /* Tier filter row */
     .tier-row { display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap; }
@@ -183,6 +186,7 @@
       <div class="cat-chips" id="cat-chips">
         <button class="cat-chip active" data-cat="">All</button>
         <button class="cat-chip" data-cat="__saved__">★ Saved</button>
+        <button class="cat-chip" data-cat="__recent__">↺ Recent</button>
         {% for cat in categories %}
         <button class="cat-chip" data-cat="{{ cat }}">{{ cat }}</button>
         {% endfor %}
@@ -239,15 +243,19 @@
 
 <script>
   const SAVED_KEY  = 'vantage_saved';
+  const RECENT_KEY = 'vantage_recent';
   const cards      = Array.from(document.querySelectorAll('.tool-card'));
   const search     = document.getElementById('search');
   const chips      = document.querySelectorAll('.cat-chip');
   const tierChips  = document.querySelectorAll('.tier-chip');
   const countEl    = document.getElementById('result-count');
   const emptyEl    = document.getElementById('empty-state');
+  const emptyIcon  = emptyEl.querySelector('.empty-icon');
+  const emptyMsg   = emptyEl.querySelector('p');
   let activeCat    = '';
   let activeTier   = '';
   let saved        = new Set(JSON.parse(localStorage.getItem(SAVED_KEY) || '[]'));
+  let recent       = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
 
   function persistSaved() {
     localStorage.setItem(SAVED_KEY, JSON.stringify([...saved]));
@@ -270,7 +278,8 @@
     let shown = 0;
     cards.forEach(c => {
       const matchQ    = !q || c.dataset.name.includes(q) || c.dataset.full.includes(q) || c.dataset.desc.includes(q);
-      const matchCat  = activeCat === '__saved__' ? saved.has(c.dataset.slug)
+      const matchCat  = activeCat === '__saved__'  ? saved.has(c.dataset.slug)
+                      : activeCat === '__recent__' ? recent.includes(c.dataset.slug)
                       : !activeCat || c.dataset.cat === activeCat;
       const matchTier = !activeTier || c.dataset.tier === activeTier;
       const visible   = matchQ && matchCat && matchTier;
@@ -278,7 +287,20 @@
       if (visible) c.style.animationDelay = (shown++ * 20) + 'ms';
     });
     countEl.textContent = shown + ' of ' + cards.length + ' tools';
-    emptyEl.style.display = shown === 0 ? 'block' : 'none';
+    const isEmpty = shown === 0;
+    emptyEl.style.display = isEmpty ? 'block' : 'none';
+    if (isEmpty) {
+      if (activeCat === '__saved__') {
+        emptyIcon.textContent = '★';
+        emptyMsg.textContent  = 'No saved tools yet — click ☆ on any card to save it.';
+      } else if (activeCat === '__recent__') {
+        emptyIcon.textContent = '↺';
+        emptyMsg.textContent  = 'No recently visited tools. Open a generator to start tracking.';
+      } else {
+        emptyIcon.textContent = '🔍';
+        emptyMsg.textContent  = 'No tools match your search.';
+      }
+    }
   }
 
   // Star button clicks (stop propagation so card link isn't followed)
