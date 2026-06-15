@@ -11,7 +11,8 @@ from zip_analyzer import ZipAnalyzer
 from zip_analyzer.models import Severity
 from zip_analyzer.tar_analyzer import TarAnalyzer
 from zip_analyzer import database, stix_export
-from zip_analyzer.tool_data import get_all_tools, get_tool, get_categories
+from zip_analyzer.tool_data import (get_all_tools, get_tool, get_categories,
+                                    get_install, INSTALL_METHOD_META)
 
 try:
     from werkzeug.serving import WSGIRequestHandler as _WRH
@@ -305,8 +306,10 @@ def generator_tool(slug):
         return jsonify({"error": "Tool not found"}), 404
     related = [t for t in get_all_tools()
                if t["category"] == tool["category"] and t["slug"] != slug][:4]
-    return render_template("generator_tool.html", tool=tool,
-                           related=related, active_page="generators")
+    install = get_install(slug)
+    return render_template("generator_tool.html", tool=tool, related=related,
+                           install=install, install_meta=INSTALL_METHOD_META,
+                           active_page="generators")
 
 
 @app.route("/analyzer")

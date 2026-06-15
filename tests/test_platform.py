@@ -1769,3 +1769,90 @@ class TestGeneratorDataIntegrity:
                     if key not in field_ids:
                         bad.append(f"{tool['slug']}/{preset.get('label','?')}: unknown field '{key}'")
         assert bad == [], f"Preset references unknown fields:\n" + "\n".join(bad[:10])
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INSTALL HINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestInstallHints:
+
+    def test_install_map_covers_all_tools(self):
+        from zip_analyzer.tool_data import TOOLS, get_install
+        missing = [t["slug"] for t in TOOLS if get_install(t["slug"]) is None]
+        assert missing == [], f"Tools without install hints: {missing}"
+
+    def test_all_install_methods_have_meta(self):
+        from zip_analyzer.tool_data import INSTALL_MAP, INSTALL_METHOD_META
+        used = {m for v in INSTALL_MAP.values() for m in v}
+        undefined = used - set(INSTALL_METHOD_META)
+        assert undefined == set(), f"Methods without display metadata: {undefined}"
+
+    def test_get_install_returns_dict_for_known_tool(self):
+        from zip_analyzer.tool_data import get_install
+        result = get_install("nmap")
+        assert isinstance(result, dict)
+        assert "brew" in result
+
+    def test_get_install_returns_none_for_unknown(self):
+        from zip_analyzer.tool_data import get_install
+        assert get_install("not-a-real-tool-slug") is None
+
+    def test_builtin_tools_have_builtin_key(self):
+        from zip_analyzer.tool_data import get_install
+        for slug in ("grep", "find", "awk", "sed", "nc", "tar", "ps"):
+            hints = get_install(slug)
+            assert hints is not None and "builtin" in hints, \
+                f"{slug} should have 'builtin' key"
+
+    def test_go_tools_have_valid_go_commands(self):
+        from zip_analyzer.tool_data import INSTALL_MAP
+        for slug, hints in INSTALL_MAP.items():
+            if "go" in hints:
+                assert hints["go"].startswith("go install "), \
+                    f"{slug} go command should start with 'go install'"
+
+    def test_pip_tools_have_valid_pip_commands(self):
+        from zip_analyzer.tool_data import INSTALL_MAP
+        for slug, hints in INSTALL_MAP.items():
+            if "pip" in hints:
+                assert hints["pip"].startswith("pip install "), \
+                    f"{slug} pip command should start with 'pip install'"
+
+    def test_brew_tools_have_valid_brew_commands(self):
+        from zip_analyzer.tool_data import INSTALL_MAP
+        for slug, hints in INSTALL_MAP.items():
+            if "brew" in hints:
+                assert hints["brew"].startswith("brew install "), \
+                    f"{slug} brew command should start with 'brew install'"
+
+    def test_tool_page_shows_install_block_when_hints_exist(self, client):
+        r = client.get("/generators/nmap")
+        assert r.status_code == 200
+        assert b"install-block" in r.data
+        assert b"brew install nmap" in r.data
+
+    def test_tool_page_shows_all_install_methods(self, client):
+        """sqlmap has brew + apt + pip — all three must appear."""
+        r = client.get("/generators/sqlmap")
+        assert b"brew install sqlmap" in r.data
+        assert b"apt install" in r.data
+        assert b"pip install sqlmap" in r.data
+
+    def test_builtin_tool_shows_builtin_note(self, client):
+        r = client.get("/generators/grep")
+        assert b"Built into" in r.data
+        assert b"install-builtin" in r.data
+
+    def test_tool_page_passes_install_meta(self, client):
+        r = client.get("/generators/nmap")
+        assert b"Homebrew" in r.data
+
+    def test_tool_page_no_install_block_when_no_hints(self, client):
+        """A tool without install hints must not render the install block."""
+        from zip_analyzer.tool_data import TOOLS, get_install
+        # Find a tool with no hints (shouldn't exist now, but future-proofs the test)
+        no_hint = next((t["slug"] for t in TOOLS if get_install(t["slug"]) is None), None)
+        if no_hint:
+            r = client.get(f"/generators/{no_hint}")
+            assert b"install-block" not in r.data
