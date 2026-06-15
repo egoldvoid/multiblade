@@ -5,7 +5,7 @@
   <title>{{ tool.name }} — Vantage Generators</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -56,6 +56,53 @@
     .save-btn.saved { border-color:#f59e0b60;color:#f59e0b;background:#f59e0b0a; }
 
     /* Preset row */
+    /* Install hints */
+    .install-block { border-bottom:1px solid var(--border); }
+    .install-summary {
+      display:flex;align-items:center;gap:10px;
+      padding:10px 24px;cursor:pointer;
+      list-style:none;user-select:none;
+      font-size:0.78rem;color:var(--text-dim);
+      transition:background 0.12s;
+    }
+    .install-summary::-webkit-details-marker { display:none; }
+    .install-summary:hover { background:var(--s1); }
+    details[open] .install-summary { background:var(--s1); }
+    .install-label { font-weight:600;color:var(--text);white-space:nowrap; }
+    .install-methods-preview { display:flex;gap:6px;flex-wrap:wrap;flex:1; }
+    .install-tag {
+      font-size:0.65rem;padding:1px 7px;border-radius:99px;
+      background:var(--s2);border:1px solid var(--border);color:var(--text-dim);
+    }
+    .install-chevron {
+      margin-left:auto;font-size:1rem;color:var(--text-faint);
+      transition:transform 0.15s;
+    }
+    details[open] .install-chevron { transform:rotate(90deg); }
+    .install-rows { padding:4px 24px 14px;display:flex;flex-direction:column;gap:6px; }
+    .install-row {
+      display:flex;align-items:center;gap:10px;
+      background:var(--s2);border:1px solid var(--border);border-radius:7px;
+      padding:8px 12px;
+    }
+    .install-builtin { background:transparent;border-color:transparent; }
+    .install-method-badge {
+      font-size:0.68rem;font-weight:700;white-space:nowrap;
+      min-width:80px;color:var(--text-dim);
+    }
+    .install-cmd {
+      flex:1;font-family:'Fira Code','Menlo','Consolas',monospace;
+      font-size:0.78rem;color:var(--accent-hi);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+    .install-builtin-note { font-size:0.78rem;color:var(--text-dim);flex:1; }
+    .install-copy-btn {
+      background:none;border:none;cursor:pointer;
+      color:var(--text-faint);font-size:0.85rem;padding:2px 6px;
+      border-radius:4px;transition:color 0.12s,background 0.12s;flex-shrink:0;
+    }
+    .install-copy-btn:hover { color:var(--text);background:var(--s3); }
+    .install-copy-btn.copied { color:#22d3a5; }
     .presets-row { display:flex;gap:5px;flex-wrap:wrap;padding:10px 24px;border-bottom:1px solid var(--border); }
     .preset-btn {
       padding:4px 10px;font-family:inherit;font-size:0.7rem;font-weight:600;
@@ -259,6 +306,34 @@ const TOOL = {{ tool | tojson }};
       </div>
       <div class="tool-desc-header">{{ tool.desc }}</div>
     </div>
+
+    {% if install %}
+    <details class="install-block" id="install-block">
+      <summary class="install-summary">
+        <span class="install-label">⬇ Install</span>
+        <span class="install-methods-preview">
+          {% for method in install.keys() %}
+          <span class="install-tag">{{ install_meta[method].icon if method in install_meta else '' }} {{ install_meta[method].label if method in install_meta else method }}</span>
+          {% endfor %}
+        </span>
+        <span class="install-chevron">›</span>
+      </summary>
+      <div class="install-rows">
+        {% for method, cmd in install.items() %}
+        {% set meta = install_meta.get(method, {'label': method, 'icon': ''}) %}
+        <div class="install-row {% if method == 'builtin' %}install-builtin{% endif %}">
+          <span class="install-method-badge">{{ meta.icon }} {{ meta.label }}</span>
+          {% if method == 'builtin' %}
+          <span class="install-builtin-note">{{ cmd }}</span>
+          {% else %}
+          <code class="install-cmd" id="icmd-{{ loop.index }}">{{ cmd }}</code>
+          <button class="install-copy-btn" onclick="copyInstall('icmd-{{ loop.index }}', this)" title="Copy">⧉</button>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
 
     {% if tool.presets %}
     <div class="presets-row">
@@ -533,6 +608,14 @@ function applyPreset(idx) {
 }
 
 /* ── Copy ────────────────────────────────────────────────────────────────── */
+function copyInstall(id, btn) {
+  const text = document.getElementById(id)?.textContent?.trim();
+  if (!text) return;
+  navigator.clipboard?.writeText(text);
+  btn.textContent = '✓';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = '⧉'; btn.classList.remove('copied'); }, 1500);
+}
 function copyCmd() {
   navigator.clipboard?.writeText(document.getElementById('cmd-output').value);
   flash();

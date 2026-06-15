@@ -2549,3 +2549,427 @@ def get_categories():
         if c not in seen:
             seen[c] = t["color"]
     return seen
+
+
+# ── Install hints ─────────────────────────────────────────────────────────────
+# Keys: "brew" | "apt" | "go" | "pip" | "cargo" | "gem" | "docker" | "builtin"
+# "builtin" value is a human-readable note, not a shell command.
+
+_B = "Built into macOS and most Linux distributions — no install needed."
+
+INSTALL_MAP = {
+    # ── T1 — Port Scanning ────────────────────────────────────────────────────
+    "nmap": {
+        "brew": "brew install nmap",
+        "apt":  "sudo apt install -y nmap",
+    },
+    "masscan": {
+        "brew": "brew install masscan",
+        "apt":  "sudo apt install -y masscan",
+    },
+    "rustscan": {
+        "brew":  "brew install rustscan",
+        "cargo": "cargo install rustscan",
+    },
+    # ── T1 — Web Fuzzing ──────────────────────────────────────────────────────
+    "ffuf": {
+        "brew": "brew install ffuf",
+        "go":   "go install github.com/ffuf/ffuf/v2@latest",
+    },
+    "gobuster": {
+        "brew": "brew install gobuster",
+        "go":   "go install github.com/OJ/gobuster/v3@latest",
+    },
+    "feroxbuster": {
+        "brew":  "brew install feroxbuster",
+        "cargo": "cargo install feroxbuster",
+    },
+    "wpscan": {
+        "brew": "brew install wpscan",
+        "gem":  "gem install wpscan",
+    },
+    # ── T1 — Vulnerability ────────────────────────────────────────────────────
+    "nuclei": {
+        "brew": "brew install nuclei",
+        "go":   "go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
+    },
+    "sqlmap": {
+        "brew": "brew install sqlmap",
+        "apt":  "sudo apt install -y sqlmap",
+        "pip":  "pip install sqlmap",
+    },
+    "dalfox": {
+        "brew": "brew install dalfox",
+        "go":   "go install github.com/hahwul/dalfox/v2@latest",
+    },
+    "nikto": {
+        "brew": "brew install nikto",
+        "apt":  "sudo apt install -y nikto",
+    },
+    # ── T1 — HTTP & Web ───────────────────────────────────────────────────────
+    "httpx": {
+        "brew": "brew install httpx",
+        "go":   "go install github.com/projectdiscovery/httpx/cmd/httpx@latest",
+    },
+    "katana": {
+        "brew": "brew install katana",
+        "go":   "go install github.com/projectdiscovery/katana/cmd/katana@latest",
+    },
+    # ── T1 — Recon & OSINT ───────────────────────────────────────────────────
+    "subfinder": {
+        "brew": "brew install subfinder",
+        "go":   "go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
+    },
+    "amass": {
+        "brew": "brew install amass",
+        "go":   "go install github.com/owasp-amass/amass/v4/...@master",
+    },
+    # ── T2 — Web Fuzzing ──────────────────────────────────────────────────────
+    "dirsearch": {
+        "pip": "pip install dirsearch",
+    },
+    "wfuzz": {
+        "brew": "brew install wfuzz",
+        "apt":  "sudo apt install -y wfuzz",
+        "pip":  "pip install wfuzz",
+    },
+    # ── T2 — DNS ──────────────────────────────────────────────────────────────
+    "dnsx": {
+        "brew": "brew install dnsx",
+        "go":   "go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
+    },
+    "dig": {
+        "brew":    "brew install bind",
+        "apt":     "sudo apt install -y dnsutils",
+        "builtin": "Pre-installed on most Linux distributions.",
+    },
+    "tlsx": {
+        "go": "go install github.com/projectdiscovery/tlsx/cmd/tlsx@latest",
+    },
+    "dnsrecon": {
+        "brew": "brew install dnsrecon",
+        "apt":  "sudo apt install -y dnsrecon",
+        "pip":  "pip install dnsrecon",
+    },
+    "dnstwist": {
+        "brew": "brew install dnstwist",
+        "pip":  "pip install dnstwist",
+    },
+    "fierce": {
+        "pip": "pip install fierce",
+    },
+    # ── T2 — Recon & OSINT ───────────────────────────────────────────────────
+    "waybackurls": {
+        "go": "go install github.com/tomnomnom/waybackurls@latest",
+    },
+    "gau": {
+        "brew": "brew install gau",
+        "go":   "go install github.com/lc/gau/v2/cmd/gau@latest",
+    },
+    "theHarvester": {
+        "brew": "brew install theharvester",
+        "apt":  "sudo apt install -y theharvester",
+        "pip":  "pip install theHarvester",
+    },
+    "whois": {
+        "brew":    "brew install whois",
+        "apt":     "sudo apt install -y whois",
+        "builtin": "Pre-installed on macOS.",
+    },
+    "shodan": {
+        "pip": "pip install shodan",
+    },
+    # ── T2 — HTTP & Web ───────────────────────────────────────────────────────
+    "whatweb": {
+        "brew": "brew install whatweb",
+        "apt":  "sudo apt install -y whatweb",
+        "gem":  "gem install whatweb",
+    },
+    "wafw00f": {
+        "brew": "brew install wafw00f",
+        "pip":  "pip install wafw00f",
+    },
+    "arjun": {
+        "pip": "pip install arjun",
+    },
+    "sslyze": {
+        "brew": "brew install sslyze",
+        "pip":  "pip install sslyze",
+    },
+    "gowitness": {
+        "brew": "brew install gowitness",
+        "go":   "go install github.com/sensepost/gowitness@latest",
+    },
+    # ── T2 — Port Scanning ───────────────────────────────────────────────────
+    "naabu": {
+        "brew": "brew install naabu",
+        "go":   "go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
+    },
+    # ── T2 — Credentials ─────────────────────────────────────────────────────
+    "hydra": {
+        "brew": "brew install hydra",
+        "apt":  "sudo apt install -y hydra",
+    },
+    "hashcat": {
+        "brew": "brew install hashcat",
+        "apt":  "sudo apt install -y hashcat",
+    },
+    # ── T2 — Secrets ──────────────────────────────────────────────────────────
+    "trufflehog": {
+        "brew": "brew install trufflehog",
+        "go":   "go install github.com/trufflesecurity/trufflehog/v3@latest",
+    },
+    "gitleaks": {
+        "brew": "brew install gitleaks",
+        "go":   "go install github.com/gitleaks/gitleaks/v8@latest",
+    },
+    # ── T2 — Network ─────────────────────────────────────────────────────────
+    "nc": {
+        "builtin": _B,
+    },
+    # ── T2 — Misc ────────────────────────────────────────────────────────────
+    "msfvenom": {
+        "brew": "brew install metasploit",
+        "apt":  "sudo apt install -y metasploit-framework",
+    },
+    # ── T3 — Recon & OSINT ───────────────────────────────────────────────────
+    "assetfinder": {
+        "go": "go install github.com/tomnomnom/assetfinder@latest",
+    },
+    "findomain": {
+        "brew":  "brew install findomain",
+        "cargo": "cargo install findomain",
+    },
+    "recon-ng": {
+        "pip": "pip install recon-ng",
+    },
+    "spiderfoot": {
+        "pip":    "pip install spiderfoot",
+        "docker": "docker pull smicallef/spiderfoot && docker run -p 5001:5001 smicallef/spiderfoot",
+    },
+    "sherlock": {
+        "brew": "brew install sherlock",
+        "pip":  "pip install sherlock-project",
+    },
+    "uncover": {
+        "go": "go install github.com/projectdiscovery/uncover/cmd/uncover@latest",
+    },
+    "asnmap": {
+        "go": "go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest",
+    },
+    # ── T3 — DNS ──────────────────────────────────────────────────────────────
+    "massdns": {
+        "brew": "brew install massdns",
+        "apt":  "sudo apt install -y massdns",
+    },
+    # ── T3 — Web Fuzzing ──────────────────────────────────────────────────────
+    "dirb": {
+        "brew": "brew install dirb",
+        "apt":  "sudo apt install -y dirb",
+    },
+    "joomscan": {
+        "apt": "sudo apt install -y joomscan",
+        "pip": "pip install joomscan",
+    },
+    "droopescan": {
+        "pip": "pip install droopescan",
+    },
+    # ── T3 — HTTP & Web ───────────────────────────────────────────────────────
+    "gospider": {
+        "go": "go install github.com/jaeles-project/gospider@latest",
+    },
+    "hakrawler": {
+        "go": "go install github.com/hakluke/hakrawler@latest",
+    },
+    "paramspider": {
+        "pip": "pip install paramspider",
+    },
+    "cmseek": {
+        "pip": "pip install cmseek",
+    },
+    "httprobe": {
+        "go": "go install github.com/tomnomnom/httprobe@latest",
+    },
+    "eyewitness": {
+        "pip": "pip install EyeWitness",
+        "apt": "sudo apt install -y eyewitness",
+    },
+    "aquatone": {
+        "go": "go install github.com/michenriksen/aquatone@latest",
+    },
+    "kiterunner": {
+        "go": "go install github.com/assetnote/kiterunner/cmd/kr@latest",
+    },
+    "sslscan": {
+        "brew": "brew install sslscan",
+        "apt":  "sudo apt install -y sslscan",
+    },
+    "testssl": {
+        "brew": "brew install testssl",
+        "apt":  "sudo apt install -y testssl.sh",
+    },
+    # ── T3 — Vulnerability ────────────────────────────────────────────────────
+    "commix": {
+        "pip": "pip install commix",
+        "apt": "sudo apt install -y commix",
+    },
+    "ssrfmap": {
+        "pip": "pip install ssrfmap",
+    },
+    "tplmap": {
+        "pip": "pip install tplmap",
+    },
+    "crlfuzz": {
+        "go": "go install github.com/dwisiswant0/crlfuzz/cmd/crlfuzz@latest",
+    },
+    "interactsh": {
+        "brew": "brew install interactsh-client",
+        "go":   "go install github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest",
+    },
+    "graphw00f": {
+        "pip": "pip install graphw00f",
+    },
+    "jwt_tool": {
+        "pip": "pip install jwt_tool",
+    },
+    "corscanner": {
+        "pip": "pip install corscanner",
+    },
+    "smuggler": {
+        "pip": "pip install smuggler",
+    },
+    "XSStrike": {
+        "pip": "pip install xsstrike",
+    },
+    # ── T3 — Credentials ─────────────────────────────────────────────────────
+    "medusa": {
+        "brew": "brew install medusa",
+        "apt":  "sudo apt install -y medusa",
+    },
+    "john": {
+        "brew": "brew install john",
+        "apt":  "sudo apt install -y john",
+    },
+    "kerbrute": {
+        "go": "go install github.com/ropnop/kerbrute@latest",
+    },
+    "spray": {
+        "go": "go install github.com/Greenwolf/spray@latest",
+    },
+    # ── T3 — Secrets ──────────────────────────────────────────────────────────
+    "linkfinder": {
+        "pip": "pip install linkfinder",
+    },
+    "semgrep": {
+        "brew": "brew install semgrep",
+        "pip":  "pip install semgrep",
+    },
+    # ── T3 — Network ──────────────────────────────────────────────────────────
+    "socat": {
+        "brew": "brew install socat",
+        "apt":  "sudo apt install -y socat",
+    },
+    "tcpdump": {
+        "builtin": "Pre-installed on macOS and most Linux distributions.",
+        "apt":     "sudo apt install -y tcpdump",
+    },
+    "tshark": {
+        "brew": "brew install wireshark",
+        "apt":  "sudo apt install -y tshark",
+    },
+    # ── T3 — Misc ─────────────────────────────────────────────────────────────
+    "searchsploit": {
+        "brew": "brew install exploitdb",
+        "apt":  "sudo apt install -y exploitdb",
+    },
+    "notify": {
+        "go": "go install github.com/projectdiscovery/notify/cmd/notify@latest",
+    },
+    "interlace": {
+        "pip": "pip install interlace",
+    },
+    "gf": {
+        "go": "go install github.com/tomnomnom/gf@latest",
+    },
+    "anew": {
+        "go": "go install github.com/tomnomnom/anew@latest",
+    },
+    "qsreplace": {
+        "go": "go install github.com/tomnomnom/qsreplace@latest",
+    },
+    "unfurl": {
+        "go": "go install github.com/tomnomnom/unfurl@latest",
+    },
+    # ── T3 — Cloud & Infra ───────────────────────────────────────────────────
+    "s3scanner": {
+        "pip": "pip install s3scanner",
+        "go":  "go install github.com/sa7mon/S3Scanner@latest",
+    },
+    "pacu": {
+        "pip":    "pip install pacu",
+        "docker": "docker pull rhinosecuritylabs/pacu && docker run -it rhinosecuritylabs/pacu",
+    },
+    "trivy": {
+        "brew": "brew install trivy",
+        "apt":  "sudo apt install -y trivy",
+        "go":   "go install github.com/aquasecurity/trivy/cmd/trivy@latest",
+    },
+    "grype": {
+        "brew": "brew install grype",
+        "go":   "go install github.com/anchore/grype@latest",
+    },
+    # ── T3 — Mobile ──────────────────────────────────────────────────────────
+    "frida": {
+        "pip": "pip install frida-tools",
+    },
+    "objection": {
+        "pip": "pip install objection",
+    },
+    "apktool": {
+        "brew": "brew install apktool",
+        "apt":  "sudo apt install -y apktool",
+    },
+    "jadx": {
+        "brew": "brew install jadx",
+        "apt":  "sudo apt install -y jadx",
+    },
+    # ── Unix & Shell ──────────────────────────────────────────────────────────
+    "grep":     {"builtin": _B},
+    "wget":     {"brew": "brew install wget", "apt": "sudo apt install -y wget",
+                 "builtin": "Pre-installed on most Linux distributions."},
+    "find":     {"builtin": _B},
+    "ssh":      {"builtin": _B},
+    "rsync":    {"brew": "brew install rsync", "apt": "sudo apt install -y rsync",
+                 "builtin": "Pre-installed on macOS and most Linux distributions."},
+    "scp":      {"builtin": _B},
+    "awk":      {"builtin": _B},
+    "sed":      {"builtin": _B},
+    "curl-unix":{"builtin": _B},
+    "jq":       {"brew": "brew install jq", "apt": "sudo apt install -y jq"},
+    "xargs":    {"builtin": _B},
+    "tar":      {"builtin": _B},
+    "ps":       {"builtin": _B},
+    "netstat":  {"builtin": "Pre-installed on most systems. On macOS use 'ss' or 'netstat'; on modern Linux use 'ss' (iproute2)."},
+    "cut":      {"builtin": _B},
+    "sort":     {"builtin": _B},
+    "uniq":     {"builtin": _B},
+    "wc":       {"builtin": _B},
+    "tr":       {"builtin": _B},
+}
+
+# Display labels and icons for each install method
+INSTALL_METHOD_META = {
+    "brew":    {"label": "Homebrew",  "icon": "🍺"},
+    "apt":     {"label": "APT",       "icon": "📦"},
+    "go":      {"label": "Go",        "icon": "🐹"},
+    "pip":     {"label": "pip",       "icon": "🐍"},
+    "cargo":   {"label": "Cargo",     "icon": "🦀"},
+    "gem":     {"label": "RubyGems",  "icon": "💎"},
+    "docker":  {"label": "Docker",    "icon": "🐳"},
+    "builtin": {"label": "Built-in",  "icon": "✅"},
+}
+
+
+def get_install(slug: str):
+    """Return install hints for a tool slug, or None if not defined."""
+    return INSTALL_MAP.get(slug)
