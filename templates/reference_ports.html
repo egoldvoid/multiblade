@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Port Reference — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --high:#ef4444;--med:#f59e0b;--low:#22d3ee;
+      --radius:12px;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-150px;right:-80px;}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .page{position:relative;z-index:1;padding:0 0 100px;}
+
+    /* Header */
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 16px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:16px;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;flex-shrink:0;}
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);margin-left:auto;}
+
+    /* Filters */
+    .filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+    .search-wrap{position:relative;flex:1;min-width:220px;max-width:340px;}
+    .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:0.85rem;pointer-events:none;}
+    .search-input{
+      width:100%;background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:8px 12px 8px 34px;color:var(--text);font-family:inherit;font-size:0.85rem;
+      outline:none;transition:border-color 0.15s;
+    }
+    .search-input:focus{border-color:var(--accent);}
+    .search-input::placeholder{color:var(--text-faint);}
+
+    .filter-chips{display:flex;flex-wrap:wrap;gap:6px;}
+    .chip{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:5px 12px;border-radius:99px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;user-select:none;
+    }
+    .chip:hover{border-color:var(--border-hi);color:var(--text);}
+    .chip.active{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+    .chip.high.active{border-color:var(--high);color:var(--high);background:#ef444418;}
+    .chip.med.active{border-color:var(--med);color:var(--med);background:#f59e0b18;}
+    .chip.low.active{border-color:var(--low);color:var(--low);background:#22d3ee18;}
+
+    /* Stats bar */
+    .stats-bar{padding:10px 40px 0;display:flex;align-items:center;gap:16px;}
+    .stat-pill{font-size:0.72rem;color:var(--text-faint);}
+    .stat-pill strong{color:var(--text-dim);}
+
+    /* Port grid */
+    .port-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;padding:16px 40px 0;}
+    @media(max-width:680px){.port-grid{grid-template-columns:1fr;padding:12px 16px 0;}.page-header{padding:16px 16px 12px;}.stats-bar{padding:8px 16px 0;}}
+
+    /* Port card */
+    .port-card{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      overflow:hidden;cursor:pointer;
+      transition:border-color 0.2s,box-shadow 0.2s,transform 0.15s;
+    }
+    .port-card:hover{border-color:var(--border-hi);box-shadow:0 8px 32px -8px #00000060;transform:translateY(-1px);}
+    .port-card.expanded{border-color:var(--border-hi);}
+    .port-card.hidden{display:none;}
+
+    .card-head{display:flex;align-items:center;gap:12px;padding:14px 16px;}
+    .port-badge{
+      flex-shrink:0;width:62px;text-align:center;
+      font-family:'Fira Code',monospace;font-size:1rem;font-weight:500;
+      padding:6px 4px;border-radius:8px;
+      background:var(--s2);border:1px solid var(--border);
+    }
+    .port-badge.risk-high{color:var(--high);border-color:#ef444430;background:#ef444410;}
+    .port-badge.risk-med {color:var(--med);border-color:#f59e0b30;background:#f59e0b10;}
+    .port-badge.risk-low {color:var(--low);border-color:#22d3ee30;background:#22d3ee10;}
+
+    .card-info{flex:1;min-width:0;}
+    .service-name{font-size:0.9rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .service-meta{display:flex;align-items:center;gap:8px;margin-top:3px;}
+    .proto-badge{
+      font-size:0.6rem;font-weight:700;letter-spacing:0.08em;
+      padding:2px 7px;border-radius:99px;
+      background:var(--s3);border:1px solid var(--border);color:var(--text-faint);
+    }
+    .risk-badge{
+      font-size:0.6rem;font-weight:700;letter-spacing:0.08em;
+      padding:2px 7px;border-radius:99px;text-transform:uppercase;
+    }
+    .risk-badge.risk-high{background:#ef444418;color:var(--high);border:1px solid #ef444430;}
+    .risk-badge.risk-med {background:#f59e0b18;color:var(--med);border:1px solid #f59e0b30;}
+    .risk-badge.risk-low {background:#22d3ee18;color:var(--low);border:1px solid #22d3ee30;}
+
+    .tag-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+    .tag-chip{font-size:0.58rem;font-weight:600;letter-spacing:0.06em;padding:1px 6px;border-radius:99px;background:var(--accent-glow);color:var(--text-faint);border:1px solid #6366f120;}
+
+    /* Expanded body */
+    .card-body{display:none;padding:0 16px 14px;border-top:1px solid var(--border);}
+    .port-card.expanded .card-body{display:block;}
+    .card-desc{font-size:0.82rem;color:var(--text-dim);line-height:1.6;padding:12px 0 10px;}
+    .card-notes{
+      font-size:0.78rem;color:#c4c9f5;line-height:1.55;
+      background:var(--s2);border-radius:8px;padding:10px 12px;
+      border-left:3px solid var(--accent);margin-bottom:12px;
+    }
+    .card-notes::before{content:"✦ Pentest tip: ";color:var(--text-faint);font-size:0.7rem;font-weight:700;letter-spacing:0.08em;}
+
+    .tools-label{font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px;}
+    .tool-chips{display:flex;flex-wrap:wrap;gap:6px;}
+    .tool-chip{
+      display:inline-flex;align-items:center;gap:4px;
+      padding:4px 10px;border-radius:7px;
+      border:1.5px solid var(--border);background:var(--s2);
+      color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      text-decoration:none;transition:all 0.15s;
+    }
+    .tool-chip:hover{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    /* Empty state */
+    .empty-state{grid-column:1/-1;text-align:center;padding:80px 20px;color:var(--text-faint);}
+    .empty-icon{font-size:2.5rem;margin-bottom:12px;}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="page page-with-nav">
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/" class="back-link">← Home</a>
+      <span class="page-title">Port Reference</span>
+      <span class="page-sub" id="stats-label">… ports</span>
+    </div>
+    <div class="filters">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="search" class="search-input" type="text" placeholder="Port number or service name…" oninput="applyFilters()" />
+      </div>
+      <div class="filter-chips" id="risk-chips">
+        <button class="chip active" data-risk="all" onclick="setRisk(this)">All Risk</button>
+        <button class="chip high" data-risk="high" onclick="setRisk(this)">High</button>
+        <button class="chip med"  data-risk="med"  onclick="setRisk(this)">Medium</button>
+        <button class="chip low"  data-risk="low"  onclick="setRisk(this)">Low</button>
+      </div>
+      <div class="filter-chips" id="proto-chips">
+        <button class="chip active" data-proto="all" onclick="setProto(this)">All Proto</button>
+        <button class="chip" data-proto="TCP"     onclick="setProto(this)">TCP</button>
+        <button class="chip" data-proto="UDP"     onclick="setProto(this)">UDP</button>
+        <button class="chip" data-proto="TCP/UDP" onclick="setProto(this)">TCP/UDP</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <span class="stat-pill" id="count-label">Loading…</span>
+  </div>
+
+  <div class="port-grid" id="port-grid"></div>
+</div>
+
+<script>
+const PORTS = {{ ports_json | safe }};
+
+// State
+let activeRisk  = 'all';
+let activeProto = 'all';
+let expandedId  = null;
+
+function riskClass(r) {
+  return r === 'high' ? 'risk-high' : r === 'med' ? 'risk-med' : 'risk-low';
+}
+
+function renderCard(p) {
+  const rc = riskClass(p.risk);
+  const tagHtml = p.tags.map(t => `<span class="tag-chip">${t}</span>`).join('');
+  const toolHtml = (p.tools || []).map(slug =>
+    `<a class="tool-chip" href="/generators/${slug}" target="_blank" onclick="event.stopPropagation()">⚙ ${slug}</a>`
+  ).join('');
+  return `
+    <div class="port-card" id="pc-${p.port}" onclick="toggleCard(${p.port})">
+      <div class="card-head">
+        <div class="port-badge ${rc}">${p.port}</div>
+        <div class="card-info">
+          <div class="service-name">${p.service}</div>
+          <div class="service-meta">
+            <span class="proto-badge">${p.proto}</span>
+            <span class="risk-badge ${rc}">${p.risk}</span>
+          </div>
+          <div class="tag-chips">${tagHtml}</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-desc">${p.desc}</div>
+        <div class="card-notes">${p.notes}</div>
+        ${toolHtml ? `<div class="tools-label">Vantage Tools</div><div class="tool-chips">${toolHtml}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+function toggleCard(port) {
+  const el = document.getElementById(`pc-${port}`);
+  if (!el) return;
+  if (expandedId === port) {
+    el.classList.remove('expanded');
+    expandedId = null;
+  } else {
+    if (expandedId !== null) {
+      const prev = document.getElementById(`pc-${expandedId}`);
+      if (prev) prev.classList.remove('expanded');
+    }
+    el.classList.add('expanded');
+    expandedId = port;
+  }
+}
+
+function setRisk(btn) {
+  document.querySelectorAll('#risk-chips .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  activeRisk = btn.dataset.risk;
+  applyFilters();
+}
+function setProto(btn) {
+  document.querySelectorAll('#proto-chips .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  activeProto = btn.dataset.proto;
+  applyFilters();
+}
+
+function applyFilters() {
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  let visible = 0;
+  PORTS.forEach(p => {
+    const el = document.getElementById(`pc-${p.port}`);
+    if (!el) return;
+    const matchSearch = !q ||
+      String(p.port).includes(q) ||
+      p.service.toLowerCase().includes(q) ||
+      p.tags.some(t => t.toLowerCase().includes(q)) ||
+      p.desc.toLowerCase().includes(q);
+    const matchRisk  = activeRisk  === 'all' || p.risk  === activeRisk;
+    const matchProto = activeProto === 'all' || p.proto === activeProto || p.proto.includes(activeProto);
+    const show = matchSearch && matchRisk && matchProto;
+    el.classList.toggle('hidden', !show);
+    if (show) visible++;
+  });
+  document.getElementById('count-label').innerHTML = `Showing <strong>${visible}</strong> of <strong>${PORTS.length}</strong> ports`;
+  document.getElementById('empty-state')?.classList.toggle('hidden', visible > 0);
+}
+
+// Initial render
+const grid = document.getElementById('port-grid');
+grid.innerHTML = PORTS.map(renderCard).join('') +
+  '<div class="empty-state hidden" id="empty-state"><div class="empty-icon">⛵</div><p>No ports match your filters.</p></div>';
+document.getElementById('stats-label').textContent = `${PORTS.length} ports`;
+applyFilters();
+</script>
+</body>
+</html>

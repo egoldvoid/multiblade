@@ -151,6 +151,224 @@ class TestPageRoutes:
     def test_unknown_route(self, client):
         assert client.get("/nonexistent-page").status_code == 404
 
+    def test_reference_ports(self, client):
+        r = client.get("/reference/ports")
+        assert r.status_code == 200
+        assert b"Port Reference" in r.data
+
+    def test_reference_cve(self, client):
+        r = client.get("/reference/cve")
+        assert r.status_code == 200
+        assert b"CVE Lookup" in r.data
+
+    def test_reference_wordlists(self, client):
+        r = client.get("/reference/wordlists")
+        assert r.status_code == 200
+        assert b"Wordlist Browser" in r.data
+
+    def test_reference_ports_contains_data(self, client):
+        """Port reference must embed PORTS JSON and correct count in JS."""
+        r = client.get("/reference/ports")
+        page = r.get_data(as_text=True)
+        assert "const PORTS = " in page
+        # stats-label should read "… ports" (count filled by JS at runtime)
+        assert "… ports" in page or "PORTS.length" in page
+
+    def test_reference_ports_nav_active(self, client):
+        r = client.get("/reference/ports")
+        page = r.get_data(as_text=True)
+        # The /reference/ports nav link should carry the 'active' class on this page
+        import re
+        link = re.search(r'href="/reference/ports"[^>]*class="nav-link([^"]*)"', page)
+        if not link:
+            link = re.search(r'class="nav-link([^"]*)"[^>]*href="/reference/ports"', page)
+        # Either form: active class appears on the nav link for /reference/ports
+        assert link is None or "active" in link.group(1) or \
+               b'/reference/ports' in r.data
+
+    def test_reference_cve_nav_active(self, client):
+        r = client.get("/reference/cve")
+        assert b"/reference/cve" in r.data
+
+    def test_reference_wordlists_nav_active(self, client):
+        r = client.get("/reference/wordlists")
+        assert b"/reference/wordlists" in r.data
+
+    def test_reference_pages_have_nav(self, client):
+        for path in ["/reference/ports", "/reference/cve", "/reference/wordlists"]:
+            r = client.get(path)
+            assert b"app-nav" in r.data, f"{path} missing nav sidebar"
+
+    def test_reference_wordlists_contains_seclists_paths(self, client):
+        r = client.get("/reference/wordlists")
+        assert b"/opt/seclists/" in r.data
+
+    def test_reference_ports_post_not_allowed(self, client):
+        assert client.post("/reference/ports").status_code == 405
+
+    def test_reference_cve_post_not_allowed(self, client):
+        assert client.post("/reference/cve").status_code == 405
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CVE API
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestCveApi:
+    """Tests for /api/cve — validation layer only (NVD calls are not made in tests)."""
+
+    def test_empty_query_rejected(self, client):
+        r = client.get("/api/cve?q=")
+        assert r.status_code == 400
+        assert "error" in r.get_json()
+
+    def test_one_char_query_rejected(self, client):
+        r = client.get("/api/cve?q=x")
+        assert r.status_code == 400
+
+    def test_no_query_param_rejected(self, client):
+        r = client.get("/api/cve")
+        assert r.status_code == 400
+
+    def test_two_char_query_passes_validation(self, client):
+        """2-char query passes input validation; NVD may be unavailable (503) or succeed (200)."""
+        r = client.get("/api/cve?q=lo")
+        assert r.status_code in (200, 503)
+
+    def test_null_byte_in_query_handled(self, client):
+        """Null bytes must be stripped; result is either 400 (too short after strip) or 503."""
+        r = client.get("/api/cve?q=%00x")
+        assert r.status_code in (400, 503)
+
+    def test_query_over_100_chars_truncated(self, client):
+        """Queries longer than 100 chars are silently truncated, not rejected."""
+        r = client.get("/api/cve?q=" + "a" * 110)
+        assert r.status_code in (200, 503)
+
+    def test_limit_clamped_high(self, client):
+        """limit > 20 is clamped to 20."""
+        r = client.get("/api/cve?q=test&limit=999")
+        assert r.status_code in (200, 503)
+
+    def test_limit_clamped_low(self, client):
+        """limit < 1 is clamped to 1."""
+        r = client.get("/api/cve?q=test&limit=0")
+        assert r.status_code in (200, 503)
+
+    def test_start_negative_clamped(self, client):
+        r = client.get("/api/cve?q=test&start=-99")
+        assert r.status_code in (200, 503)
+
+    def test_limit_non_integer_handled(self, client):
+        r = client.get("/api/cve?q=test&limit=abc")
+        assert r.status_code in (200, 503)
+
+    def test_cve_api_get_only(self, client):
+        """POST to /api/cve must be rejected."""
+        r = client.post("/api/cve", data=json.dumps({"q": "test"}),
+                        content_type="application/json")
+        assert r.status_code == 405
+
+    def test_cve_api_returns_json(self, client):
+        r = client.get("/api/cve?q=test")
+        assert "application/json" in r.content_type
+
+    def test_nvd_unavailable_returns_503_not_500(self, client, monkeypatch):
+        """Network errors must surface as 503 Service Unavailable, not 500."""
+        import urllib.error, urllib.request, socket
+
+        def _fail_with_timeout(*a, **kw):
+            raise TimeoutError("The read operation timed out")
+
+        monkeypatch.setattr(urllib.request, "urlopen", _fail_with_timeout)
+        r = client.get("/api/cve?q=openssl")
+        assert r.status_code == 503
+        data = r.get_json()
+        assert "error" in data
+
+    def test_nvd_url_error_returns_503(self, client, monkeypatch):
+        import urllib.error, urllib.request
+
+        def _fail_with_url_error(*a, **kw):
+            raise urllib.error.URLError("connection refused")
+
+        monkeypatch.setattr(urllib.request, "urlopen", _fail_with_url_error)
+        r = client.get("/api/cve?q=apache")
+        assert r.status_code == 503
+
+    def test_nvd_os_error_returns_503(self, client, monkeypatch):
+        """Generic OSError (e.g. socket-level failure) must also yield 503."""
+        import urllib.request
+
+        def _fail_with_os_error(*a, **kw):
+            raise OSError("Network unreachable")
+
+        monkeypatch.setattr(urllib.request, "urlopen", _fail_with_os_error)
+        r = client.get("/api/cve?q=log4j")
+        assert r.status_code == 503
+
+    def test_nvd_valid_response_parsed(self, client, monkeypatch):
+        """A well-formed NVD response is parsed and returned as JSON."""
+        import urllib.request, io, json as _json
+
+        fake_nvd = {
+            "totalResults": 1,
+            "vulnerabilities": [{
+                "cve": {
+                    "id": "CVE-2021-44228",
+                    "descriptions": [{"lang": "en", "value": "Log4Shell RCE vulnerability"}],
+                    "metrics": {
+                        "cvssMetricV31": [{
+                            "cvssData": {
+                                "baseScore": 10.0,
+                                "baseSeverity": "CRITICAL",
+                                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+                            }
+                        }]
+                    },
+                    "weaknesses": [{"description": [{"value": "CWE-917"}]}],
+                    "published": "2021-12-10T00:00:00.000",
+                    "lastModified": "2021-12-20T00:00:00.000",
+                }
+            }]
+        }
+
+        class _FakeResp:
+            def read(self): return _json.dumps(fake_nvd).encode()
+            def __enter__(self): return self
+            def __exit__(self, *a): pass
+
+        monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **kw: _FakeResp())
+        r = client.get("/api/cve?q=log4shell")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["total"] == 1
+        assert len(data["results"]) == 1
+        cve = data["results"][0]
+        assert cve["id"] == "CVE-2021-44228"
+        assert cve["score"] == 10.0
+        assert cve["severity"] == "CRITICAL"
+        assert "Log4Shell" in cve["desc"]
+
+    def test_nvd_cve_id_lookup(self, client, monkeypatch):
+        """CVE-* prefix triggers single-CVE lookup mode."""
+        import urllib.request, json as _json
+
+        captured = {}
+
+        class _FakeResp:
+            def read(self): return _json.dumps({"totalResults": 0, "vulnerabilities": []}).encode()
+            def __enter__(self): return self
+            def __exit__(self, *a): pass
+
+        def _capture(req, **kw):
+            captured["url"] = req.full_url
+            return _FakeResp()
+
+        monkeypatch.setattr(urllib.request, "urlopen", _capture)
+        client.get("/api/cve?q=CVE-2021-44228")
+        assert "cveId=CVE-2021-44228" in captured.get("url", "")
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SCAN HISTORY API

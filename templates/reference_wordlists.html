@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wordlist Browser — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-150px;right:-80px;}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .page{position:relative;z-index:1;padding:0 0 100px;}
+
+    /* Header */
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 16px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:14px;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;}
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+
+    /* Controls */
+    .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+    .search-wrap{position:relative;flex:1;min-width:200px;max-width:340px;}
+    .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:0.85rem;pointer-events:none;}
+    .search-input{
+      width:100%;background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:8px 12px 8px 34px;color:var(--text);font-family:inherit;font-size:0.85rem;
+      outline:none;transition:border-color 0.15s;
+    }
+    .search-input:focus{border-color:var(--accent);}
+    .search-input::placeholder{color:var(--text-faint);}
+
+    .cat-chips{display:flex;flex-wrap:wrap;gap:6px;}
+    .chip{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:5px 12px;border-radius:99px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;user-select:none;
+    }
+    .chip:hover{border-color:var(--border-hi);color:var(--text);}
+    .chip.active{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    /* Install hint */
+    .install-hint{
+      margin:0 40px 0;padding:12px 16px;
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+      display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    }
+    .hint-label{font-size:0.72rem;color:var(--text-faint);font-weight:600;letter-spacing:0.08em;flex-shrink:0;}
+    .hint-cmd{
+      font-family:'Fira Code',monospace;font-size:0.78rem;color:#c4c9f5;
+      background:var(--s2);border-radius:6px;padding:4px 10px;flex:1;
+    }
+    .hint-copy{
+      padding:5px 12px;border-radius:7px;border:1.5px solid var(--border);
+      background:transparent;color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      cursor:pointer;font-family:inherit;transition:all 0.15s;flex-shrink:0;
+    }
+    .hint-copy:hover{background:var(--s2);color:var(--text);}
+    .hint-copy.copied{background:#22d3a518;border-color:#22d3a540;color:#22d3a5;}
+
+    /* Stats */
+    .stats-bar{padding:10px 40px 0;font-size:0.72rem;color:var(--text-faint);}
+    .stats-bar strong{color:var(--text-dim);}
+
+    /* Grid */
+    .wl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px;padding:16px 40px 0;}
+    @media(max-width:680px){.wl-grid{grid-template-columns:1fr;padding:12px 16px 0;}.page-header{padding:16px 16px 12px;}.install-hint{margin:0 16px;}.stats-bar{padding:8px 16px 0;}}
+
+    /* Wordlist card */
+    .wl-card{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:16px 18px;transition:border-color 0.2s,box-shadow 0.2s;
+    }
+    .wl-card:hover{border-color:var(--border-hi);box-shadow:0 6px 24px -6px #00000050;}
+    .wl-card.hidden{display:none;}
+
+    .wl-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;}
+    .wl-name{font-size:0.88rem;font-weight:700;color:var(--text);word-break:break-word;}
+    .wl-meta{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+    .wl-size{font-size:0.65rem;font-weight:700;letter-spacing:0.06em;color:var(--text-faint);padding:2px 7px;border-radius:99px;background:var(--s2);border:1px solid var(--border);}
+    .wl-cat{font-size:0.6rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:2px 7px;border-radius:99px;background:var(--accent-glow);color:var(--accent-hi);border:1px solid #6366f130;}
+
+    .wl-path{
+      font-family:'Fira Code',monospace;font-size:0.68rem;color:var(--text-dim);
+      background:var(--s2);border-radius:6px;padding:6px 10px;margin-bottom:8px;
+      word-break:break-all;cursor:text;
+      display:flex;align-items:center;justify-content:space-between;gap:8px;
+    }
+    .wl-path-text{flex:1;}
+    .path-copy{
+      flex-shrink:0;padding:3px 8px;border-radius:5px;
+      border:1px solid var(--border);background:transparent;
+      color:var(--text-faint);font-size:0.62rem;font-weight:600;
+      cursor:pointer;font-family:inherit;transition:all 0.15s;
+    }
+    .path-copy:hover{background:var(--s3);color:var(--text-dim);}
+    .path-copy.copied{background:#22d3a518;border-color:#22d3a540;color:#22d3a5;}
+
+    .wl-desc{font-size:0.78rem;color:var(--text-dim);line-height:1.55;margin-bottom:10px;}
+
+    .wl-footer{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+    .tools-label{font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-right:4px;}
+    .tool-link{
+      display:inline-flex;align-items:center;gap:4px;
+      padding:3px 9px;border-radius:6px;
+      border:1.5px solid var(--border);background:var(--s2);
+      color:var(--text-dim);font-size:0.7rem;font-weight:600;
+      text-decoration:none;transition:all 0.15s;
+    }
+    .tool-link:hover{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    .empty-state{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-faint);}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="page page-with-nav">
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/" class="back-link">← Home</a>
+      <span class="page-title">Wordlist Browser</span>
+    </div>
+    <div class="controls">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="search" class="search-input" type="text" placeholder="Filter wordlists…" oninput="applyFilters()" />
+      </div>
+      <div class="cat-chips" id="cat-chips">
+        <button class="chip active" data-cat="all" onclick="setCat(this)">All</button>
+        <button class="chip" data-cat="Web Content" onclick="setCat(this)">Web Content</button>
+        <button class="chip" data-cat="DNS" onclick="setCat(this)">DNS</button>
+        <button class="chip" data-cat="Passwords" onclick="setCat(this)">Passwords</button>
+        <button class="chip" data-cat="Usernames" onclick="setCat(this)">Usernames</button>
+        <button class="chip" data-cat="Fuzzing" onclick="setCat(this)">Fuzzing</button>
+        <button class="chip" data-cat="API" onclick="setCat(this)">API</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="install-hint">
+    <span class="hint-label">INSTALL SECLISTS</span>
+    <span class="hint-cmd" id="install-cmd">git clone --depth 1 https://github.com/danielmiessler/SecLists.git /opt/seclists</span>
+    <button class="hint-copy" onclick="copyInstall(this)">Copy</button>
+  </div>
+
+  <div class="stats-bar" id="stats-bar">Loading…</div>
+
+  <div class="wl-grid" id="wl-grid"></div>
+</div>
+
+<script>
+const WORDLISTS = [
+  // ── Web Content Discovery ───────────────────────────────────────────────────
+  {name:"directory-list-2.3-small.txt",
+   path:"/opt/seclists/Discovery/Web-Content/directory-list-2.3-small.txt",
+   category:"Web Content",size:"87k lines",
+   desc:"Common web directories, small size. Fast first-pass content discovery.",
+   tools:["gobuster","ffuf","feroxbuster","dirb"]},
+
+  {name:"directory-list-2.3-medium.txt",
+   path:"/opt/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt",
+   category:"Web Content",size:"220k lines",
+   desc:"Standard directory list for thorough web content discovery. Most widely used.",
+   tools:["gobuster","ffuf","feroxbuster","dirb"]},
+
+  {name:"directory-list-2.3-big.txt",
+   path:"/opt/seclists/Discovery/Web-Content/directory-list-2.3-big.txt",
+   category:"Web Content",size:"1.2M lines",
+   desc:"Exhaustive directory list. Use when medium didn't find everything.",
+   tools:["gobuster","ffuf","feroxbuster"]},
+
+  {name:"raft-large-directories.txt",
+   path:"/opt/seclists/Discovery/Web-Content/raft-large-directories.txt",
+   category:"Web Content",size:"3.2M lines",
+   desc:"RAFT wordlist of real directories collected from web crawls. Very thorough.",
+   tools:["gobuster","ffuf","feroxbuster"]},
+
+  {name:"raft-large-files.txt",
+   path:"/opt/seclists/Discovery/Web-Content/raft-large-files.txt",
+   category:"Web Content",size:"3M lines",
+   desc:"RAFT file names. Good for finding backup files, source, configs.",
+   tools:["gobuster","ffuf","feroxbuster"]},
+
+  {name:"common.txt",
+   path:"/opt/seclists/Discovery/Web-Content/common.txt",
+   category:"Web Content",size:"4.7k lines",
+   desc:"Very small set of common paths. Quick sanity check before larger scans.",
+   tools:["gobuster","ffuf","dirb"]},
+
+  {name:"big.txt",
+   path:"/opt/seclists/Discovery/Web-Content/big.txt",
+   category:"Web Content",size:"20k lines",
+   desc:"Medium-sized general content discovery list.",
+   tools:["gobuster","ffuf","feroxbuster","dirb"]},
+
+  {name:"quickhits.txt",
+   path:"/opt/seclists/Discovery/Web-Content/quickhits.txt",
+   category:"Web Content",size:"2.4k lines",
+   desc:"High-value paths: admin panels, config files, backups. Great first hit.",
+   tools:["gobuster","ffuf","nuclei"]},
+
+  {name:"apache.txt",
+   path:"/opt/seclists/Discovery/Web-Content/apache.txt",
+   category:"Web Content",size:"8.5k lines",
+   desc:"Apache-specific paths including mod_status, server-info, and common configs.",
+   tools:["gobuster","ffuf","nikto"]},
+
+  {name:"nginx.txt",
+   path:"/opt/seclists/Discovery/Web-Content/nginx.txt",
+   category:"Web Content",size:"2.9k lines",
+   desc:"Nginx-specific paths and common misconfigurations.",
+   tools:["gobuster","ffuf","nikto"]},
+
+  {name:"CMS/wordpress.fuzz.txt",
+   path:"/opt/seclists/Discovery/Web-Content/CMS/wordpress.fuzz.txt",
+   category:"Web Content",size:"13k lines",
+   desc:"WordPress-specific paths, plugins, themes, and common vuln endpoints.",
+   tools:["gobuster","ffuf","wpscan"]},
+
+  {name:"web-extensions.txt",
+   path:"/opt/seclists/Discovery/Web-Content/web-extensions.txt",
+   category:"Web Content",size:"25 lines",
+   desc:"Common web file extensions for extension fuzzing (-x flag).",
+   tools:["gobuster","ffuf","feroxbuster"]},
+
+  // ── DNS / Subdomains ────────────────────────────────────────────────────────
+  {name:"subdomains-top1million-5000.txt",
+   path:"/opt/seclists/Discovery/DNS/subdomains-top1million-5000.txt",
+   category:"DNS",size:"5k lines",
+   desc:"Top 5000 subdomains by frequency. Fast subdomain brute-force.",
+   tools:["gobuster","ffuf","subfinder","amass"]},
+
+  {name:"subdomains-top1million-20000.txt",
+   path:"/opt/seclists/Discovery/DNS/subdomains-top1million-20000.txt",
+   category:"DNS",size:"20k lines",
+   desc:"Top 20,000 subdomains. Standard thorough subdomain enumeration.",
+   tools:["gobuster","ffuf","subfinder","amass"]},
+
+  {name:"subdomains-top1million-110000.txt",
+   path:"/opt/seclists/Discovery/DNS/subdomains-top1million-110000.txt",
+   category:"DNS",size:"110k lines",
+   desc:"Comprehensive subdomain list from top 1M domains. Use for deep enumeration.",
+   tools:["gobuster","ffuf","amass"]},
+
+  {name:"dns-Jhaddix.txt",
+   path:"/opt/seclists/Discovery/DNS/dns-Jhaddix.txt",
+   category:"DNS",size:"489k lines",
+   desc:"Jason Haddix's massive DNS wordlist. Most thorough subdomain brute-force list.",
+   tools:["gobuster","ffuf","amass"]},
+
+  {name:"namelist.txt",
+   path:"/opt/seclists/Discovery/DNS/namelist.txt",
+   category:"DNS",size:"1.5k lines",
+   desc:"Short common names for quick DNS enumeration.",
+   tools:["dnsrecon","amass"]},
+
+  // ── Passwords ───────────────────────────────────────────────────────────────
+  {name:"rockyou.txt",
+   path:"/opt/seclists/Passwords/Leaked-Databases/rockyou.txt",
+   category:"Passwords",size:"14.3M lines",
+   desc:"The iconic RockYou breach password list. First choice for password cracking.",
+   tools:["hashcat","hydra","medusa","john"]},
+
+  {name:"rockyou2021.txt",
+   path:"/opt/seclists/Passwords/Leaked-Databases/rockyou2021.txt",
+   category:"Passwords",size:"8.4B lines",
+   desc:"Massive combined password corpus from many breaches. Use with caution — very large.",
+   tools:["hashcat","john"]},
+
+  {name:"common-credentials.txt",
+   path:"/opt/seclists/Passwords/Common-Credentials/10-million-password-list-top-1000.txt",
+   category:"Passwords",size:"1k lines",
+   desc:"Top 1000 most common passwords. Great for quick credential spray.",
+   tools:["hydra","medusa","netexec"]},
+
+  {name:"top-passwords-shortlist.txt",
+   path:"/opt/seclists/Passwords/Common-Credentials/top-passwords-shortlist.txt",
+   category:"Passwords",size:"2k lines",
+   desc:"Short but effective password spray list for account lockout-sensitive targets.",
+   tools:["hydra","medusa","netexec","kerbrute"]},
+
+  {name:"darkweb2017-top1000.txt",
+   path:"/opt/seclists/Passwords/darkweb2017-top1000.txt",
+   category:"Passwords",size:"1k lines",
+   desc:"Dark web breach compilation top 1000. High hit rate against real accounts.",
+   tools:["hydra","medusa","hashcat"]},
+
+  {name:"Default-Credentials/default-passwords.csv",
+   path:"/opt/seclists/Passwords/Default-Credentials/default-passwords.csv",
+   category:"Passwords",size:"2.5k lines",
+   desc:"Default credentials for routers, printers, IoT, and network gear.",
+   tools:["hydra","medusa","netexec"]},
+
+  {name:"probable-v2-top12000.txt",
+   path:"/opt/seclists/Passwords/Leaked-Databases/probable-v2-top12000.txt",
+   category:"Passwords",size:"12k lines",
+   desc:"Probable passwords ranked by frequency. Good balance of size vs. coverage.",
+   tools:["hashcat","hydra","john"]},
+
+  // ── Usernames ───────────────────────────────────────────────────────────────
+  {name:"top-usernames-shortlist.txt",
+   path:"/opt/seclists/Usernames/top-usernames-shortlist.txt",
+   category:"Usernames",size:"17 lines",
+   desc:"17 most common admin usernames. First check for any service.",
+   tools:["hydra","medusa","netexec","kerbrute"]},
+
+  {name:"xato-net-10-million-usernames.txt",
+   path:"/opt/seclists/Usernames/xato-net-10-million-usernames.txt",
+   category:"Usernames",size:"10M lines",
+   desc:"10M real usernames from Xato breach. Use for username enumeration.",
+   tools:["hydra","medusa","kerbrute"]},
+
+  {name:"Names/names.txt",
+   path:"/opt/seclists/Usernames/Names/names.txt",
+   category:"Usernames",size:"10k lines",
+   desc:"Common first names — basis for username generation (jsmith, j.smith, etc.).",
+   tools:["kerbrute","netexec"]},
+
+  {name:"cirt-default-usernames.txt",
+   path:"/opt/seclists/Usernames/cirt-default-usernames.txt",
+   category:"Usernames",size:"827 lines",
+   desc:"Default usernames from network device vendors and embedded systems.",
+   tools:["hydra","medusa"]},
+
+  // ── Fuzzing ─────────────────────────────────────────────────────────────────
+  {name:"special-chars.txt",
+   path:"/opt/seclists/Fuzzing/special-chars.txt",
+   category:"Fuzzing",size:"32 lines",
+   desc:"Special characters for injection testing (SQLi, XSS, command injection).",
+   tools:["ffuf","arjun","dalfox"]},
+
+  {name:"XSS/XSS-Jhaddix.txt",
+   path:"/opt/seclists/Fuzzing/XSS/XSS-Jhaddix.txt",
+   category:"Fuzzing",size:"3.8k lines",
+   desc:"Comprehensive XSS payload list by Jason Haddix.",
+   tools:["ffuf","dalfox"]},
+
+  {name:"XSS/XSS-Somdev.txt",
+   path:"/opt/seclists/Fuzzing/XSS/XSS-Somdev.txt",
+   category:"Fuzzing",size:"2.4k lines",
+   desc:"DOM-focused and polyglot XSS payloads.",
+   tools:["ffuf","dalfox"]},
+
+  {name:"SQLi/Generic-SQLi.txt",
+   path:"/opt/seclists/Fuzzing/SQLi/Generic-SQLi.txt",
+   category:"Fuzzing",size:"562 lines",
+   desc:"Generic SQL injection payloads for manual and automated testing.",
+   tools:["ffuf","sqlmap"]},
+
+  {name:"SSTI/template-engines.txt",
+   path:"/opt/seclists/Fuzzing/SSTI/template-engines.txt",
+   category:"Fuzzing",size:"27 lines",
+   desc:"Server-side template injection detection payloads.",
+   tools:["ffuf"]},
+
+  {name:"LFI/LFI-Jhaddix.txt",
+   path:"/opt/seclists/Fuzzing/LFI/LFI-Jhaddix.txt",
+   category:"Fuzzing",size:"929 lines",
+   desc:"LFI/path traversal payloads across various OS and encodings.",
+   tools:["ffuf","nuclei"]},
+
+  {name:"Polyglots/polyglots.txt",
+   path:"/opt/seclists/Fuzzing/Polyglots/polyglots.txt",
+   category:"Fuzzing",size:"4.3k lines",
+   desc:"Polyglot payloads that trigger multiple vulnerability classes simultaneously.",
+   tools:["ffuf"]},
+
+  {name:"UserAgents/UserAgents.fuzz.txt",
+   path:"/opt/seclists/Fuzzing/UserAgents/UserAgents.fuzz.txt",
+   category:"Fuzzing",size:"12k lines",
+   desc:"Real and malformed User-Agent strings for WAF bypass and fingerprinting.",
+   tools:["ffuf","nuclei"]},
+
+  // ── API ─────────────────────────────────────────────────────────────────────
+  {name:"api/api-endpoints.txt",
+   path:"/opt/seclists/Discovery/Web-Content/api/api-endpoints.txt",
+   category:"API",size:"12k lines",
+   desc:"Common REST API paths and endpoints. Pair with content-type: application/json.",
+   tools:["ffuf","gobuster","arjun"]},
+
+  {name:"api/graphql.txt",
+   path:"/opt/seclists/Discovery/Web-Content/api/graphql.txt",
+   category:"API",size:"350 lines",
+   desc:"GraphQL endpoint discovery wordlist (/graphql, /api/graphql, /query, etc.).",
+   tools:["ffuf","gobuster"]},
+
+  {name:"swagger.txt",
+   path:"/opt/seclists/Discovery/Web-Content/swagger.txt",
+   category:"API",size:"1.2k lines",
+   desc:"Swagger/OpenAPI spec file paths for automatic API documentation discovery.",
+   tools:["ffuf","gobuster","httpx"]},
+
+  {name:"burp-parameter-names.txt",
+   path:"/opt/seclists/Discovery/Web-Content/burp-parameter-names.txt",
+   category:"API",size:"3.6k lines",
+   desc:"Common HTTP parameter names for parameter discovery and fuzzing.",
+   tools:["ffuf","arjun"]},
+
+  {name:"JSON-Jhaddix.txt",
+   path:"/opt/seclists/Discovery/Web-Content/JSON-Jhaddix.txt",
+   category:"API",size:"23.4k lines",
+   desc:"Parameter and key names extracted from JS and APIs. Powerful for hidden param discovery.",
+   tools:["arjun","ffuf"]},
+];
+
+let activeCat = 'all';
+
+function setCat(btn) {
+  document.querySelectorAll('#cat-chips .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  activeCat = btn.dataset.cat;
+  applyFilters();
+}
+
+function applyFilters() {
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  let visible = 0;
+  WORDLISTS.forEach((wl, i) => {
+    const el = document.getElementById(`wl-${i}`);
+    if (!el) return;
+    const matchCat = activeCat === 'all' || wl.category === activeCat;
+    const matchSearch = !q ||
+      wl.name.toLowerCase().includes(q) ||
+      wl.category.toLowerCase().includes(q) ||
+      wl.desc.toLowerCase().includes(q) ||
+      (wl.tools || []).some(t => t.toLowerCase().includes(q));
+    const show = matchCat && matchSearch;
+    el.classList.toggle('hidden', !show);
+    if (show) visible++;
+  });
+  document.getElementById('stats-bar').innerHTML = `Showing <strong>${visible}</strong> of <strong>${WORDLISTS.length}</strong> wordlists`;
+  document.getElementById('empty-wl')?.classList.toggle('hidden', visible > 0);
+}
+
+function copyPath(idx, btn) {
+  navigator.clipboard.writeText(WORDLISTS[idx].path).then(() => {
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1400);
+  });
+}
+
+function copyInstall(btn) {
+  const cmd = document.getElementById('install-cmd').textContent;
+  navigator.clipboard.writeText(cmd).then(() => {
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1400);
+  });
+}
+
+function renderCard(wl, i) {
+  const toolLinks = (wl.tools || []).map(slug =>
+    `<a class="tool-link" href="/generators/${slug}">⚙ ${slug}</a>`
+  ).join('');
+  return `
+    <div class="wl-card" id="wl-${i}">
+      <div class="wl-head">
+        <span class="wl-name">${wl.name}</span>
+        <div class="wl-meta">
+          <span class="wl-size">${wl.size}</span>
+          <span class="wl-cat">${wl.category}</span>
+        </div>
+      </div>
+      <div class="wl-path">
+        <span class="wl-path-text">${wl.path}</span>
+        <button class="path-copy" onclick="copyPath(${i}, this)">Copy</button>
+      </div>
+      <div class="wl-desc">${wl.desc}</div>
+      <div class="wl-footer">
+        <span class="tools-label">Pair with:</span>
+        ${toolLinks}
+      </div>
+    </div>`;
+}
+
+// Render
+const grid = document.getElementById('wl-grid');
+grid.innerHTML = WORDLISTS.map(renderCard).join('') +
+  '<div class="empty-state hidden" id="empty-wl"><div style="font-size:2rem">📖</div><p>No wordlists match your filters.</p></div>';
+applyFilters();
+</script>
+</body>
+</html>

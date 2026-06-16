@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CVE Lookup — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --c-crit:#ef4444;--c-high:#f97316;--c-med:#f59e0b;--c-low:#22d3ee;--c-none:#6b7099;
+      --radius:12px;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-150px;right:-80px;}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .page{position:relative;z-index:1;padding:0 0 100px;max-width:900px;margin:0 auto;}
+    .page-with-nav .page{padding-left:20px;padding-right:20px;}
+
+    .page-header{padding:32px 40px 24px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:24px;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;}
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+
+    /* Search */
+    .search-area{display:flex;gap:10px;align-items:center;}
+    .search-wrap{position:relative;flex:1;}
+    .search-input{
+      width:100%;background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:12px 16px 12px 44px;color:var(--text);font-family:'Fira Code',monospace;font-size:0.92rem;
+      outline:none;transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    .search-input::placeholder{color:var(--text-faint);font-family:'Inter',sans-serif;}
+    .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:1rem;}
+    .search-btn{
+      padding:12px 24px;border-radius:var(--radius);
+      background:var(--accent);color:#fff;border:none;
+      font-family:inherit;font-size:0.9rem;font-weight:600;
+      cursor:pointer;transition:filter 0.15s;white-space:nowrap;flex-shrink:0;
+    }
+    .search-btn:hover{filter:brightness(1.15);}
+    .search-btn:disabled{opacity:0.5;cursor:not-allowed;filter:none;}
+
+    /* Examples */
+    .examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center;}
+    .examples-label{font-size:0.72rem;color:var(--text-faint);font-weight:600;letter-spacing:0.08em;}
+    .ex-chip{
+      font-size:0.72rem;font-weight:600;padding:3px 10px;border-radius:99px;
+      border:1px solid var(--border);color:var(--text-dim);
+      cursor:pointer;background:var(--s1);transition:all 0.15s;
+      font-family:'Fira Code',monospace;
+    }
+    .ex-chip:hover{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    /* Results */
+    .results-area{padding:0 40px;}
+    .results-meta{font-size:0.78rem;color:var(--text-dim);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;}
+    .results-list{display:flex;flex-direction:column;gap:12px;}
+
+    /* CVE card */
+    .cve-card{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:18px 20px;transition:border-color 0.2s;
+    }
+    .cve-card:hover{border-color:var(--border-hi);}
+
+    .cve-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:10px;}
+    .cve-score-wrap{flex-shrink:0;text-align:center;}
+    .cve-score{
+      display:block;font-size:1.5rem;font-weight:700;font-family:'Syne',sans-serif;
+      line-height:1;
+    }
+    .cve-sev{font-size:0.58rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;}
+    .score-CRITICAL{color:var(--c-crit);}
+    .score-HIGH    {color:var(--c-high);}
+    .score-MEDIUM  {color:var(--c-med);}
+    .score-LOW     {color:var(--c-low);}
+    .score-NONE    {color:var(--c-none);}
+    .score-NA      {color:var(--text-faint);}
+
+    .cve-meta{flex:1;min-width:0;}
+    .cve-id{
+      font-family:'Fira Code',monospace;font-size:0.92rem;font-weight:500;
+      color:var(--accent-hi);text-decoration:none;
+    }
+    .cve-id:hover{text-decoration:underline;}
+    .cve-dates{font-size:0.68rem;color:var(--text-faint);margin-top:2px;}
+    .cve-desc{font-size:0.82rem;color:var(--text-dim);line-height:1.6;margin:8px 0 10px;}
+
+    .cve-footer{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+    .cwe-badge{
+      font-size:0.62rem;font-weight:600;letter-spacing:0.06em;
+      padding:2px 8px;border-radius:99px;
+      background:var(--s3);border:1px solid var(--border);color:var(--text-faint);
+    }
+    .cve-link{
+      display:inline-flex;align-items:center;gap:4px;
+      font-size:0.72rem;font-weight:600;padding:4px 10px;border-radius:7px;
+      border:1.5px solid var(--border);color:var(--text-dim);text-decoration:none;
+      transition:all 0.15s;background:var(--s2);
+    }
+    .cve-link:hover{border-color:var(--accent);color:var(--accent-hi);}
+    .cve-link.edb{border-color:#ef444440;color:#f87171;}
+    .cve-link.edb:hover{border-color:var(--c-crit);background:#ef444418;}
+
+    /* States */
+    .state{text-align:center;padding:60px 20px;color:var(--text-faint);}
+    .state-icon{font-size:2.5rem;margin-bottom:12px;}
+    .state-title{font-size:1rem;font-weight:600;margin-bottom:6px;color:var(--text-dim);}
+    .state-msg{font-size:0.82rem;line-height:1.6;}
+
+    .spinner{
+      display:inline-block;width:32px;height:32px;border:3px solid var(--border);
+      border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;
+      margin-bottom:12px;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Pagination */
+    .pagination{display:flex;gap:8px;margin-top:20px;justify-content:center;}
+    .page-btn{
+      padding:6px 16px;border-radius:8px;border:1.5px solid var(--border);
+      background:var(--s1);color:var(--text-dim);font-size:0.8rem;font-weight:600;
+      cursor:pointer;font-family:inherit;transition:all 0.15s;
+    }
+    .page-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent-hi);}
+    .page-btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+    @media(max-width:680px){.page-header{padding:20px 16px 16px;}.results-area{padding:0 16px;}.search-area{flex-wrap:wrap;}.search-btn{width:100%;}}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="page-with-nav">
+<div class="page">
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/" class="back-link">← Home</a>
+      <span class="page-title">CVE Lookup</span>
+    </div>
+
+    <div class="search-area">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="q" class="search-input" type="text" placeholder="Search by keyword or CVE ID (e.g. CVE-2021-44228)" />
+      </div>
+      <button class="search-btn" id="search-btn" onclick="doSearch(0)">Search NVD</button>
+    </div>
+
+    <div class="examples">
+      <span class="examples-label">TRY:</span>
+      <span class="ex-chip" onclick="setQuery('log4shell')">log4shell</span>
+      <span class="ex-chip" onclick="setQuery('apache struts')">apache struts</span>
+      <span class="ex-chip" onclick="setQuery('openssl')">openssl</span>
+      <span class="ex-chip" onclick="setQuery('CVE-2021-44228')">CVE-2021-44228</span>
+      <span class="ex-chip" onclick="setQuery('spring4shell')">spring4shell</span>
+      <span class="ex-chip" onclick="setQuery('citrix bleed')">citrix bleed</span>
+      <span class="ex-chip" onclick="setQuery('bluekeep')">bluekeep</span>
+    </div>
+  </div>
+
+  <div class="results-area" id="results-area">
+    <div class="state" id="welcome-state">
+      <div class="state-icon">🩸</div>
+      <div class="state-title">Search the NVD</div>
+      <div class="state-msg">Enter a keyword, product name, or CVE ID above.<br>Data sourced live from the National Vulnerability Database.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+let currentQuery = '';
+let currentStart = 0;
+let totalResults = 0;
+const PAGE_SIZE = 15;
+
+function setQuery(q) {
+  document.getElementById('q').value = q;
+  doSearch(0);
+}
+
+document.getElementById('q').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch(0);
+});
+
+function scoreColor(sev) {
+  if (!sev) return 'NA';
+  return sev.toUpperCase();
+}
+
+function renderCVE(c) {
+  const sev = (c.severity || 'UNKNOWN').toUpperCase();
+  const scoreDisplay = c.score != null ? c.score.toFixed(1) : '—';
+  const sevClass = ['CRITICAL','HIGH','MEDIUM','LOW','NONE'].includes(sev) ? sev : 'NA';
+
+  const cweBadges = (c.cwes || []).map(w => `<span class="cwe-badge">${w}</span>`).join('');
+  const edbUrl = `https://www.exploit-db.com/search?cve=${encodeURIComponent(c.id)}`;
+  const nvdUrl = `https://nvd.nist.gov/vuln/detail/${encodeURIComponent(c.id)}`;
+
+  return `
+    <div class="cve-card">
+      <div class="cve-head">
+        <div class="cve-score-wrap">
+          <span class="cve-score score-${sevClass}">${scoreDisplay}</span>
+          <span class="cve-sev score-${sevClass}">${sev === 'NA' ? 'N/A' : sev}</span>
+        </div>
+        <div class="cve-meta">
+          <a class="cve-id" href="${nvdUrl}" target="_blank" rel="noopener">${c.id}</a>
+          <div class="cve-dates">Published: ${c.published || '?'} · Modified: ${c.modified || '?'}</div>
+        </div>
+      </div>
+      <div class="cve-desc">${c.desc}</div>
+      <div class="cve-footer">
+        ${cweBadges}
+        <a class="cve-link" href="${nvdUrl}" target="_blank" rel="noopener">↗ NVD</a>
+        <a class="cve-link edb" href="${edbUrl}" target="_blank" rel="noopener">🔥 Exploit-DB</a>
+        ${c.vector ? `<span class="cwe-badge" title="CVSS Vector">${c.vector.substring(0,30)}${c.vector.length>30?'…':''}</span>` : ''}
+      </div>
+    </div>`;
+}
+
+async function doSearch(start) {
+  const q = document.getElementById('q').value.trim();
+  if (!q) return;
+
+  currentQuery = q;
+  currentStart = start;
+
+  const btn = document.getElementById('search-btn');
+  btn.disabled = true;
+  btn.textContent = 'Searching…';
+
+  const area = document.getElementById('results-area');
+  area.innerHTML = `<div class="state"><div class="spinner"></div><div class="state-msg">Querying NVD…</div></div>`;
+
+  try {
+    const url = `/api/cve?q=${encodeURIComponent(q)}&limit=${PAGE_SIZE}&start=${start}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (!res.ok) {
+      area.innerHTML = `<div class="state"><div class="state-icon">⚠</div><div class="state-title">Error</div><div class="state-msg">${data.error || 'Unknown error'}</div></div>`;
+      return;
+    }
+
+    totalResults = data.total || 0;
+
+    if (!data.results || data.results.length === 0) {
+      area.innerHTML = `<div class="state"><div class="state-icon">🔍</div><div class="state-title">No results</div><div class="state-msg">No CVEs found for "<strong>${q}</strong>". Try a different keyword or product name.</div></div>`;
+      return;
+    }
+
+    const metaHtml = `<div class="results-meta">
+      <span><strong>${totalResults.toLocaleString()}</strong> total results — showing ${start+1}–${Math.min(start+data.results.length, totalResults)}</span>
+    </div>`;
+
+    const cardsHtml = data.results.map(renderCVE).join('');
+
+    const prevDisabled = start === 0 ? 'disabled' : '';
+    const nextDisabled = (start + PAGE_SIZE) >= totalResults ? 'disabled' : '';
+    const paginationHtml = totalResults > PAGE_SIZE ? `
+      <div class="pagination">
+        <button class="page-btn" onclick="doSearch(${start - PAGE_SIZE})" ${prevDisabled}>← Prev</button>
+        <button class="page-btn" onclick="doSearch(${start + PAGE_SIZE})" ${nextDisabled}>Next →</button>
+      </div>` : '';
+
+    area.innerHTML = metaHtml + `<div class="results-list">${cardsHtml}</div>` + paginationHtml;
+  } catch (err) {
+    area.innerHTML = `<div class="state"><div class="state-icon">📡</div><div class="state-title">Network error</div><div class="state-msg">${err.message}</div></div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Search NVD';
+  }
+}
+</script>
+</body>
+</html>

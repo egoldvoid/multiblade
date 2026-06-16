@@ -2,6 +2,9 @@ import json
 import os
 import stat
 import tempfile
+import urllib.error
+import urllib.parse
+import urllib.request
 
 from flask import Flask, jsonify, render_template, request, Response
 from werkzeug.exceptions import HTTPException
@@ -13,6 +16,7 @@ from zip_analyzer.tar_analyzer import TarAnalyzer
 from zip_analyzer import database, stix_export
 from zip_analyzer.tool_data import (get_all_tools, get_tool, get_categories,
                                     get_install, INSTALL_METHOD_META)
+from zip_analyzer.port_data import PORTS
 
 try:
     from werkzeug.serving import WSGIRequestHandler as _WRH
@@ -442,6 +446,88 @@ def watch():
 @app.route("/curl")
 def curl_gen():
     return render_template("curl.html", active_page="curl")
+
+
+# ── Reference Library ─────────────────────────────────────────────────────────
+
+@app.route("/reference/ports")
+def reference_ports():
+    return render_template("reference_ports.html",
+                           ports_json=json.dumps(PORTS),
+                           active_page="ref-ports")
+
+
+@app.route("/reference/cve")
+def reference_cve():
+    return render_template("reference_cve.html", active_page="ref-cve")
+
+
+@app.route("/reference/wordlists")
+def reference_wordlists():
+    return render_template("reference_wordlists.html", active_page="ref-wordlists")
+
+
+@app.route("/api/cve")
+def api_cve_search():
+    # Strip null bytes and control characters; truncate to 100 chars
+    q = request.args.get("q", "").strip().replace("\x00", "")[:100]
+    if len(q) < 2:
+        return jsonify({"error": "Query too short (min 2 chars)"}), 400
+
+    try:
+        limit = min(max(1, int(request.args.get("limit", 15))), 20)
+        start = max(0, int(request.args.get("start", 0)))
+    except (ValueError, TypeError):
+        limit, start = 15, 0
+
+    is_cve_id = q.upper().startswith("CVE-")
+    if is_cve_id:
+        params = urllib.parse.urlencode({"cveId": q.upper(), "resultsPerPage": 1})
+    else:
+        params = urllib.parse.urlencode({"keywordSearch": q, "resultsPerPage": limit, "startIndex": start})
+
+    url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?{params}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Vantage/1.0 Security Platform"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            raw = json.loads(r.read())
+    except (urllib.error.URLError, OSError) as exc:
+        # OSError covers TimeoutError, socket.timeout, and other network-level failures
+        return jsonify({"error": f"NVD API unavailable: {exc}"}), 503
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    results = []
+    for item in raw.get("vulnerabilities", []):
+        cve = item["cve"]
+        cve_id = cve["id"]
+        desc = next((d["value"] for d in cve.get("descriptions", []) if d["lang"] == "en"), "No description.")
+        metrics = cve.get("metrics", {})
+        score = None
+        severity = None
+        vector = None
+        for key in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
+            if metrics.get(key):
+                m = metrics[key][0]
+                cd = m.get("cvssData", {})
+                score = cd.get("baseScore")
+                severity = cd.get("baseSeverity") or m.get("baseSeverity")
+                vector = cd.get("vectorString")
+                break
+        cwes = [w["description"][0]["value"] for w in cve.get("weaknesses", [])
+                if w.get("description")]
+        results.append({
+            "id": cve_id,
+            "desc": desc[:400],
+            "score": score,
+            "severity": severity,
+            "vector": vector,
+            "cwes": cwes[:3],
+            "published": cve.get("published", "")[:10],
+            "modified": cve.get("lastModified", "")[:10],
+        })
+
+    return jsonify({"total": raw.get("totalResults", 0), "results": results})
 
 
 # ── Core scan endpoint ────────────────────────────────────────────────────────
