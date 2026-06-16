@@ -3680,9 +3680,244 @@ _EXPLOIT = [
 ]  # end _EXPLOIT
 
 
+_OC    = "#22d3a5"   # Recon & OSINT (matches existing)
+_CONTC = "#0ea5e9"   # Container security (sky blue)
+
+
+# ── OSINT expansion (3 new) ───────────────────────────────────────────────────
+
+_OSINT_NEW = [
+
+    {"slug":"theharvester","name":"theHarvester","full_name":"theHarvester",
+     "desc":"Gather emails, subdomains, hosts, and employee names from public sources (Google, Bing, LinkedIn, crt.sh…).",
+     "category":"Recon & OSINT","tier":2,"icon":"🌾","color":_OC,
+     "sections":[
+       S("tgt","Target","🎯",
+         F("d","-d","Domain (-d) *","Target domain","example.com"),
+         Sel("b","-b","Source (-b) *","Data source",_opts(
+           ("all","all"),("google","google"),("bing","bing"),("duckduckgo","duckduckgo"),
+           ("crtsh","crtsh"),("linkedin","linkedin"),("twitter","twitter"),
+           ("anubis","anubis"),("virustotal","virustotal"),("baidu","baidu"),
+           ("sublist3r","sublist3r"),("yahoo","yahoo"))),
+       ),
+       S("opts","Options","🔧",
+         F("l","-l","Limit (-l)","Max results to fetch","500","number"),
+         F("S","-S","Start (-S)","Starting result offset","0","number"),
+         T("-n","DNS query on all found subdomains"),
+         T("-c","DNS brute-force with TLD expansion"),
+         T("-v","Verify host via DNS and show A records"),
+         F("proxy","-p","Proxy (-p)","HTTP proxy","http://127.0.0.1:8080"),
+       ),
+       S("output","Output","📄",
+         F("f","-f","Output prefix (-f)","Save HTML+XML results","harvest"),
+       ),
+     ],
+     "presets":[
+       P("All sources",{"d":"TARGET.com","b":"all","l":"500"}),
+       P("Google only",{"d":"TARGET.com","b":"google","l":"300"}),
+       P("crt.sh subdomains",{"d":"TARGET.com","b":"crtsh","n":True}),
+       P("Full + save",{"d":"TARGET.com","b":"all","n":True,"f":"harvest"}),
+     ]},
+
+    {"slug":"maigret","name":"maigret","full_name":"Maigret",
+     "desc":"OSINT username search across 3000+ sites — build person profiles from usernames.",
+     "category":"Recon & OSINT","tier":2,"icon":"🕵","color":_OC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("username","Username to search across all supported sites"),
+       ),
+       S("opts","Options","🔧",
+         F("n","--max-connections","Connections (-n)","Concurrent connections","50","number"),
+         F("timeout","--timeout","Timeout (--timeout)","Per-request timeout seconds","30","number"),
+         T("--tor","Route all requests through Tor"),
+         T("--retries","Retry failed requests"),
+         T("--parse-url","Parse existing profile URL to find linked accounts"),
+       ),
+       S("output","Output","📄",
+         F("o","-o","Output dir (-o)","Directory for all reports","maigret_out"),
+         T("--html","Generate HTML report"),
+         T("--pdf","Generate PDF report"),
+         T("--csv","Generate CSV report"),
+         T("--json","Generate JSON report"),
+         T("--graph","Build graph of connected accounts"),
+       ),
+     ],
+     "presets":[
+       P("Quick search",{"n":"50"}),
+       P("Full report",{"n":"50","html":True,"pdf":True,"json":True,"o":"maigret_out"}),
+       P("Via Tor",{"tor":True,"n":"20"}),
+       P("With graph",{"n":"50","graph":True,"html":True,"o":"profile"}),
+     ]},
+
+    {"slug":"holehe","name":"holehe","full_name":"holehe",
+     "desc":"Check if an email is registered on 120+ websites (no email sent — purely passive).",
+     "category":"Recon & OSINT","tier":2,"icon":"📧","color":_OC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("target@example.com","Email address to check"),
+       ),
+       S("opts","Options","🔧",
+         T("--only-used","Only print sites where email IS registered"),
+         T("--no-color","Disable colored terminal output"),
+         F("timeout","--timeout","Timeout (--timeout)","Request timeout seconds","10","number"),
+         T("--rate-limit","Add delay between requests to avoid blocks"),
+       ),
+     ],
+     "presets":[
+       P("Full check",{}),
+       P("Hits only",{"only_used":True}),
+       P("Rate-limited hits",{"only_used":True,"rate_limit":True}),
+     ]},
+
+]  # end _OSINT_NEW
+
+
+# ── Container Security (5 new) ────────────────────────────────────────────────
+
+_CONTAINER = [
+
+    {"slug":"snyk","name":"snyk","full_name":"Snyk",
+     "desc":"Find and fix vulnerabilities in code, container images, IaC configs, and open-source dependencies.",
+     "category":"Cloud & Infra","tier":2,"icon":"🛡","color":_CONTC,
+     "sections":[
+       S("cmd","Command","⚡",
+         Sel("subcommand","","Subcommand *","Snyk scan mode",_opts(
+           ("test","test"),("container test","container test"),
+           ("iac test","iac test"),("code test","code test"),
+           ("monitor","monitor"),("auth","auth"))),
+       ),
+       S("tgt","Target","🎯",
+         Tgt(".  or  nginx:latest  or  main.tf","Project path, image name, or IaC file"),
+       ),
+       S("opts","Options","🔧",
+         Sel("severity","--severity-threshold","Min severity","Filter by severity",_opts(
+           ("low","low"),("medium","medium"),("high","high"),("critical","critical"))),
+         T("--all-projects","Auto-detect all projects in directory"),
+         F("org","--org","Org (--org)","Snyk organization slug","my-org"),
+         F("exclude","--exclude","Exclude (--exclude)","Comma-separated paths to skip","node_modules,dist"),
+         T("--json","JSON output"),
+         T("--sarif","SARIF output (for GitHub Code Scanning)"),
+         T("--print-deps","Print dependency tree"),
+       ),
+     ],
+     "presets":[
+       P("Scan project",{"subcommand":"test","all_projects":True}),
+       P("Scan Docker image",{"subcommand":"container test","severity":"high"}),
+       P("Scan IaC",{"subcommand":"iac test","json":True}),
+       P("High+ only",{"subcommand":"test","severity":"high","json":True}),
+       P("Monitor (track)",{"subcommand":"monitor","all_projects":True}),
+     ]},
+
+    {"slug":"hadolint","name":"hadolint","full_name":"Hadolint",
+     "desc":"Dockerfile linter — detect security misconfigurations and best-practice violations (CIS Benchmark).",
+     "category":"Cloud & Infra","tier":2,"icon":"🐋","color":_CONTC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("Dockerfile  or  ./docker/Dockerfile.prod","Path to Dockerfile"),
+       ),
+       S("opts","Options","🔧",
+         Sel("format","--format","Format (--format)","Output format",_opts(
+           ("tty","tty"),("json","json"),("checkstyle","checkstyle"),
+           ("codeclimate","codeclimate"),("sarif","sarif"),("sonarqube","sonarqube"))),
+         F("ignore","--ignore","Ignore rule (--ignore)","Rule ID to suppress (e.g. DL3008)","DL3008"),
+         Sel("failure","--failure-threshold","Fail on (--failure-threshold)","Minimum severity to fail",_opts(
+           ("error","error"),("warning","warning"),("info","info"),("style","style"),("ignore","ignore"))),
+         T("--no-fail","Always exit 0"),
+       ),
+     ],
+     "presets":[
+       P("Lint Dockerfile",{}),
+       P("JSON output",{"format":"json"}),
+       P("SARIF for CI",{"format":"sarif"}),
+       P("Fail on warnings",{"failure":"warning"}),
+       P("Ignore apt-pinning",{"ignore":"DL3008"}),
+     ]},
+
+    {"slug":"syft","name":"syft","full_name":"Syft",
+     "desc":"Generate a Software Bill of Materials (SBOM) from container images, directories, and archives.",
+     "category":"Cloud & Infra","tier":2,"icon":"📦","color":_CONTC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("nginx:latest  or  dir:./  or  file:image.tar","Image, dir:path, or file:archive"),
+       ),
+       S("opts","Options","🔧",
+         Sel("o","-o","Format (-o)","SBOM output format",_opts(
+           ("table","table"),("text","text"),("syft-json","syft-json"),
+           ("spdx-json","spdx-json"),("spdx-tag-value","spdx-tag-value"),
+           ("cyclonedx-json","cyclonedx-json"),("cyclonedx-xml","cyclonedx-xml"))),
+         F("file","--file","Output file (--file)","Save SBOM to file","sbom.json"),
+         T("--scope all-layers","Include packages from all image layers"),
+         T("-q","Quiet — suppress progress output"),
+       ),
+     ],
+     "presets":[
+       P("Quick table view",{"o":"table"}),
+       P("SPDX JSON",{"o":"spdx-json","file":"sbom.spdx.json"}),
+       P("CycloneDX JSON",{"o":"cyclonedx-json","file":"sbom.cdx.json"}),
+       P("All layers",{"scope all-layers":True,"o":"syft-json","file":"sbom.json"}),
+     ]},
+
+    {"slug":"cosign","name":"cosign","full_name":"Cosign",
+     "desc":"Sign, verify, and inspect container image signatures and attestations via Sigstore.",
+     "category":"Cloud & Infra","tier":2,"icon":"✍","color":_CONTC,
+     "sections":[
+       S("cmd","Command","⚡",
+         Sel("subcommand","","Subcommand *","cosign operation",_opts(
+           ("sign","sign"),("verify","verify"),("sign-blob","sign-blob"),
+           ("verify-blob","verify-blob"),("attest","attest"),
+           ("verify-attestation","verify-attestation"),
+           ("generate-key-pair","generate-key-pair"),("tree","tree"))),
+       ),
+       S("tgt","Target","🎯",
+         Tgt("ghcr.io/org/image:tag  or  artifact.tar","Image reference or file"),
+       ),
+       S("opts","Options","🔧",
+         F("key","--key","Key (--key)","Private key path or KMS URI","cosign.key"),
+         T("--keyless","Use keyless signing via Sigstore/Fulcio OIDC"),
+         T("--recursive","Sign/verify all tags recursively"),
+         F("certificate","--certificate","Certificate (--certificate)","Signing certificate path","cosign.crt"),
+         F("output_file","--output-file","Output file (--output-file)","Save output","sig.json"),
+         T("--allow-insecure-registry","Allow HTTP registries"),
+       ),
+     ],
+     "presets":[
+       P("Generate keypair",{"subcommand":"generate-key-pair"}),
+       P("Sign keyless",{"subcommand":"sign","keyless":True}),
+       P("Verify keyless",{"subcommand":"verify","keyless":True}),
+       P("Sign with key",{"subcommand":"sign","key":"cosign.key"}),
+       P("Inspect sigs",{"subcommand":"tree"}),
+     ]},
+
+    {"slug":"dockle","name":"dockle","full_name":"Dockle",
+     "desc":"Container image linter — check CIS Docker Benchmark violations and security best practices.",
+     "category":"Cloud & Infra","tier":2,"icon":"🐳","color":_CONTC,
+     "sections":[
+       S("tgt","Target","🎯",
+         Tgt("nginx:latest  or  my-app:1.0","Container image name:tag to inspect"),
+       ),
+       S("opts","Options","🔧",
+         Sel("format","--format","Format (--format)","Output format",_opts(
+           ("list","list"),("json","json"),("sarif","sarif"))),
+         Sel("exit_level","--exit-level","Fail on (--exit-level)","Severity threshold for nonzero exit",_opts(
+           ("WARN","WARN"),("FATAL","FATAL"),("INFO","INFO"),("SKIP","SKIP"))),
+         T("--ignore-ca","Skip CA certificate check"),
+         F("timeout","--timeout","Timeout (--timeout)","Pull timeout seconds","90","number"),
+         T("--insecure","Allow HTTP registries"),
+       ),
+     ],
+     "presets":[
+       P("Scan image",{}),
+       P("JSON output",{"format":"json"}),
+       P("SARIF for CI",{"format":"sarif"}),
+       P("Fail on FATAL only",{"exit_level":"FATAL"}),
+     ]},
+
+]  # end _CONTAINER
+
+
 # ── Combine all tools ─────────────────────────────────────────────────────────
 
-_raw = _T1 + _T2 + _T3 + _UNIX + _CLOUD_NEW + _FORENSICS + _RE + _CRYPTO + _AD + _CRED_NEW + _VULN_NEW + _EXPLOIT
+_raw = _T1 + _T2 + _T3 + _UNIX + _CLOUD_NEW + _FORENSICS + _RE + _CRYPTO + _AD + _CRED_NEW + _VULN_NEW + _EXPLOIT + _OSINT_NEW + _CONTAINER
 # Deduplicate: later definitions (new categories) override earlier ones by slug
 _seen: set = set()
 TOOLS = []
@@ -4272,6 +4507,18 @@ INSTALL_MAP = {
     "searchsploit":   {"apt": "sudo apt install -y exploitdb", "brew": "brew install exploitdb"},
     "msfconsole":     {"brew": "brew install metasploit", "apt": "sudo apt install -y metasploit-framework"},
     "msfvenom":       {"brew": "brew install metasploit", "apt": "sudo apt install -y metasploit-framework"},
+
+    # ── OSINT expansion ───────────────────────────────────────────────────────
+    "theharvester":   {"pip": "pip install theHarvester", "apt": "sudo apt install -y theharvester"},
+    "maigret":        {"pip": "pip install maigret"},
+    "holehe":         {"pip": "pip install holehe"},
+
+    # ── Container security ────────────────────────────────────────────────────
+    "snyk":           {"brew": "brew install snyk/tap/snyk", "apt": "sudo npm install -g snyk"},
+    "hadolint":       {"brew": "brew install hadolint", "docker": "docker run --rm -i hadolint/hadolint < Dockerfile"},
+    "syft":           {"brew": "brew install syft", "go": "go install github.com/anchore/syft/cmd/syft@latest"},
+    "cosign":         {"brew": "brew install cosign", "go": "go install github.com/sigstore/cosign/v2/cmd/cosign@latest"},
+    "dockle":         {"brew": "brew install goodwithtech/r/dockle", "docker": "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock goodwithtech/dockle IMAGE"},
 }
 
 # Display labels and icons for each install method
