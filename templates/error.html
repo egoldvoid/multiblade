@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ code }} — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;
+      --border:#1e2240;--text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;
+           display:flex;align-items:center;justify-content:center;min-height:100vh; }
+    .card {
+      text-align:center;padding:60px 48px;
+      background:var(--s1);border:1px solid var(--border);border-radius:16px;
+      max-width:480px;width:90%;
+    }
+    .code { font-family:'Syne',sans-serif;font-size:5rem;font-weight:800;
+            color:var(--accent);opacity:0.15;line-height:1;margin-bottom:8px; }
+    .title { font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;
+             margin-bottom:12px;letter-spacing:0.02em; }
+    .msg { font-size:0.85rem;color:var(--text-dim);line-height:1.6;margin-bottom:32px; }
+    .links { display:flex;gap:12px;justify-content:center;flex-wrap:wrap; }
+    .btn {
+      display:inline-flex;align-items:center;gap:6px;
+      padding:10px 20px;border-radius:8px;text-decoration:none;
+      font-size:0.83rem;font-weight:600;transition:all 0.15s;
+    }
+    .btn-primary { background:var(--accent);color:#fff; }
+    .btn-primary:hover { filter:brightness(1.15); }
+    .btn-secondary { border:1px solid var(--border);color:var(--text-dim);background:var(--s2); }
+    .btn-secondary:hover { border-color:#2d3260;color:var(--text); }
+  </style>
+</head>
+<body>
+{% include "_nav.html" %}
+<div class="page-with-nav" style="display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;">
+  <div class="card">
+    <div class="code">{{ code }}</div>
+    <div class="title">{% if code == 404 %}Page not found{% elif code == 403 %}Access denied{% elif code == 500 %}Server error{% else %}Something went wrong{% endif %}</div>
+    <div class="msg">{{ message }}</div>
+    <div class="links">
+      <a href="/" class="btn btn-primary">← Back to Vantage</a>
+      <a href="/generators" class="btn btn-secondary">Command Generators</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

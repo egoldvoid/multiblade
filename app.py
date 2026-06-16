@@ -330,6 +330,10 @@ def handle_too_large(_e):
 
 @app.errorhandler(HTTPException)
 def handle_http(e):
+    # Return HTML for browser page requests, JSON for API/XHR requests
+    if request.accept_mimetypes.best_match(["text/html", "application/json"]) == "text/html":
+        return render_template("error.html", code=e.code, message=e.description,
+                               active_page=""), e.code
     return jsonify({"error": f"{e.code}: {e.description}"}), e.code
 
 
@@ -348,14 +352,15 @@ def landing():
 @app.route("/platform")
 def platform_hub():
     stats = database.scan_stats()
-    return render_template("hub.html", stats=stats)
+    return render_template("hub.html", stats=stats, active_page="analyzer")
 
 
 @app.route("/generators")
 def generators():
     tools      = get_all_tools()
     categories = get_categories()
-    return render_template("generators.html", tools=tools, categories=categories)
+    return render_template("generators.html", tools=tools, categories=categories,
+                           active_page="generators")
 
 
 @app.route("/generators/workflows")
@@ -384,7 +389,8 @@ def hashid_tool():
 def generator_tool(slug):
     tool = get_tool(slug)
     if not tool:
-        return jsonify({"error": "Tool not found"}), 404
+        from flask import abort
+        abort(404)
     related = [t for t in get_all_tools()
                if t["category"] == tool["category"] and t["slug"] != slug][:4]
     install = get_install(slug)

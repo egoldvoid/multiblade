@@ -214,8 +214,8 @@ function renderShell(id) {
 
   if (state.b64[id]) {
     // base64-encode the inner payload, wrap in a bash -c 'echo ... | base64 -d | bash' style
-    try { out = btoa(unescape(encodeURIComponent(cmd))); } catch(e) { out = btoa(cmd); }
-    out = `echo ${out} | base64 -d | bash`;
+    try { out = btoa(String.fromCharCode(...new TextEncoder().encode(cmd))); } catch(e) { out = btoa(cmd); }
+    out = `echo '${out}' | base64 -d | bash`;
   }
   if (state.url[id]) {
     out = encodeURIComponent(out);
