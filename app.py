@@ -530,6 +530,23 @@ def api_cve_search():
     return jsonify({"total": raw.get("totalResults", 0), "results": results})
 
 
+# ── Standalone Tools (JWT, Subnet, Payloads) ─────────────────────────────────
+
+@app.route("/tools/jwt")
+def jwt_tool():
+    return render_template("jwt_tool.html", active_page="jwt")
+
+
+@app.route("/tools/subnet")
+def subnet_tool():
+    return render_template("subnet_tool.html", active_page="subnet")
+
+
+@app.route("/tools/payloads")
+def payloads_tool():
+    return render_template("payloads_tool.html", active_page="payloads")
+
+
 # ── Network Security Tools (Phase 12) ────────────────────────────────────────
 
 @app.route("/tools/netfilter")

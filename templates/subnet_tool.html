@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subnet Calculator — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;animation:d1 24s ease-in-out infinite alternate;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#6366f110,transparent 70%);bottom:-150px;right:-80px;animation:d2 28s ease-in-out infinite alternate;}
+    @keyframes d1{to{transform:translate(40px,30px) scale(1.05)}}
+    @keyframes d2{to{transform:translate(-30px,-40px) scale(1.08)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%);}
+
+    .main{position:relative;z-index:1;flex:1;min-width:0;padding:0 0 100px;margin-left:60px;}
+
+    /* ── Page header ── */
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 16px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:2px;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;}
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);}
+
+    /* ── Main layout ── */
+    .content{padding:16px 40px 0;}
+    @media(max-width:900px){.page-header{padding:16px;}.content{padding:12px 16px 0;}}
+
+    /* ── Input section ── */
+    .input-card{background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
+    .input-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+    .cidr-wrap{flex:1;position:relative;}
+    .cidr-input{
+      width:100%;background:var(--s2);border:1.5px solid var(--border);border-radius:10px;
+      padding:12px 40px 12px 16px;color:var(--text);
+      font-family:'Fira Code','Menlo',monospace;font-size:1rem;
+      outline:none;transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    .cidr-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    .cidr-input::placeholder{color:var(--text-faint);font-family:'Inter',sans-serif;font-size:0.88rem;}
+    .cidr-input.is-error{border-color:#f87171;box-shadow:0 0 0 3px #f8717120;}
+    .cidr-input.is-valid{border-color:#22d3a5;box-shadow:0 0 0 3px #22d3a520;}
+    .cidr-clear{
+      position:absolute;right:10px;top:50%;transform:translateY(-50%);
+      background:none;border:none;color:var(--text-faint);cursor:pointer;
+      font-size:1.1rem;line-height:1;padding:4px;border-radius:4px;
+      transition:color 0.12s;display:none;
+    }
+    .cidr-clear:hover{color:var(--text);}
+    .cidr-clear.visible{display:block;}
+
+    /* ── Preset chips ── */
+    .preset-chips{display:flex;flex-wrap:wrap;gap:7px;}
+    .chip{
+      padding:4px 12px;border-radius:999px;
+      border:1.5px solid var(--border);background:var(--s2);
+      color:var(--text-dim);font-size:0.72rem;font-family:'Fira Code',monospace;
+      cursor:pointer;transition:all 0.15s;white-space:nowrap;
+    }
+    .chip:hover{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    /* ── Error banner ── */
+    .error-banner{
+      display:none;background:#f8717118;border:1.5px solid #f8717150;
+      border-radius:10px;padding:10px 16px;
+      color:#f87171;font-size:0.82rem;margin-bottom:20px;
+      display:flex;align-items:center;gap:10px;
+    }
+    .error-banner.hidden{display:none!important;}
+    .error-icon{font-style:normal;flex-shrink:0;}
+
+    /* ── Results section ── */
+    .results-section{display:none;}
+    .results-section.visible{display:block;}
+
+    /* ── Results grid ── */
+    .result-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;margin-bottom:20px;
+    }
+    @media(max-width:800px){.result-grid{grid-template-columns:repeat(2,1fr);}}
+    @media(max-width:480px){.result-grid{grid-template-columns:1fr;}}
+
+    .result-card{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:10px;
+      padding:14px 16px;transition:border-color 0.15s;
+    }
+    .result-card:hover{border-color:var(--border-hi);}
+    .result-label{font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:4px;}
+    .result-value{font-family:'Fira Code','Menlo',monospace;font-size:0.88rem;color:var(--text);word-break:break-all;}
+    .result-value.large{font-size:1rem;color:var(--accent-hi);}
+    .result-card.accent-card{border-color:var(--accent-glow);background:var(--accent-glow);}
+    .result-card.accent-card .result-value{color:var(--accent-hi);}
+
+    /* ── Section header ── */
+    .section-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+    .section-title{font-size:0.62rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-faint);}
+    .section-line{flex:1;height:1px;background:var(--border);}
+
+    /* ── Nmap commands ── */
+    .cmd-block{background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;}
+    .cmd-row{
+      display:flex;align-items:center;gap:0;
+      border-bottom:1px solid var(--border);
+    }
+    .cmd-row:last-child{border-bottom:none;}
+    .cmd-label{
+      flex-shrink:0;padding:10px 14px;
+      font-size:0.64rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      color:var(--text-faint);border-right:1px solid var(--border);
+      min-width:110px;background:var(--s2);
+    }
+    .cmd-text{
+      flex:1;padding:10px 16px;font-family:'Fira Code','Menlo',monospace;font-size:0.8rem;
+      color:var(--accent-hi);word-break:break-all;
+    }
+    .cmd-copy{
+      flex-shrink:0;padding:6px 12px;margin:6px;
+      background:none;border:1px solid var(--border);border-radius:7px;
+      color:var(--text-faint);font-size:0.7rem;font-family:inherit;
+      cursor:pointer;transition:all 0.15s;white-space:nowrap;
+    }
+    .cmd-copy:hover{border-color:var(--accent);color:var(--accent-hi);}
+    .cmd-copy.copied{border-color:#22d3a5;color:#22d3a5;}
+
+    /* ── Subnet split ── */
+    .split-card{background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;}
+    .split-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--s2);}
+    .split-tab{
+      padding:9px 16px;font-size:0.72rem;font-weight:600;
+      color:var(--text-dim);cursor:pointer;border:none;background:none;
+      border-bottom:2px solid transparent;transition:all 0.15s;font-family:inherit;
+    }
+    .split-tab:hover{color:var(--text);}
+    .split-tab.active{color:var(--accent-hi);border-bottom-color:var(--accent);}
+
+    .split-table-wrap{overflow-x:auto;}
+    .split-table{
+      width:100%;border-collapse:collapse;font-size:0.78rem;
+    }
+    .split-table th{
+      padding:9px 16px;text-align:left;
+      font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      color:var(--text-faint);border-bottom:1px solid var(--border);
+      background:var(--s2);white-space:nowrap;
+    }
+    .split-table td{
+      padding:9px 16px;border-bottom:1px solid var(--border);
+      font-family:'Fira Code','Menlo',monospace;color:var(--text);
+    }
+    .split-table tr:last-child td{border-bottom:none;}
+    .split-table tr:hover td{background:var(--s2);}
+    .split-table td.idx{color:var(--text-faint);font-size:0.7rem;}
+    .split-table td.net{color:var(--accent-hi);}
+    .split-table td.count{color:#22d3a5;}
+    .split-more{padding:10px 16px;font-size:0.74rem;color:var(--text-faint);border-top:1px solid var(--border);background:var(--s2);}
+
+    /* ── Binary mask card (full-width) ── */
+    .binary-row{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:10px;
+      padding:14px 16px;margin-bottom:20px;
+    }
+    .binary-label{font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px;}
+    .binary-value{font-family:'Fira Code','Menlo',monospace;font-size:0.88rem;color:var(--text-dim);letter-spacing:0.05em;word-break:break-all;}
+    .binary-value .bit-1{color:var(--accent-hi);}
+    .binary-value .bit-0{color:var(--text-faint);}
+    .binary-value .bit-dot{color:var(--border-hi);}
+
+    ::-webkit-scrollbar{width:5px;height:5px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+  </style>
+</head>
+<body>
+<div class="bg-layer" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="grid-ov"></div>
+</div>
+
+{% include '_nav.html' %}
+
+<div class="main">
+
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/generators" class="back-link">← Generators</a>
+    </div>
+    <div class="page-title">Subnet Calculator</div>
+    <div class="page-sub">CIDR notation — network details, host ranges, subnet splits, and nmap commands</div>
+  </div>
+
+  <div class="content">
+
+    <!-- Input -->
+    <div class="input-card">
+      <div class="input-row">
+        <div class="cidr-wrap">
+          <input
+            class="cidr-input"
+            id="cidr-input"
+            type="text"
+            placeholder="Enter CIDR notation — e.g. 192.168.1.0/24"
+            autocomplete="off" autocorrect="off" spellcheck="false"
+            oninput="onCidrInput()"
+          />
+          <button class="cidr-clear" id="cidr-clear" onclick="clearCidr()" title="Clear">×</button>
+        </div>
+      </div>
+      <div class="preset-chips" id="preset-chips">
+        <span class="chip" onclick="setPreset('10.0.0.0/8')">10.0.0.0/8</span>
+        <span class="chip" onclick="setPreset('172.16.0.0/12')">172.16.0.0/12</span>
+        <span class="chip" onclick="setPreset('192.168.0.0/16')">192.168.0.0/16</span>
+        <span class="chip" onclick="setPreset('192.168.1.0/24')">192.168.1.0/24</span>
+        <span class="chip" onclick="setPreset('10.10.10.0/25')">10.10.10.0/25</span>
+        <span class="chip" onclick="setPreset('10.0.0.0/30')">10.0.0.0/30</span>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div class="error-banner hidden" id="error-banner">
+      <em class="error-icon">⚠</em>
+      <span id="error-msg">Invalid CIDR notation.</span>
+    </div>
+
+    <!-- Results -->
+    <div class="results-section" id="results-section">
+
+      <!-- Core result grid -->
+      <div class="result-grid" id="result-grid">
+        <div class="result-card accent-card">
+          <div class="result-label">Network Address</div>
+          <div class="result-value large" id="r-network">—</div>
+        </div>
+        <div class="result-card accent-card">
+          <div class="result-label">Broadcast Address</div>
+          <div class="result-value large" id="r-broadcast">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Subnet Mask</div>
+          <div class="result-value" id="r-mask">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Wildcard Mask</div>
+          <div class="result-value" id="r-wildcard">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">CIDR Prefix</div>
+          <div class="result-value" id="r-prefix">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Total Hosts</div>
+          <div class="result-value" id="r-total">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Usable Hosts</div>
+          <div class="result-value" id="r-usable">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">First Usable IP</div>
+          <div class="result-value" id="r-first">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Last Usable IP</div>
+          <div class="result-value" id="r-last">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">IP Class</div>
+          <div class="result-value" id="r-class">—</div>
+        </div>
+        <div class="result-card" style="grid-column:span 2">
+          <div class="result-label">IP Range</div>
+          <div class="result-value" id="r-range">—</div>
+        </div>
+      </div>
+
+      <!-- Binary mask -->
+      <div class="binary-row">
+        <div class="binary-label">Binary Subnet Mask</div>
+        <div class="binary-value" id="r-binary">—</div>
+      </div>
+
+      <!-- Nmap commands -->
+      <div class="section-hdr">
+        <span class="section-title">Nmap Scan Commands</span>
+        <div class="section-line"></div>
+      </div>
+      <div class="cmd-block" id="cmd-block">
+        <div class="cmd-row">
+          <span class="cmd-label">Host Discovery</span>
+          <span class="cmd-text" id="cmd-ping"></span>
+          <button class="cmd-copy" onclick="copyCmd('cmd-ping',this)">Copy</button>
+        </div>
+        <div class="cmd-row">
+          <span class="cmd-label">Service Scan</span>
+          <span class="cmd-text" id="cmd-service"></span>
+          <button class="cmd-copy" onclick="copyCmd('cmd-service',this)">Copy</button>
+        </div>
+      </div>
+
+      <!-- Subnet split -->
+      <div class="section-hdr">
+        <span class="section-title">Subnet Split</span>
+        <div class="section-line"></div>
+      </div>
+      <div class="split-card">
+        <div class="split-tabs" id="split-tabs">
+          <button class="split-tab active" data-prefix="25" onclick="setSplitTab(this,25)">/25</button>
+          <button class="split-tab" data-prefix="26" onclick="setSplitTab(this,26)">/26</button>
+          <button class="split-tab" data-prefix="27" onclick="setSplitTab(this,27)">/27</button>
+          <button class="split-tab" data-prefix="28" onclick="setSplitTab(this,28)">/28</button>
+        </div>
+        <div class="split-table-wrap">
+          <table class="split-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Network</th>
+                <th>Broadcast</th>
+                <th>Usable Hosts</th>
+                <th>Range</th>
+              </tr>
+            </thead>
+            <tbody id="split-tbody"></tbody>
+          </table>
+          <div class="split-more" id="split-more" style="display:none;"></div>
+        </div>
+      </div>
+
+    </div><!-- /results-section -->
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+'use strict';
+
+/* ─── Utilities ──────────────────────────────────────────────────── */
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function ipToInt(ip) {
+  const parts = ip.split('.').map(Number);
+  return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+}
+
+function intToIp(n) {
+  n = n >>> 0;
+  return [(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff].join('.');
+}
+
+function prefixToMask(prefix) {
+  if (prefix === 0) return 0;
+  return (0xffffffff << (32 - prefix)) >>> 0;
+}
+
+function validateIp(ip) {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return false;
+  return parts.every(p => {
+    const n = Number(p);
+    return /^\d+$/.test(p) && n >= 0 && n <= 255;
+  });
+}
+
+function parseCidr(raw) {
+  raw = (raw || '').trim();
+  const slash = raw.indexOf('/');
+  if (slash === -1) return null;
+  const ipStr = raw.slice(0, slash);
+  const prefStr = raw.slice(slash + 1);
+  if (!/^\d+$/.test(prefStr)) return null;
+  const prefix = parseInt(prefStr, 10);
+  if (prefix < 0 || prefix > 32) return null;
+  if (!validateIp(ipStr)) return null;
+  return { ipStr, prefix };
+}
+
+function calcSubnet(ipStr, prefix) {
+  const ipInt   = ipToInt(ipStr);
+  const maskInt = prefixToMask(prefix);
+  const netInt  = (ipInt & maskInt) >>> 0;
+  const bcastInt = (netInt | (~maskInt >>> 0)) >>> 0;
+  const total   = Math.pow(2, 32 - prefix);
+
+  let usable, firstInt, lastInt;
+  if (prefix === 32) {
+    usable = 1; firstInt = netInt; lastInt = netInt;
+  } else if (prefix === 31) {
+    usable = 2; firstInt = netInt; lastInt = bcastInt;
+  } else {
+    usable = total - 2;
+    firstInt = (netInt + 1) >>> 0;
+    lastInt  = (bcastInt - 1) >>> 0;
+  }
+
+  const network   = intToIp(netInt);
+  const broadcast = intToIp(bcastInt);
+  const mask      = intToIp(maskInt);
+  const wildcard  = intToIp((~maskInt) >>> 0);
+  const firstIp   = intToIp(firstInt);
+  const lastIp    = intToIp(lastInt);
+
+  // IP class
+  const firstOctet = netInt >>> 24;
+  let ipClass;
+  if      (firstOctet >= 1   && firstOctet <= 126) ipClass = 'Class A';
+  else if (firstOctet === 127)                      ipClass = 'Loopback';
+  else if (firstOctet >= 128 && firstOctet <= 191) ipClass = 'Class B';
+  else if (firstOctet >= 192 && firstOctet <= 223) ipClass = 'Class C';
+  else if (firstOctet >= 224 && firstOctet <= 239) ipClass = 'Class D (Multicast)';
+  else                                              ipClass = 'Class E (Reserved)';
+
+  // RFC1918 private
+  const isPrivate =
+    (firstOctet === 10) ||
+    (firstOctet === 172 && ((netInt >>> 16) & 0xff) >= 16 && ((netInt >>> 16) & 0xff) <= 31) ||
+    (firstOctet === 192 && ((netInt >>> 16) & 0xff) === 168);
+  if (isPrivate) ipClass += ' · Private';
+
+  // Binary mask
+  const maskOctets = maskInt.toString(2).padStart(32, '0').match(/.{8}/g);
+  const binaryMask = maskOctets.map(octet =>
+    octet.split('').map(b => `<span class="bit-${b}">${b}</span>`).join('')
+  ).join('<span class="bit-dot">.</span>');
+
+  return {
+    network, broadcast, mask, wildcard, prefix,
+    total, usable, firstIp, lastIp, ipClass,
+    binaryMask, netInt, bcastInt, maskInt, bcastStr: broadcast
+  };
+}
+
+/* ─── State ───────────────────────────────────────────────────────── */
+let currentResult = null;
+let activeSplitPrefix = 25;
+
+/* ─── Core render ─────────────────────────────────────────────────── */
+function renderResults(r) {
+  document.getElementById('r-network').textContent   = r.network;
+  document.getElementById('r-broadcast').textContent = r.broadcast;
+  document.getElementById('r-mask').textContent      = r.mask;
+  document.getElementById('r-wildcard').textContent  = r.wildcard;
+  document.getElementById('r-prefix').textContent    = '/' + r.prefix;
+  document.getElementById('r-total').textContent     = r.total.toLocaleString();
+  document.getElementById('r-usable').textContent    = r.usable.toLocaleString();
+  document.getElementById('r-first').textContent     = r.firstIp;
+  document.getElementById('r-last').textContent      = r.lastIp;
+  document.getElementById('r-class').textContent     = r.ipClass;
+  document.getElementById('r-range').textContent     = r.network + ' — ' + r.broadcast;
+  document.getElementById('r-binary').innerHTML      = r.binaryMask;
+
+  const cidr = r.network + '/' + r.prefix;
+  document.getElementById('cmd-ping').textContent    = 'nmap -sn ' + cidr;
+  document.getElementById('cmd-service').textContent = 'nmap -sV -p 22,80,443,445 ' + cidr;
+
+  renderSplit(r, activeSplitPrefix);
+
+  document.getElementById('results-section').classList.add('visible');
+  document.getElementById('error-banner').classList.add('hidden');
+}
+
+/* ─── Subnet split ─────────────────────────────────────────────────── */
+function renderSplit(r, newPrefix) {
+  if (!r) return;
+  activeSplitPrefix = newPrefix;
+
+  // Only split if target prefix is larger than current
+  const tbody  = document.getElementById('split-tbody');
+  const more   = document.getElementById('split-more');
+
+  if (newPrefix <= r.prefix) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--text-faint);padding:16px;">
+      The target prefix /${newPrefix} is not larger than the current /${r.prefix} — cannot split.
+    </td></tr>`;
+    more.style.display = 'none';
+    return;
+  }
+
+  const count    = Math.pow(2, newPrefix - r.prefix);
+  const subSize  = Math.pow(2, 32 - newPrefix);
+  const SHOW_MAX = 4;
+  const rows     = Math.min(count, SHOW_MAX);
+  const subMask  = prefixToMask(newPrefix);
+
+  let html = '';
+  for (let i = 0; i < rows; i++) {
+    const subNet    = (r.netInt + i * subSize) >>> 0;
+    const subBcast  = (subNet + subSize - 1) >>> 0;
+    const subFirst  = newPrefix < 32 ? (subNet + (newPrefix === 31 ? 0 : 1)) >>> 0 : subNet;
+    const subLast   = newPrefix < 32 ? (subBcast - (newPrefix === 31 ? 0 : 1)) >>> 0 : subBcast;
+    const usable    = newPrefix === 32 ? 1 : newPrefix === 31 ? 2 : subSize - 2;
+
+    html += `<tr>
+      <td class="idx">${i + 1}</td>
+      <td class="net">${esc(intToIp(subNet))}/${newPrefix}</td>
+      <td>${esc(intToIp(subBcast))}</td>
+      <td class="count">${usable.toLocaleString()}</td>
+      <td>${esc(intToIp(subFirst))} — ${esc(intToIp(subLast))}</td>
+    </tr>`;
+  }
+  tbody.innerHTML = html;
+
+  if (count > SHOW_MAX) {
+    more.textContent = `Showing first ${SHOW_MAX} of ${count.toLocaleString()} total /${newPrefix} subnets`;
+    more.style.display = 'block';
+  } else {
+    more.style.display = 'none';
+  }
+}
+
+function setSplitTab(btn, prefix) {
+  document.querySelectorAll('.split-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  if (currentResult) renderSplit(currentResult, prefix);
+}
+
+/* ─── Input handler ───────────────────────────────────────────────── */
+function onCidrInput() {
+  const val = document.getElementById('cidr-input').value;
+  const clearBtn = document.getElementById('cidr-clear');
+  clearBtn.classList.toggle('visible', val.length > 0);
+
+  if (!val.trim()) {
+    document.getElementById('cidr-input').className = 'cidr-input';
+    document.getElementById('error-banner').classList.add('hidden');
+    document.getElementById('results-section').classList.remove('visible');
+    currentResult = null;
+    return;
+  }
+
+  const parsed = parseCidr(val);
+  if (!parsed) {
+    document.getElementById('cidr-input').className = 'cidr-input is-error';
+    const banner = document.getElementById('error-banner');
+    banner.classList.remove('hidden');
+    document.getElementById('error-msg').textContent = 'Invalid CIDR — expected format: x.x.x.x/n (e.g. 192.168.1.0/24)';
+    document.getElementById('results-section').classList.remove('visible');
+    currentResult = null;
+    return;
+  }
+
+  document.getElementById('cidr-input').className = 'cidr-input is-valid';
+  try {
+    currentResult = calcSubnet(parsed.ipStr, parsed.prefix);
+    renderResults(currentResult);
+  } catch(e) {
+    document.getElementById('cidr-input').className = 'cidr-input is-error';
+    const banner = document.getElementById('error-banner');
+    banner.classList.remove('hidden');
+    document.getElementById('error-msg').textContent = 'Could not compute subnet: ' + e.message;
+    document.getElementById('results-section').classList.remove('visible');
+    currentResult = null;
+  }
+}
+
+function setPreset(cidr) {
+  document.getElementById('cidr-input').value = cidr;
+  onCidrInput();
+}
+
+function clearCidr() {
+  document.getElementById('cidr-input').value = '';
+  onCidrInput();
+  document.getElementById('cidr-input').focus();
+}
+
+/* ─── Copy command ────────────────────────────────────────────────── */
+function copyCmd(id, btn) {
+  const text = document.getElementById(id).textContent.trim();
+  if (!text) return;
+  navigator.clipboard?.writeText(text);
+  btn.textContent = 'Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+  if (typeof showToast === 'function') showToast('Copied to clipboard', 'success');
+}
+
+/* ─── Init: auto-load from URL hash or query ─────────────────────── */
+(function init() {
+  const search = new URLSearchParams(window.location.search);
+  const cidr   = search.get('cidr') || window.location.hash.replace('#', '');
+  if (cidr) {
+    document.getElementById('cidr-input').value = cidr;
+    onCidrInput();
+  }
+}());
+</script>
+</body>
+</html>

@@ -148,6 +148,21 @@ class TestPageRoutes:
     def test_curl(self, client):
         assert client.get("/curl").status_code == 200
 
+    def test_jwt_tool(self, client):
+        r = client.get("/tools/jwt")
+        assert r.status_code == 200
+        assert b"jwt" in r.data.lower()
+
+    def test_subnet_tool(self, client):
+        r = client.get("/tools/subnet")
+        assert r.status_code == 200
+        assert b"subnet" in r.data.lower()
+
+    def test_payloads_tool(self, client):
+        r = client.get("/tools/payloads")
+        assert r.status_code == 200
+        assert b"payload" in r.data.lower()
+
     def test_unknown_route(self, client):
         assert client.get("/nonexistent-page").status_code == 404
 
@@ -2222,3 +2237,66 @@ class TestPhase12bPages:
         from zip_analyzer.protocol_data import PROTOCOLS
         for p in PROTOCOLS:
             assert isinstance(p["tools"], list), f"{p['name']}.tools must be a list"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# JWT DECODER / SUBNET CALC / PAYLOAD LIBRARY
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestJwtTool:
+    def test_page_loads(self, client):
+        r = client.get("/tools/jwt")
+        assert r.status_code == 200
+
+    def test_has_decode_ui(self, client):
+        r = client.get("/tools/jwt")
+        assert b"decode" in r.data.lower() or b"jwt" in r.data.lower()
+
+    def test_flags_alg_none(self, client):
+        r = client.get("/tools/jwt")
+        assert b"alg" in r.data.lower() or b"none" in r.data.lower()
+
+    def test_shows_cracking_hint(self, client):
+        r = client.get("/tools/jwt")
+        assert b"hashcat" in r.data.lower() or b"crack" in r.data.lower()
+
+
+class TestSubnetTool:
+    def test_page_loads(self, client):
+        r = client.get("/tools/subnet")
+        assert r.status_code == 200
+
+    def test_has_cidr_input(self, client):
+        r = client.get("/tools/subnet")
+        assert b"cidr" in r.data.lower() or b"subnet" in r.data.lower()
+
+    def test_shows_network_fields(self, client):
+        r = client.get("/tools/subnet")
+        assert b"network" in r.data.lower()
+        assert b"broadcast" in r.data.lower()
+
+    def test_has_presets(self, client):
+        r = client.get("/tools/subnet")
+        assert b"192.168" in r.data or b"10.0" in r.data
+
+
+class TestPayloadsTool:
+    def test_page_loads(self, client):
+        r = client.get("/tools/payloads")
+        assert r.status_code == 200
+
+    def test_has_xss_category(self, client):
+        r = client.get("/tools/payloads")
+        assert b"xss" in r.data.lower()
+
+    def test_has_sqli_category(self, client):
+        r = client.get("/tools/payloads")
+        assert b"sql" in r.data.lower()
+
+    def test_has_rce_or_lfi(self, client):
+        r = client.get("/tools/payloads")
+        assert b"rce" in r.data.lower() or b"lfi" in r.data.lower()
+
+    def test_payloads_are_copyable(self, client):
+        r = client.get("/tools/payloads")
+        assert b"copy" in r.data.lower()
