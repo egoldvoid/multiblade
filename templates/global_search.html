@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Global Search — Multiblade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --danger:#ef4444;--ok:#22d3ee;
+      --radius:12px;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-150px;right:-80px;}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .main{position:relative;z-index:1;flex:1;min-width:0;padding-bottom:100px;}
+
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 16px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:4px;}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);margin-top:2px;}
+
+    /* Search bar */
+    .search-wrap{padding:0 40px 24px;max-width:800px;}
+    .search-box{
+      display:flex;align-items:center;gap:12px;
+      background:var(--s1);border:2px solid var(--border);border-radius:var(--radius);
+      padding:12px 18px;
+      transition:border-color 0.2s,box-shadow 0.2s;
+    }
+    .search-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    .search-icon{font-size:1.1rem;color:var(--text-faint);flex-shrink:0;}
+    .search-input{
+      flex:1;background:none;border:none;outline:none;
+      font-family:'Inter',sans-serif;font-size:1rem;color:var(--text);
+    }
+    .search-input::placeholder{color:var(--text-faint);}
+    .search-count{font-size:0.72rem;color:var(--text-faint);white-space:nowrap;flex-shrink:0;}
+
+    /* Filter chips */
+    .filter-row{display:flex;gap:6px;padding:0 40px 20px;flex-wrap:wrap;}
+    .fchip{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:4px 12px;border-radius:99px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;user-select:none;
+    }
+    .fchip:hover{border-color:var(--border-hi);color:var(--text);}
+    .fchip.active{color:var(--accent-hi);border-color:var(--accent);background:var(--accent-glow);}
+
+    /* Results */
+    .results-area{padding:0 40px;max-width:800px;}
+
+    .result-group{margin-bottom:24px;}
+    .group-header{font-size:0.65rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-faint);padding:0 0 8px;border-bottom:1px solid var(--border);margin-bottom:10px;}
+
+    .result-card{
+      display:flex;gap:14px;align-items:flex-start;
+      background:var(--s1);border:1.5px solid var(--border);border-radius:10px;
+      padding:12px 16px;margin-bottom:6px;
+      text-decoration:none;color:inherit;
+      transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    .result-card:hover{border-color:var(--accent);box-shadow:0 0 12px var(--accent-glow);}
+    .result-type-badge{
+      flex-shrink:0;
+      padding:2px 8px;border-radius:5px;
+      font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+      margin-top:2px;
+    }
+    .badge-tool{background:#6366f120;color:#818cf8;border:1px solid #6366f140;}
+    .badge-port{background:#22d3ee18;color:#22d3ee;border:1px solid #22d3ee30;}
+    .badge-protocol{background:#7c3aed18;color:#a78bfa;border:1px solid #7c3aed30;}
+    .badge-playbook{background:#f59e0b18;color:#fbbf24;border:1px solid #f59e0b30;}
+
+    .result-body{flex:1;min-width:0;}
+    .result-title{font-size:0.88rem;font-weight:600;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .result-sub{font-size:0.72rem;color:var(--accent-hi);margin-bottom:3px;}
+    .result-desc{font-size:0.75rem;color:var(--text-dim);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+    .result-arrow{flex-shrink:0;font-size:0.85rem;color:var(--text-faint);margin-top:2px;transition:color 0.15s,transform 0.15s;}
+    .result-card:hover .result-arrow{color:var(--accent-hi);transform:translateX(3px);}
+
+    /* States */
+    .state-hint{padding:60px 0;text-align:center;color:var(--text-faint);}
+    .state-hint .sh-icon{font-size:2.5rem;margin-bottom:12px;opacity:0.5;}
+    .state-hint .sh-title{font-size:0.95rem;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+    .state-hint .sh-sub{font-size:0.78rem;}
+
+    .spinner{display:none;width:18px;height:18px;border:2px solid var(--border-hi);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    @media(max-width:700px){
+      .search-wrap,.filter-row,.results-area,.page-header{padding-left:16px;padding-right:16px;}
+    }
+  </style>
+</head>
+<body>
+<div class="bg-layer">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="grid-ov"></div>
+</div>
+
+{% include '_nav.html' %}
+
+<main class="main page-with-nav">
+  <div class="page-header">
+    <div class="header-top">
+      <span style="font-size:1.4rem">⌕</span>
+      <div>
+        <div class="page-title">Global Search</div>
+        <div class="page-sub">Search tools, ports, protocols, and saved playbook commands</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-box">
+      <span class="search-icon">⌕</span>
+      <input type="text" class="search-input" id="search-input"
+             placeholder="nmap, port 443, kerberoast, PTH…"
+             autocomplete="off" spellcheck="false" autofocus />
+      <div class="spinner" id="spinner"></div>
+      <span class="search-count" id="search-count"></span>
+    </div>
+  </div>
+
+  <div class="filter-row" id="filter-row" style="display:none">
+    <span class="fchip active" data-type="">All</span>
+    <span class="fchip" data-type="tool">Tools</span>
+    <span class="fchip" data-type="port">Ports</span>
+    <span class="fchip" data-type="protocol">Protocols</span>
+    <span class="fchip" data-type="playbook">Playbook</span>
+  </div>
+
+  <div class="results-area" id="results-area">
+    <div class="state-hint" id="state-hint">
+      <div class="sh-icon">⌕</div>
+      <div class="sh-title">Start typing to search</div>
+      <div class="sh-sub">Tools, ports, protocols, playbook commands</div>
+    </div>
+  </div>
+</main>
+
+<script>
+const TYPE_LABELS = { tool:'Tools', port:'Ports', protocol:'Protocols', playbook:'Playbook' };
+const TYPE_ORDER  = ['tool', 'port', 'protocol', 'playbook'];
+
+let _allResults = [];
+let _activeType = '';
+let _debounce   = null;
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+document.getElementById('search-input').addEventListener('input', function() {
+  clearTimeout(_debounce);
+  const q = this.value.trim();
+  if (q.length < 2) {
+    _allResults = [];
+    renderState('idle');
+    return;
+  }
+  _debounce = setTimeout(() => doSearch(q), 220);
+});
+
+document.getElementById('filter-row').addEventListener('click', function(e) {
+  const chip = e.target.closest('[data-type]');
+  if (!chip) return;
+  document.querySelectorAll('#filter-row .fchip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  _activeType = chip.dataset.type;
+  renderResults();
+});
+
+function doSearch(q) {
+  const spinner = document.getElementById('spinner');
+  spinner.style.display = 'block';
+  fetch('/api/search?q=' + encodeURIComponent(q))
+    .then(r => r.json())
+    .then(data => {
+      spinner.style.display = 'none';
+      if (data.error) { renderState('short'); return; }
+      _allResults = data.results || [];
+      document.getElementById('filter-row').style.display = _allResults.length ? 'flex' : 'none';
+      document.getElementById('search-count').textContent =
+        _allResults.length ? _allResults.length + ' result' + (_allResults.length !== 1 ? 's' : '') : '';
+      renderResults();
+    })
+    .catch(() => { spinner.style.display = 'none'; renderState('error'); });
+}
+
+function renderResults() {
+  const area = document.getElementById('results-area');
+  const filtered = _activeType
+    ? _allResults.filter(r => r.type === _activeType)
+    : _allResults;
+
+  if (!filtered.length) {
+    area.innerHTML = '<div class="state-hint"><div class="sh-icon">∅</div><div class="sh-title">No results</div><div class="sh-sub">Try a different term or filter</div></div>';
+    return;
+  }
+
+  const grouped = {};
+  filtered.forEach(r => { (grouped[r.type] = grouped[r.type] || []).push(r); });
+
+  const order = _activeType ? [_activeType] : TYPE_ORDER.filter(t => grouped[t]);
+  let html = '';
+  order.forEach(type => {
+    const items = grouped[type] || [];
+    if (!items.length) return;
+    html += `<div class="result-group">
+      <div class="group-header">${escHtml(TYPE_LABELS[type] || type)} (${items.length})</div>`;
+    items.forEach(r => {
+      html += `<a class="result-card" href="${escHtml(r.url || '#')}">
+        <span class="result-type-badge badge-${escHtml(r.type)}">${escHtml(r.type)}</span>
+        <div class="result-body">
+          <div class="result-title">${escHtml(r.title)}</div>
+          ${r.sub ? `<div class="result-sub">${escHtml(r.sub)}</div>` : ''}
+          ${r.desc ? `<div class="result-desc">${escHtml(r.desc)}</div>` : ''}
+        </div>
+        <span class="result-arrow">→</span>
+      </a>`;
+    });
+    html += '</div>';
+  });
+  area.innerHTML = html;
+}
+
+function renderState(state) {
+  const area = document.getElementById('results-area');
+  document.getElementById('filter-row').style.display = 'none';
+  document.getElementById('search-count').textContent = '';
+  if (state === 'idle') {
+    area.innerHTML = '<div class="state-hint"><div class="sh-icon">⌕</div><div class="sh-title">Start typing to search</div><div class="sh-sub">Tools, ports, protocols, playbook commands</div></div>';
+  } else if (state === 'short') {
+    area.innerHTML = '<div class="state-hint"><div class="sh-icon">⌕</div><div class="sh-title">Keep typing…</div><div class="sh-sub">Need at least 2 characters</div></div>';
+  } else {
+    area.innerHTML = '<div class="state-hint"><div class="sh-icon">⚠</div><div class="sh-title">Search failed</div><div class="sh-sub">Check the server is running</div></div>';
+  }
+}
+</script>
+</body>
+</html>

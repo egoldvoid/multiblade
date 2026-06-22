@@ -2494,3 +2494,112 @@ class TestTlsApi:
     def test_link_local_blocked(self, client):
         r = client.get("/api/tls?domain=172.16.0.1")
         assert r.status_code == 400
+
+
+# ── Phase 15: Platform Intelligence ───────────────────────────────────────────
+
+class TestEngagementDashboard:
+    def test_page_loads(self, client):
+        r = client.get("/engagement")
+        assert r.status_code == 200
+
+    def test_has_dashboard_title(self, client):
+        r = client.get("/engagement")
+        assert b"Engagement Dashboard" in r.data or b"engagement" in r.data.lower()
+
+    def test_has_stat_cards(self, client):
+        r = client.get("/engagement")
+        assert b"stat-card" in r.data or b"Total Scans" in r.data or b"Engagements" in r.data
+
+    def test_has_playbook_link(self, client):
+        r = client.get("/engagement")
+        assert b"/playbook" in r.data
+
+    def test_has_search_link(self, client):
+        r = client.get("/engagement")
+        assert b"/search" in r.data
+
+    def test_empty_state_shown_with_no_engagements(self, client):
+        r = client.get("/engagement")
+        assert r.status_code == 200
+
+    def test_active_page_marker(self, client):
+        r = client.get("/engagement")
+        assert b'active_page' not in r.data or b'engagement' in r.data
+
+
+class TestGlobalSearch:
+    def test_page_loads(self, client):
+        r = client.get("/search")
+        assert r.status_code == 200
+
+    def test_has_search_input(self, client):
+        r = client.get("/search")
+        assert b"search-input" in r.data or b'type="text"' in r.data
+
+    def test_has_api_search_call(self, client):
+        r = client.get("/search")
+        assert b"/api/search" in r.data
+
+    def test_has_result_types_referenced(self, client):
+        r = client.get("/search")
+        assert b"tool" in r.data and b"port" in r.data
+
+
+class TestSearchApi:
+    def test_short_query_rejected(self, client):
+        r = client.get("/api/search?q=a")
+        assert r.status_code == 400
+        assert b"error" in r.data
+
+    def test_empty_query_rejected(self, client):
+        r = client.get("/api/search?q=")
+        assert r.status_code == 400
+
+    def test_valid_query_returns_json(self, client):
+        r = client.get("/api/search?q=nmap")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert "results" in data
+        assert "count" in data
+        assert "q" in data
+
+    def test_query_echoed_back(self, client):
+        r = client.get("/api/search?q=nmap")
+        data = r.get_json()
+        assert data["q"] == "nmap"
+
+    def test_tool_search_returns_tools(self, client):
+        r = client.get("/api/search?q=nmap")
+        data = r.get_json()
+        tools = [x for x in data["results"] if x["type"] == "tool"]
+        assert len(tools) > 0
+
+    def test_port_search_returns_port(self, client):
+        r = client.get("/api/search?q=443")
+        data = r.get_json()
+        ports = [x for x in data["results"] if x["type"] == "port"]
+        assert len(ports) > 0
+
+    def test_result_has_required_fields(self, client):
+        r = client.get("/api/search?q=nmap")
+        data = r.get_json()
+        for item in data["results"]:
+            assert "type" in item
+            assert "title" in item
+            assert "url" in item
+
+    def test_max_results_capped(self, client):
+        r = client.get("/api/search?q=s")
+        assert r.status_code == 400
+
+    def test_long_query_truncated_not_error(self, client):
+        q = "a" * 300
+        r = client.get("/api/search?q=" + q)
+        assert r.status_code in (200, 400)
+
+    def test_protocol_search(self, client):
+        r = client.get("/api/search?q=http")
+        data = r.get_json()
+        protocols = [x for x in data["results"] if x["type"] == "protocol"]
+        assert len(protocols) > 0

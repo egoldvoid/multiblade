@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Engagement Dashboard — Multiblade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --danger:#ef4444;--ok:#22d3ee;--warn:#f59e0b;
+      --radius:12px;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-150px;right:-80px;}
+    .blob-3{width:400px;height:400px;background:radial-gradient(circle,#0ea5e908,transparent 70%);top:40%;left:50%;}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .main{position:relative;z-index:1;flex:1;min-width:0;padding-bottom:100px;}
+
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 16px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:4px;}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);margin-top:2px;}
+
+    .header-actions{margin-left:auto;display:flex;gap:8px;align-items:center;}
+    .btn{padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--s2);color:var(--text-dim);font-family:inherit;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+    .btn:hover{border-color:var(--border-hi);color:var(--text);}
+    .btn.accent{background:var(--accent-glow);border-color:var(--accent);color:var(--accent-hi);}
+    .btn.accent:hover{background:#6366f122;border-color:var(--accent-hi);}
+
+    /* Stat cards */
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:8px 40px 24px;}
+    .stat-card{background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);padding:16px 20px;transition:border-color 0.2s;}
+    .stat-card:hover{border-color:var(--border-hi);}
+    .stat-label{font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px;}
+    .stat-value{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:var(--text);line-height:1;}
+    .stat-sub{font-size:0.72rem;color:var(--text-faint);margin-top:4px;}
+    .stat-card.danger .stat-value{color:var(--danger);}
+    .stat-card.ok .stat-value{color:var(--ok);}
+    .stat-card.accent .stat-value{color:var(--accent-hi);}
+    .stat-card.warn .stat-value{color:var(--warn);}
+
+    /* Engagement list */
+    .section{padding:0 40px;}
+    .section-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+    .section-title{font-size:0.72rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-faint);}
+    .section-line{flex:1;height:1px;background:var(--border);}
+
+    .eng-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;}
+    .eng-card{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:18px 20px;
+      display:flex;flex-direction:column;gap:10px;
+      transition:border-color 0.2s,box-shadow 0.2s;
+      text-decoration:none;color:inherit;
+    }
+    .eng-card:hover{border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow);}
+    .eng-card-top{display:flex;align-items:flex-start;gap:12px;}
+    .eng-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:3px;box-shadow:0 0 6px var(--accent);}
+    .eng-name{font-size:0.88rem;font-weight:700;color:var(--text);word-break:break-all;}
+    .eng-meta{display:flex;gap:14px;align-items:center;}
+    .eng-count{font-size:0.78rem;color:var(--text-dim);}
+    .eng-count strong{color:var(--accent-hi);}
+    .eng-arrow{margin-left:auto;font-size:0.85rem;color:var(--text-faint);transition:color 0.15s,transform 0.15s;}
+    .eng-card:hover .eng-arrow{color:var(--accent-hi);transform:translateX(3px);}
+
+    /* Empty state */
+    .empty-state{text-align:center;padding:80px 20px;}
+    .empty-icon{font-size:3rem;margin-bottom:16px;opacity:0.4;}
+    .empty-title{font-size:1rem;font-weight:600;color:var(--text-dim);margin-bottom:8px;}
+    .empty-sub{font-size:0.8rem;color:var(--text-faint);}
+    .empty-sub a{color:var(--accent-hi);text-decoration:none;}
+    .empty-sub a:hover{text-decoration:underline;}
+
+    /* Quick links */
+    .quick-links{display:flex;gap:8px;flex-wrap:wrap;padding:0 40px 24px;}
+    .ql{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:6px 14px;border-radius:8px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.75rem;font-weight:600;
+      text-decoration:none;transition:all 0.15s;
+    }
+    .ql:hover{border-color:var(--border-hi);color:var(--text);}
+
+    /* Scan timeline */
+    .timeline-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);}
+    .timeline-row:last-child{border-bottom:none;}
+    .tl-label{font-size:0.78rem;color:var(--text-dim);}
+    .tl-value{font-size:0.78rem;color:var(--text);font-family:'Fira Code',monospace;}
+
+    @media(max-width:900px){
+      .stats-grid{grid-template-columns:repeat(2,1fr);}
+      .section,.stats-grid,.quick-links,.page-header{padding-left:16px;padding-right:16px;}
+    }
+  </style>
+</head>
+<body>
+<div class="bg-layer">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="grid-ov"></div>
+</div>
+
+{% include '_nav.html' %}
+
+<main class="main page-with-nav">
+  <div class="page-header">
+    <div class="header-top">
+      <span style="font-size:1.4rem">📊</span>
+      <div>
+        <div class="page-title">Engagement Dashboard</div>
+        <div class="page-sub">Platform-wide activity summary across all engagements</div>
+      </div>
+      <div class="header-actions">
+        <a href="/search" class="btn accent">⌕ Global Search</a>
+        <a href="/playbook" class="btn">📒 All Playbooks</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stats-grid">
+    <div class="stat-card accent">
+      <div class="stat-label">Active Engagements</div>
+      <div class="stat-value">{{ engagements|length }}</div>
+      <div class="stat-sub">named workspaces</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Saved Commands</div>
+      <div class="stat-value">{{ entry_counts.values()|sum }}</div>
+      <div class="stat-sub">across all playbooks</div>
+    </div>
+    <div class="stat-card {% if stats.unsafe > 0 %}danger{% else %}ok{% endif %}">
+      <div class="stat-label">Malicious Files</div>
+      <div class="stat-value">{{ stats.unsafe }}</div>
+      <div class="stat-sub">of {{ stats.total }} scans total</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Scans</div>
+      <div class="stat-value">{{ stats.total }}</div>
+      <div class="stat-sub">{{ 'last: ' + stats.last_at[:16] if stats.last_at else 'none yet' }}</div>
+    </div>
+  </div>
+
+  <!-- Quick access -->
+  <div class="quick-links">
+    <a class="ql" href="/generators">⚙ Generators</a>
+    <a class="ql" href="/generators/revshells">🐚 Rev Shells</a>
+    <a class="ql" href="/generators/ad-auth">🔑 AD Lateral Movement</a>
+    <a class="ql" href="/reference/ports">⛵ Port Reference</a>
+    <a class="ql" href="/tools/ioc">🔍 IOC Toolkit</a>
+    <a class="ql" href="/mitre">🗺 MITRE ATT&CK</a>
+    <a class="ql" href="/reference/cve">🩸 CVE Lookup</a>
+    <a class="ql" href="/analyzer">🛡 File Analyzer</a>
+  </div>
+
+  <!-- Engagements -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Engagements</span>
+      <div class="section-line"></div>
+    </div>
+
+    {% if not engagements %}
+    <div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">No engagements yet</div>
+      <div class="empty-sub">Open any <a href="/generators">generator tool</a>, build a command, and click <strong>Save ↗</strong> with an engagement name.</div>
+    </div>
+    {% else %}
+    <div class="eng-grid">
+      {% for eng in engagements %}
+      <a class="eng-card" href="/playbook#{{ eng }}">
+        <div class="eng-card-top">
+          <div class="eng-dot"></div>
+          <div class="eng-name">{{ eng }}</div>
+        </div>
+        <div class="eng-meta">
+          <span class="eng-count"><strong>{{ entry_counts.get(eng, 0) }}</strong> command{{ 's' if entry_counts.get(eng, 0) != 1 else '' }}</span>
+          <span class="eng-arrow">→</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</main>
+</body>
+</html>

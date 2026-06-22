@@ -686,6 +686,99 @@ def api_tls():
         return jsonify({"error": str(e)}), 500
 
 
+# ── Platform Intelligence (Phase 15) ─────────────────────────────────────────
+
+@app.route("/engagement")
+def engagement_dashboard():
+    engagements  = database.get_engagement_names()
+    entries      = database.get_playbook_entries()
+    stats        = database.scan_stats()
+    # Group playbook entries by engagement, count per engagement
+    counts: dict = {}
+    for e in entries:
+        counts[e["engagement"]] = counts.get(e["engagement"], 0) + 1
+    return render_template("engagement_dashboard.html",
+                           engagements=engagements,
+                           entry_counts=counts,
+                           stats=stats,
+                           active_page="engagement")
+
+
+@app.route("/search")
+def global_search():
+    return render_template("global_search.html", active_page="search")
+
+
+@app.route("/api/search")
+def api_search():
+    q = request.args.get("q", "").strip()[:200]
+    if len(q) < 2:
+        return jsonify({"error": "Query too short"}), 400
+
+    results = []
+
+    # ── Tools ──────────────────────────────────────────────────────────────────
+    from zip_analyzer.tool_data import get_all_tools
+    q_lo = q.lower()
+    for tool in get_all_tools():
+        name  = tool.get("name", "")
+        cat   = tool.get("category", "")
+        desc  = tool.get("description", "")
+        if q_lo in name.lower() or q_lo in cat.lower() or q_lo in desc.lower():
+            results.append({
+                "type":  "tool",
+                "title": name,
+                "sub":   cat,
+                "desc":  desc[:120],
+                "url":   f"/generators/{tool.get('id', '')}",
+            })
+
+    # ── Ports ──────────────────────────────────────────────────────────────────
+    from zip_analyzer.port_data import PORTS
+    for p in PORTS:
+        pname = p.get("name", "")
+        pdesc = p.get("desc", "")
+        ptags = " ".join(p.get("tags", []))
+        if (q_lo in pname.lower() or q_lo in pdesc.lower()
+                or q_lo in ptags.lower() or q == str(p.get("port", ""))):
+            results.append({
+                "type":  "port",
+                "title": f"Port {p['port']} — {pname}",
+                "sub":   p.get("risk", ""),
+                "desc":  pdesc[:120],
+                "url":   f"/reference/ports",
+            })
+
+    # ── Protocols ──────────────────────────────────────────────────────────────
+    from zip_analyzer.protocol_data import PROTOCOLS
+    for p in PROTOCOLS:
+        if (q_lo in p.get("name","").lower() or q_lo in p.get("full","").lower()
+                or q_lo in p.get("desc","").lower()):
+            results.append({
+                "type":  "protocol",
+                "title": f"{p['name']} — {p['full']}",
+                "sub":   f"Layer {p['layer']} · {p.get('category','')}",
+                "desc":  p.get("desc","")[:120],
+                "url":   "/reference/protocols",
+            })
+
+    # ── Playbook entries ───────────────────────────────────────────────────────
+    for e in database.get_playbook_entries():
+        cmd  = e.get("command","")
+        tool = e.get("tool_name","")
+        eng  = e.get("engagement","")
+        if q_lo in cmd.lower() or q_lo in tool.lower() or q_lo in eng.lower():
+            results.append({
+                "type":  "playbook",
+                "title": tool or "Saved command",
+                "sub":   eng,
+                "desc":  (cmd[:120] + "…") if len(cmd) > 120 else cmd,
+                "url":   "/playbook",
+            })
+
+    return jsonify({"q": q, "count": len(results), "results": results[:100]})
+
+
 # ── Engagement / Playbooks ─────────────────────────────────────────────────────
 
 @app.route("/playbook")
