@@ -6,6 +6,29 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <script>(function(){var t=localStorage.getItem('vantage_theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+  <style>
+    :root[data-theme="light"] {
+      --bg:#f5f6fc;--s1:#ecedfa;--s2:#e4e6f5;--s3:#d8daf0;
+      --border:#c4c7e0;--border-hi:#9498c0;
+      --text:#1a1d35;--text-dim:#464b78;--text-faint:#858db8;
+      --accent:#5254cc;--accent-hi:#4347b8;--accent-glow:#6366f120;
+    }
+    [data-theme="light"] .blob-1 { background:radial-gradient(circle,#6366f108 0%,transparent 70%)!important; }
+    [data-theme="light"] .blob-2 { background:radial-gradient(circle,#7c3aed06 0%,transparent 70%)!important; }
+    [data-theme="light"] .blob-3 { background:radial-gradient(circle,#0ea5e906 0%,transparent 70%)!important; }
+    [data-theme="light"] .grid-ov { background-image:radial-gradient(circle,#6366f10a 1px,transparent 1px)!important; }
+
+    /* Theme toggle button */
+    .theme-toggle-btn {
+      position:fixed;top:20px;right:20px;z-index:100;
+      background:var(--s1);border:1.5px solid var(--border);border-radius:99px;
+      color:var(--text-dim);font-size:0.78rem;padding:6px 12px;
+      cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:6px;
+      font-family:'Inter',sans-serif;
+    }
+    .theme-toggle-btn:hover { border-color:var(--border-hi);color:var(--text); }
+  </style>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -187,6 +210,8 @@
 </head>
 <body>
 
+<button class="theme-toggle-btn" id="theme-btn-landing" onclick="(function(){var c=document.documentElement.getAttribute('data-theme')||'dark';var n=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('vantage_theme',n);var b=document.getElementById('theme-btn-landing');b.innerHTML=n==='light'?'&#9790; Dark':'&#9728; Light';})()">&#9728; Light</button>
+
 <div class="bg-layer" aria-hidden="true">
   <div class="blob blob-1"></div>
   <div class="blob blob-2"></div>
@@ -240,7 +265,7 @@
         <a href="/generators/revshells" class="feat-card theme-violet">
           <div class="card-head">
             <div class="card-icon-badge">🐚</div>
-            <div class="card-badges"><span class="badge badge-new">New</span></div>
+            <div class="card-badges"></div>
           </div>
           <div class="card-label-sm">Reverse Shell Generator</div>
           <div class="card-title">One-click reverse shells.</div>
@@ -267,7 +292,7 @@
         <a href="/tools/encode" class="feat-card theme-orange">
           <div class="card-head">
             <div class="card-icon-badge">🔄</div>
-            <div class="card-badges"><span class="badge badge-new">New</span></div>
+            <div class="card-badges"></div>
           </div>
           <div class="card-label-sm">Encoder / Decoder</div>
           <div class="card-title">Transform any payload.</div>
@@ -285,7 +310,7 @@
         <a href="/tools/hashid" class="feat-card theme-amber">
           <div class="card-head">
             <div class="card-icon-badge">#</div>
-            <div class="card-badges"><span class="badge badge-new">New</span></div>
+            <div class="card-badges"></div>
           </div>
           <div class="card-label-sm">Hash Identifier</div>
           <div class="card-title">Paste hash → crack it.</div>
@@ -356,7 +381,7 @@
         <a href="/reference/ports" class="feat-card theme-sky">
           <div class="card-head">
             <div class="card-icon-badge">⛵</div>
-            <div class="card-badges"><span class="badge badge-new">New</span></div>
+            <div class="card-badges"></div>
           </div>
           <div class="card-label-sm">Port Reference</div>
           <div class="card-title">Port → service → tool.</div>
@@ -367,7 +392,7 @@
         <a href="/reference/cve" class="feat-card theme-purple">
           <div class="card-head">
             <div class="card-icon-badge">🩸</div>
-            <div class="card-badges"><span class="badge badge-new">New</span></div>
+            <div class="card-badges"></div>
           </div>
           <div class="card-label-sm">CVE Lookup</div>
           <div class="card-title">Search exploits fast.</div>
@@ -378,7 +403,7 @@
         <a href="/reference/wordlists" class="feat-card theme-green">
           <div class="card-head">
             <div class="card-icon-badge">📖</div>
-            <div class="card-badges"><span class="badge badge-new">New</span></div>
+            <div class="card-badges"></div>
           </div>
           <div class="card-label-sm">Wordlist Browser</div>
           <div class="card-title">Right list, right tool.</div>
@@ -386,15 +411,16 @@
           <div class="card-cta">Browse wordlists →</div>
         </a>
 
-        <div class="feat-card theme-violet soon">
+        <a href="/mitre" class="feat-card theme-violet">
           <div class="card-head">
-            <div class="card-icon-badge">🛡</div>
-            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+            <div class="card-icon-badge">🗺</div>
+            <div class="card-badges"><span class="badge badge-live">14 tactics</span></div>
           </div>
           <div class="card-label-sm">MITRE ATT&amp;CK</div>
           <div class="card-title">Technique browser.</div>
           <div class="card-desc">Browse tactics and techniques, each mapped to the tools in Vantage that execute them.</div>
-        </div>
+          <div class="card-cta">Browse ATT&amp;CK →</div>
+        </a>
 
       </div>
     </div>
@@ -407,45 +433,49 @@
       </div>
       <div class="card-grid-4">
 
-        <div class="feat-card theme-indigo soon">
+        <a href="/playbook" class="feat-card theme-indigo">
           <div class="card-head">
-            <div class="card-icon-badge">📋</div>
-            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+            <div class="card-icon-badge">📒</div>
+            <div class="card-badges"><span class="badge badge-live">Live</span></div>
           </div>
           <div class="card-label-sm">Saved Playbooks</div>
           <div class="card-title">Bookmark your commands.</div>
           <div class="card-desc">Save generated commands per engagement — target, notes, full command history.</div>
-        </div>
+          <div class="card-cta">Open playbooks →</div>
+        </a>
 
-        <div class="feat-card theme-teal soon">
+        <a href="/generators" class="feat-card theme-teal">
           <div class="card-head">
             <div class="card-icon-badge">🎯</div>
-            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+            <div class="card-badges"><span class="badge badge-live">Built-in</span></div>
           </div>
           <div class="card-label-sm">Global Target</div>
           <div class="card-title">Set target once.</div>
-          <div class="card-desc">Pin an IP or domain at the top — auto-fills the target field across every generator.</div>
-        </div>
+          <div class="card-desc">Pin an IP or domain at the top of any generator — auto-fills the target field across every tool.</div>
+          <div class="card-cta">Open generators →</div>
+        </a>
 
-        <div class="feat-card theme-orange soon">
+        <a href="/generators?cat=Active+Directory" class="feat-card theme-orange">
           <div class="card-head">
             <div class="card-icon-badge">📊</div>
-            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+            <div class="card-badges"><span class="badge badge-live">9 tools</span></div>
           </div>
           <div class="card-label-sm">Active Directory</div>
           <div class="card-title">Windows attack toolkit.</div>
-          <div class="card-desc">BloodHound, CrackMapExec, Impacket, Kerbrute, evil-winrm — full AD attack chain generators.</div>
-        </div>
+          <div class="card-desc">BloodHound, netexec, Impacket, Kerbrute, evil-winrm — full AD attack chain generators.</div>
+          <div class="card-cta">Open AD tools →</div>
+        </a>
 
-        <div class="feat-card theme-pink soon">
+        <a href="/generators?cat=Exploitation" class="feat-card theme-pink">
           <div class="card-head">
             <div class="card-icon-badge">💥</div>
-            <div class="card-badges"><span class="badge badge-soon">Soon</span></div>
+            <div class="card-badges"><span class="badge badge-live">3 tools</span></div>
           </div>
           <div class="card-label-sm">Exploitation</div>
           <div class="card-title">searchsploit + MSF.</div>
-          <div class="card-desc">searchsploit, msfvenom payload builder, and sqlmap — exploitation generators in one place.</div>
-        </div>
+          <div class="card-desc">searchsploit, msfvenom payload builder, and msfconsole — exploitation generators in one place.</div>
+          <div class="card-cta">Open exploitation →</div>
+        </a>
 
       </div>
     </div>
@@ -453,18 +483,53 @@
   </div><!-- /sections -->
 
   <!-- Stat strip -->
-  <div class="stat-strip">
-    <div class="stat-item"><div class="stat-val">{{ tool_count }}</div><div class="stat-lbl">Tools</div></div>
+  <div class="stat-strip" id="stat-strip">
+    <div class="stat-item"><div class="stat-val" data-target="{{ tool_count }}" data-suffix="">0</div><div class="stat-lbl">Tools</div></div>
     <div class="stat-divider"></div>
-    <div class="stat-item"><div class="stat-val">{{ category_count }}</div><div class="stat-lbl">Categories</div></div>
+    <div class="stat-item"><div class="stat-val" data-target="{{ category_count }}" data-suffix="">0</div><div class="stat-lbl">Categories</div></div>
     <div class="stat-divider"></div>
-    <div class="stat-item"><div class="stat-val">20+</div><div class="stat-lbl">Scan Checks</div></div>
+    <div class="stat-item"><div class="stat-val" data-target="30" data-suffix="+">0</div><div class="stat-lbl">Scan Checks</div></div>
     <div class="stat-divider"></div>
-    <div class="stat-item"><div class="stat-val">10</div><div class="stat-lbl">Workflows</div></div>
+    <div class="stat-item"><div class="stat-val" data-target="10" data-suffix="">0</div><div class="stat-lbl">Workflows</div></div>
     <div class="stat-divider"></div>
-    <div class="stat-item"><div class="stat-val">25</div><div class="stat-lbl">YARA Rules</div></div>
+    <div class="stat-item"><div class="stat-val" data-target="25" data-suffix="">0</div><div class="stat-lbl">YARA Rules</div></div>
   </div>
 
 </div><!-- /page -->
+<script>
+(function(){
+  var theme = localStorage.getItem('vantage_theme') || 'dark';
+  var btn = document.getElementById('theme-btn-landing');
+  if (btn) btn.innerHTML = theme === 'light' ? '&#9790; Dark' : '&#9728; Light';
+
+  /* Animated stat counter */
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+  function countUp(el, target, suffix, duration) {
+    var start = null;
+    function step(ts) {
+      if (!start) start = ts;
+      var progress = Math.min((ts - start) / duration, 1);
+      el.textContent = Math.floor(easeOut(progress) * target) + (progress >= 1 ? suffix : '');
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  var observed = false;
+  var strip = document.getElementById('stat-strip');
+  if (strip && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(entries) {
+      if (entries[0].isIntersecting && !observed) {
+        observed = true;
+        strip.querySelectorAll('[data-target]').forEach(function(el, i) {
+          setTimeout(function() {
+            countUp(el, parseInt(el.dataset.target), el.dataset.suffix || '', 1100);
+          }, i * 80);
+        });
+      }
+    }, { threshold: 0.5 });
+    io.observe(strip);
+  }
+})();
+</script>
 </body>
 </html>

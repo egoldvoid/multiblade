@@ -6,8 +6,25 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <script>(function(){var t=localStorage.getItem('vantage_theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root[data-theme="light"] {
+      --bg:#f5f6fc;--s1:#ecedfa;--s2:#e4e6f5;--s3:#d8daf0;
+      --border:#c4c7e0;--border-hi:#9498c0;
+      --text:#1a1d35;--text-dim:#464b78;--text-faint:#858db8;
+      --accent:#5254cc;--accent-hi:#4347b8;--accent-glow:#6366f120;
+    }
+    [data-theme="light"] .blob-1 { background:radial-gradient(circle,#6366f108 0%,transparent 70%)!important; }
+    [data-theme="light"] .blob-2 { background:radial-gradient(circle,#7c3aed06 0%,transparent 70%)!important; }
+    [data-theme="light"] .grid-ov { background-image:radial-gradient(circle,#6366f10a 1px,transparent 1px)!important; }
+    [data-theme="light"] .back-link { color:#858db8; }
+    .toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+    .vt{background:#0d0f1c;border:1.5px solid #2d3260;border-radius:10px;padding:9px 14px;font-size:0.78rem;color:#dde1f5;transform:translateX(120%);opacity:0;transition:transform 0.3s cubic-bezier(0.16,1,0.3,1),opacity 0.25s;pointer-events:auto;max-width:280px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);}
+    .vt.show{transform:translateX(0);opacity:1;}
+    .vt.success{border-color:#22d3ee50;}
+    .vt-icon{font-style:normal;flex-shrink:0;}
+    [data-theme="light"] .vt{background:#f0f1f9;border-color:#c4c7e0;color:#1a1d35;}
     :root {
       --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
       --border:#1e2240;--border-hi:#2d3260;
@@ -129,6 +146,8 @@
     .tool-card:hover { border-color:var(--tc,var(--accent));transform:translateY(-2px);box-shadow:0 10px 36px -12px var(--tc,var(--accent))38; }
     .tool-card:hover::before { opacity:1; }
     .tool-card.hidden { display:none; }
+    .tool-card.kbd-focus { border-color:var(--tc,var(--accent));transform:translateY(-2px);box-shadow:0 0 0 2px var(--accent-glow),0 10px 36px -12px var(--tc,var(--accent))38;outline:none; }
+    .tool-card.kbd-focus::before { opacity:1; }
 
     /* Tier badge */
     .tier-badge {
@@ -185,8 +204,12 @@
       <div class="result-count" id="result-count"></div>
       <div class="kb-hint">
         <span><kbd>/</kbd> search</span>
+        <span><kbd>j</kbd><kbd>k</kbd> navigate</span>
+        <span><kbd>↵</kbd> open</span>
         <span><kbd>Esc</kbd> reset</span>
       </div>
+      <button id="gen-theme-btn" onclick="genToggleTheme()" title="Toggle dark / light mode"
+              style="background:var(--s1);border:1.5px solid var(--border);border-radius:99px;color:var(--text-dim);font-size:0.75rem;padding:5px 11px;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit;transition:all 0.15s;">☀ Light</button>
     </div>
     <div class="search-row">
       <div class="search-wrap">
@@ -320,11 +343,13 @@
     btn.addEventListener('click', e => {
       e.preventDefault();
       e.stopPropagation();
+      const adding = !saved.has(c.dataset.slug);
       if (saved.has(c.dataset.slug)) saved.delete(c.dataset.slug);
       else saved.add(c.dataset.slug);
       persistSaved();
       updateStars();
       if (activeCat === '__saved__') filter();
+      showToast(adding ? '★ Saved: ' + c.dataset.name : '☆ Removed: ' + c.dataset.name, adding ? 'success' : 'default');
     });
   });
 
@@ -359,20 +384,91 @@
     filter();
   }
 
+  /* j/k keyboard navigation */
+  let kbIdx = -1;
+
+  function getVisible() { return [...cards].filter(c => !c.classList.contains('hidden')); }
+
+  function kbMove(delta) {
+    const vis = getVisible();
+    if (!vis.length) return;
+    if (kbIdx >= 0 && kbIdx < vis.length) vis[kbIdx].classList.remove('kbd-focus');
+    kbIdx = Math.max(0, Math.min(vis.length - 1, kbIdx < 0 ? (delta > 0 ? 0 : vis.length - 1) : kbIdx + delta));
+    vis[kbIdx].classList.add('kbd-focus');
+    vis[kbIdx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  function kbClear() { getVisible().forEach(c => c.classList.remove('kbd-focus')); kbIdx = -1; }
+
   document.addEventListener('keydown', e => {
-    if (e.key === '/' && document.activeElement !== search) {
-      e.preventDefault(); search.focus();
+    const inInput = document.activeElement === search || document.activeElement.tagName === 'INPUT';
+    if (e.key === '/' && !inInput) {
+      e.preventDefault(); search.focus(); kbClear();
     } else if (e.key === 'Escape') {
+      if (kbIdx >= 0) { kbClear(); return; }
       if (search.value || activeCat || activeTier) {
         e.preventDefault(); resetFilters();
       } else if (document.activeElement === search) {
         search.blur();
       }
+    } else if (e.key === 'j' && !inInput) {
+      e.preventDefault(); kbMove(1);
+    } else if (e.key === 'k' && !inInput) {
+      e.preventDefault(); kbMove(-1);
+    } else if (e.key === 'Enter' && kbIdx >= 0 && !inInput) {
+      const vis = getVisible();
+      if (vis[kbIdx]) { kbClear(); vis[kbIdx].click(); }
     }
   });
 
+  search.addEventListener('input', () => kbClear());
+
   updateStars();
   filter();
+
+  /* Toast system */
+  function showToast(msg, type) {
+    type = type || 'default';
+    let container = document.getElementById('vantage-toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'vantage-toast-container';
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+    const icons = { success: '✓', error: '✕', default: 'ℹ' };
+    const t = document.createElement('div');
+    t.className = 'vt ' + type;
+    t.innerHTML = '<em class="vt-icon">' + (icons[type] || icons.default) + '</em>' + msg;
+    container.appendChild(t);
+    requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 380); }, 2500);
+  }
+
+  /* Theme toggle */
+  function genToggleTheme() {
+    const cur  = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('vantage_theme', next);
+    const btn = document.getElementById('gen-theme-btn');
+    if (btn) btn.textContent = next === 'light' ? '☾ Dark' : '☀ Light';
+  }
+
+  (function initThemeBtn() {
+    const t   = localStorage.getItem('vantage_theme') || 'dark';
+    const btn = document.getElementById('gen-theme-btn');
+    if (btn) btn.textContent = t === 'light' ? '☾ Dark' : '☀ Light';
+  })();
+
+  /* Auto-apply ?cat= from URL (e.g. from landing page deep links) */
+  (function applyCatParam() {
+    const params = new URLSearchParams(location.search);
+    const cat = params.get('cat');
+    if (!cat) return;
+    const chip = [...document.querySelectorAll('.cat-chip')].find(c => c.dataset.cat === cat);
+    if (chip) chip.click();
+  })();
 </script>
 </body>
 </html>

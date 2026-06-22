@@ -1,4 +1,44 @@
 <!-- Shared sidebar navigation — include in every inner page -->
+<script>(function(){var t=localStorage.getItem('vantage_theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+  /* ── Light mode overrides ── */
+  :root[data-theme="light"] {
+    --bg:#f5f6fc;--s1:#ecedfa;--s2:#e4e6f5;--s3:#d8daf0;
+    --border:#c4c7e0;--border-hi:#9498c0;
+    --text:#1a1d35;--text-dim:#464b78;--text-faint:#858db8;
+    --accent:#5254cc;--accent-hi:#4347b8;--accent-glow:#6366f120;
+    --high:#dc2626;--med:#d97706;--low:#0891b2;
+  }
+  [data-theme="light"] .app-nav { background:#f0f1f9; border-right-color:#c4c7e0; }
+  [data-theme="light"] .nav-brand { color:#1a1d35; }
+  [data-theme="light"] .nav-sub { color:#858db8; }
+  [data-theme="light"] .nav-section-label { color:#9498c0; }
+  [data-theme="light"] .nav-divider { background:#c4c7e0; }
+  [data-theme="light"] .nav-link { color:#464b78; }
+  [data-theme="light"] .nav-link:hover { color:#1a1d35; background:#e4e6f5; }
+  [data-theme="light"] .nav-link.active { color:#5254cc; background:#6366f114; border-left-color:#5254cc; }
+  [data-theme="light"] .nav-target-bar, [data-theme="light"] .nav-back, [data-theme="light"] .nav-theme-toggle { border-top-color:#c4c7e0; }
+  [data-theme="light"] .blob-1 { background:radial-gradient(circle,#6366f108 0%,transparent 70%)!important; }
+  [data-theme="light"] .blob-2 { background:radial-gradient(circle,#7c3aed06 0%,transparent 70%)!important; }
+  [data-theme="light"] .blob-3 { background:radial-gradient(circle,#0ea5e906 0%,transparent 70%)!important; }
+  [data-theme="light"] .grid-ov { background-image:radial-gradient(circle,#6366f10a 1px,transparent 1px)!important; }
+
+  /* ── Toast system ── */
+  .toast-container { position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none; }
+  .vt {
+    background:#0d0f1c;border:1.5px solid #2d3260;border-radius:10px;
+    padding:9px 14px;font-size:0.78rem;color:#dde1f5;font-family:'Inter',sans-serif;
+    transform:translateX(120%);opacity:0;
+    transition:transform 0.3s cubic-bezier(0.16,1,0.3,1),opacity 0.25s;
+    pointer-events:auto;max-width:280px;
+    display:flex;align-items:center;gap:8px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.4);
+  }
+  .vt.show { transform:translateX(0);opacity:1; }
+  .vt.success { border-color:#22d3ee50; }
+  .vt-icon { font-style:normal;flex-shrink:0;font-size:0.85rem; }
+  [data-theme="light"] .vt { background:#f0f1f9;border-color:#c4c7e0;color:#1a1d35;box-shadow:0 4px 20px rgba(0,0,0,0.1); }
+</style>
 <style>
   .app-nav {
     position: fixed; left: 0; top: 0; bottom: 0;
@@ -215,6 +255,14 @@
     </a>
   </div>
 
+  <div class="nav-theme-toggle" style="border-top:1px solid #1e2240;flex-shrink:0;overflow:hidden;">
+    <button class="nav-link" id="theme-btn" onclick="toggleTheme()" title="Toggle dark / light mode"
+            style="background:none;border:none;cursor:pointer;width:100%;text-align:left;">
+      <span class="nav-icon" id="theme-icon">☀</span>
+      <span class="nav-label" id="theme-label">Light mode</span>
+    </button>
+  </div>
+
   <div class="nav-target-bar" id="nav-target-bar" title="Active target">
     <div class="nav-target-inner">
       <div class="nav-target-dot"></div>
@@ -238,5 +286,40 @@
     if (bar) { bar.classList.add('has-target'); bar.title = 'Active target: ' + t; }
     if (val) val.textContent = t;
   }
+  var theme = localStorage.getItem('vantage_theme') || 'dark';
+  var icon  = document.getElementById('theme-icon');
+  var lbl   = document.getElementById('theme-label');
+  if (theme === 'light') { if (icon) icon.textContent = '☾'; if (lbl) lbl.textContent = 'Dark mode'; }
+  else { if (icon) icon.textContent = '☀'; if (lbl) lbl.textContent = 'Light mode'; }
 })();
+
+function toggleTheme() {
+  var cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  var next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('vantage_theme', next);
+  var icon = document.getElementById('theme-icon');
+  var lbl  = document.getElementById('theme-label');
+  if (next === 'light') { if (icon) icon.textContent = '☾'; if (lbl) lbl.textContent = 'Dark mode'; }
+  else { if (icon) icon.textContent = '☀'; if (lbl) lbl.textContent = 'Light mode'; }
+}
+
+/* ── Global toast system ── */
+window.showToast = function(msg, type) {
+  type = type || 'default';
+  var container = document.getElementById('vantage-toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'vantage-toast-container';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+  var icons = { success: '✓', error: '✕', default: 'ℹ' };
+  var t = document.createElement('div');
+  t.className = 'vt ' + type;
+  t.innerHTML = '<em class="vt-icon">' + (icons[type] || icons.default) + '</em>' + msg;
+  container.appendChild(t);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ t.classList.add('show'); }); });
+  setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 380); }, 2500);
+};
 </script>

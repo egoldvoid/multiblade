@@ -672,11 +672,13 @@ function copyInstall(id, btn) {
 function copyCmd() {
   navigator.clipboard?.writeText(document.getElementById('cmd-output').value);
   flash();
+  if (typeof showToast === 'function') showToast('Command copied', 'success');
 }
 function copyOneLiner() {
   const text = document.getElementById('cmd-output').value.replace(/ \\\n\s*/g, ' ');
   navigator.clipboard?.writeText(text);
   flash();
+  if (typeof showToast === 'function') showToast('One-liner copied', 'success');
 }
 function flash() {
   const el = document.getElementById('copy-ok');
