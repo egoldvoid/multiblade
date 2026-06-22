@@ -2378,3 +2378,99 @@ class TestC2Reference:
     def test_has_malleable_or_profile(self, client):
         r = client.get("/reference/c2")
         assert b"malleable" in r.data.lower() or b"profile" in r.data.lower()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 14 — DEFENSIVE TOOLING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestLogParseTool:
+    def test_page_loads(self, client):
+        r = client.get("/tools/logparse")
+        assert r.status_code == 200
+
+    def test_has_paste_area(self, client):
+        r = client.get("/tools/logparse")
+        assert b"paste" in r.data.lower() or b"textarea" in r.data.lower()
+
+    def test_has_log_format_options(self, client):
+        r = client.get("/tools/logparse")
+        assert b"apache" in r.data.lower() or b"nginx" in r.data.lower()
+
+    def test_has_auth_log_option(self, client):
+        r = client.get("/tools/logparse")
+        assert b"auth" in r.data.lower() or b"syslog" in r.data.lower()
+
+    def test_highlights_scanners(self, client):
+        r = client.get("/tools/logparse")
+        assert b"scan" in r.data.lower() or b"nikto" in r.data.lower() or b"sqlmap" in r.data.lower()
+
+
+class TestIocTool:
+    def test_page_loads(self, client):
+        r = client.get("/tools/ioc")
+        assert r.status_code == 200
+
+    def test_has_defang_section(self, client):
+        r = client.get("/tools/ioc")
+        assert b"defang" in r.data.lower()
+
+    def test_has_extractor(self, client):
+        r = client.get("/tools/ioc")
+        assert b"extract" in r.data.lower()
+
+    def test_has_ip_domain_hash(self, client):
+        r = client.get("/tools/ioc")
+        text = r.data.lower()
+        assert b"ip" in text and (b"domain" in text or b"hash" in text)
+
+    def test_has_copy_buttons(self, client):
+        r = client.get("/tools/ioc")
+        assert b"copy" in r.data.lower()
+
+
+class TestTlsTool:
+    def test_page_loads(self, client):
+        r = client.get("/tools/tls")
+        assert r.status_code == 200
+
+    def test_has_domain_input(self, client):
+        r = client.get("/tools/tls")
+        assert b"domain" in r.data.lower()
+
+    def test_has_cert_fields(self, client):
+        r = client.get("/tools/tls")
+        text = r.data.lower()
+        assert b"expire" in text or b"san" in text or b"issuer" in text
+
+    def test_has_cipher_info(self, client):
+        r = client.get("/tools/tls")
+        assert b"cipher" in r.data.lower() or b"tls" in r.data.lower()
+
+
+class TestTlsApi:
+    def test_missing_domain_returns_400(self, client):
+        r = client.get("/api/tls")
+        assert r.status_code == 400
+
+    def test_invalid_domain_returns_400(self, client):
+        r = client.get("/api/tls?domain=../../etc/passwd")
+        assert r.status_code == 400
+
+    def test_invalid_domain_dotdot(self, client):
+        r = client.get("/api/tls?domain=foo..bar")
+        assert r.status_code == 400
+
+    def test_valid_domain_attempts_connection(self, client, monkeypatch):
+        import socket
+        def fake_connect(addr, timeout=None):
+            raise socket.timeout("mocked")
+        monkeypatch.setattr(socket, "create_connection", fake_connect)
+        r = client.get("/api/tls?domain=example.com")
+        assert r.status_code == 504
+
+    def test_returns_json(self, client, monkeypatch):
+        import socket
+        monkeypatch.setattr(socket, "create_connection", lambda *a, **kw: (_ for _ in ()).throw(OSError("mock")))
+        r = client.get("/api/tls?domain=example.com")
+        assert r.content_type.startswith("application/json")

@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IOC Toolkit — Multiblade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;--radius-sm:7px;
+      --green:#22d3a5;--red:#f87171;--amber:#f59e0b;--cyan:#22d3ee;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+
+    /* ── Background ── */
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;animation:d1 24s ease-in-out infinite alternate;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#6366f110,transparent 70%);bottom:-150px;right:-80px;animation:d2 28s ease-in-out infinite alternate;}
+    @keyframes d1{to{transform:translate(40px,30px) scale(1.05)}}
+    @keyframes d2{to{transform:translate(-30px,-40px) scale(1.08)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%);}
+
+    /* ── Layout ── */
+    .main{position:relative;z-index:1;flex:1;min-width:0;padding:0 0 100px;margin-left:60px;}
+
+    /* ── Page header ── */
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 82%,transparent);padding:24px 40px 16px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:6px;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;}
+    .back-link:hover{color:var(--text-dim);}
+    .header-badge{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:3px 10px;border-radius:999px;
+      background:var(--accent-glow);border:1px solid #6366f140;
+      font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent-hi);
+    }
+    .page-title{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.8rem;color:var(--text-dim);margin-top:2px;}
+    .client-side-note{
+      display:inline-flex;align-items:center;gap:5px;margin-top:6px;
+      font-size:0.68rem;color:var(--green);opacity:0.8;
+    }
+    .client-side-note::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);}
+
+    /* ── Content wrapper ── */
+    .content{padding:8px 40px 0;}
+    @media(max-width:900px){.page-header{padding:16px;}.content{padding:8px 16px 0;}}
+
+    /* ── Tab bar ── */
+    .tab-bar{
+      display:flex;gap:2px;
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+      padding:4px;margin-bottom:24px;max-width:600px;
+    }
+    .tab-btn{
+      flex:1;padding:8px 16px;border:none;background:transparent;
+      font-family:'Inter',sans-serif;font-size:0.8rem;font-weight:600;
+      color:var(--text-dim);cursor:pointer;border-radius:9px;
+      transition:background 0.15s,color 0.15s;white-space:nowrap;
+    }
+    .tab-btn:hover:not(.active){color:var(--text);background:var(--s2);}
+    .tab-btn.active{background:var(--s2);color:var(--text);border:1px solid var(--border-hi);}
+    .tab-btn .tab-icon{margin-right:6px;}
+
+    /* ── Tab panels ── */
+    .tab-panel{display:none;animation:fade-in 0.2s ease;}
+    .tab-panel.active{display:block;}
+    @keyframes fade-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+    /* ════════════════════════════════
+       TAB 1: DEFANGER
+    ════════════════════════════════ */
+    .defang-layout{display:flex;flex-direction:column;gap:16px;}
+
+    .defang-btns{
+      display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+      padding:14px 18px;
+    }
+    .defang-btns .btn-group{display:flex;gap:6px;flex:1;flex-wrap:wrap;}
+    .defang-btns .btn-sep{width:1px;background:var(--border);align-self:stretch;margin:0 4px;}
+
+    .btn-primary{
+      padding:8px 18px;background:var(--accent);color:#fff;
+      font-family:inherit;font-size:0.82rem;font-weight:600;
+      border:none;border-radius:var(--radius-sm);cursor:pointer;
+      box-shadow:0 2px 12px var(--accent-glow);
+      transition:opacity 0.15s,transform 0.15s;
+    }
+    .btn-primary:hover{opacity:0.88;transform:translateY(-1px);}
+    .btn-secondary{
+      padding:8px 16px;background:var(--s2);color:var(--text-dim);
+      font-family:inherit;font-size:0.82rem;font-weight:500;
+      border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;
+      transition:border-color 0.15s,color 0.15s,background 0.15s;
+    }
+    .btn-secondary:hover{border-color:var(--border-hi);color:var(--text);background:var(--s3);}
+    .btn-ghost{
+      padding:8px 14px;background:transparent;color:var(--text-faint);
+      font-family:inherit;font-size:0.78rem;font-weight:500;
+      border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;
+      transition:border-color 0.15s,color 0.15s;
+    }
+    .btn-ghost:hover{border-color:var(--border-hi);color:var(--text-dim);}
+
+    .detect-badge{
+      font-size:0.72rem;padding:4px 10px;border-radius:999px;
+      border:1px solid;font-weight:600;letter-spacing:0.06em;
+      transition:all 0.2s;
+    }
+    .detect-badge.defanged{background:#22d3a512;border-color:#22d3a540;color:var(--green);}
+    .detect-badge.refanged{background:#f59e0b12;border-color:#f59e0b40;color:var(--amber);}
+    .detect-badge.mixed{background:#818cf812;border-color:#818cf840;color:var(--accent-hi);}
+    .detect-badge.empty{background:var(--s2);border-color:var(--border);color:var(--text-faint);}
+
+    .defang-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    @media(max-width:780px){.defang-cols{grid-template-columns:1fr;}}
+
+    .io-col{display:flex;flex-direction:column;gap:8px;}
+    .io-label{
+      font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
+      color:var(--text-faint);display:flex;align-items:center;gap:8px;
+    }
+    .io-label-count{
+      font-size:0.65rem;color:var(--accent-hi);background:var(--accent-glow);
+      padding:1px 7px;border-radius:4px;font-weight:600;
+    }
+    .io-textarea{
+      width:100%;min-height:280px;
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:14px 16px;color:var(--text);
+      font-family:'Fira Code','Menlo',monospace;font-size:0.8rem;line-height:1.7;
+      resize:vertical;outline:none;tab-size:2;
+      transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    .io-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    .io-textarea::placeholder{color:var(--text-faint);font-family:'Inter',sans-serif;font-size:0.8rem;}
+    .io-textarea.output-ta{color:var(--green);cursor:default;}
+
+    .copy-row{display:flex;align-items:center;gap:8px;}
+    .copy-flash{font-size:0.72rem;color:var(--green);opacity:0;transition:opacity 0.3s;}
+
+    /* ════════════════════════════════
+       TAB 2: EXTRACTOR
+    ════════════════════════════════ */
+    .extract-layout{display:flex;flex-direction:column;gap:16px;}
+
+    .extract-input-card{
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+      padding:16px;
+    }
+    .extract-textarea{
+      width:100%;min-height:160px;
+      background:var(--s2);border:1.5px solid var(--border);border-radius:var(--radius-sm);
+      padding:12px 14px;color:var(--text);
+      font-family:'Fira Code','Menlo',monospace;font-size:0.78rem;line-height:1.6;
+      resize:vertical;outline:none;
+      transition:border-color 0.15s,box-shadow 0.15s;margin-bottom:12px;
+    }
+    .extract-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    .extract-textarea::placeholder{color:var(--text-faint);font-family:'Inter',sans-serif;font-size:0.8rem;}
+
+    .extract-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .extract-stats{margin-left:auto;font-size:0.72rem;color:var(--text-dim);}
+    .extract-stats strong{color:var(--text);}
+
+    .extract-results{display:flex;flex-direction:column;gap:8px;}
+
+    .extract-empty{
+      text-align:center;padding:60px 20px;
+      color:var(--text-faint);font-size:0.85rem;
+    }
+    .extract-empty-icon{font-size:2.5rem;margin-bottom:12px;opacity:0.4;}
+
+    .export-bar{
+      display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:wrap;
+      padding:10px 0 4px;
+      border-top:1px solid var(--border);margin-top:4px;
+    }
+    .export-bar-label{font-size:0.72rem;color:var(--text-faint);margin-right:4px;}
+
+    /* IOC category collapsible */
+    .ioc-category{
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+      overflow:hidden;transition:border-color 0.15s;
+    }
+    .ioc-category:hover{border-color:var(--border-hi);}
+    .ioc-cat-header{
+      display:flex;align-items:center;gap:10px;
+      padding:12px 16px;cursor:pointer;user-select:none;
+      transition:background 0.12s;
+    }
+    .ioc-cat-header:hover{background:var(--s2);}
+    .ioc-cat-icon{font-size:0.9rem;flex-shrink:0;width:20px;text-align:center;}
+    .ioc-cat-name{font-size:0.78rem;font-weight:700;letter-spacing:0.06em;flex:1;}
+    .ioc-cat-count{
+      font-size:0.68rem;font-weight:700;
+      padding:2px 8px;border-radius:999px;
+      background:var(--s3);border:1px solid var(--border-hi);
+      color:var(--text-dim);font-family:'Fira Code',monospace;
+    }
+    .ioc-cat-copy-btn{
+      background:none;border:1px solid var(--border);border-radius:6px;
+      padding:3px 10px;font-family:inherit;font-size:0.68rem;font-weight:600;
+      color:var(--text-faint);cursor:pointer;transition:all 0.15s;flex-shrink:0;
+    }
+    .ioc-cat-copy-btn:hover{border-color:var(--accent);color:var(--accent-hi);}
+    .ioc-cat-chev{font-size:0.6rem;color:var(--text-faint);transition:transform 0.2s;flex-shrink:0;}
+    .ioc-category.open .ioc-cat-chev{transform:rotate(180deg);}
+
+    .ioc-cat-body{display:none;padding:4px 16px 14px;border-top:1px solid var(--border);}
+    .ioc-category.open .ioc-cat-body{display:block;}
+
+    .ioc-chips{display:flex;flex-wrap:wrap;gap:6px;padding-top:10px;}
+    .ioc-chip{
+      display:inline-flex;align-items:center;gap:6px;
+      background:var(--s2);border:1px solid var(--border);border-radius:6px;
+      padding:3px 4px 3px 10px;
+      font-family:'Fira Code','Menlo',monospace;font-size:0.72rem;color:var(--text-dim);
+      max-width:100%;word-break:break-all;
+      transition:border-color 0.12s,background 0.12s;
+    }
+    .ioc-chip:hover{border-color:var(--border-hi);background:var(--s3);color:var(--text);}
+    .ioc-chip-val{flex:1;min-width:0;}
+    .ioc-chip-copy{
+      background:none;border:none;cursor:pointer;color:var(--text-faint);
+      font-size:0.8rem;padding:2px 4px;border-radius:4px;flex-shrink:0;
+      line-height:1;transition:color 0.12s,background 0.12s;
+    }
+    .ioc-chip-copy:hover{color:var(--text);background:var(--border);}
+    .ioc-chip-copy.copied{color:var(--green);}
+
+    /* Category accent colors */
+    .cat-ipv4   .ioc-cat-name { color:#f87171; }
+    .cat-ipv6   .ioc-cat-name { color:#fb923c; }
+    .cat-domain .ioc-cat-name { color:#fbbf24; }
+    .cat-url    .ioc-cat-name { color:#a3e635; }
+    .cat-md5    .ioc-cat-name { color:#34d399; }
+    .cat-sha1   .ioc-cat-name { color:#22d3ee; }
+    .cat-sha256 .ioc-cat-name { color:#818cf8; }
+    .cat-email  .ioc-cat-name { color:#e879f9; }
+    .cat-cve    .ioc-cat-name { color:#f43f5e; }
+    .cat-mitre  .ioc-cat-name { color:#f59e0b; }
+
+    /* ════════════════════════════════
+       TAB 3: ENRICHMENT
+    ════════════════════════════════ */
+    .enrich-layout{display:flex;flex-direction:column;gap:16px;}
+
+    .enrich-input-card{
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+      padding:20px;
+    }
+    .enrich-input-row{display:flex;gap:10px;align-items:stretch;margin-bottom:12px;}
+    .enrich-input{
+      flex:1;background:var(--s2);border:1.5px solid var(--border);border-radius:var(--radius-sm);
+      padding:12px 16px;color:var(--text);
+      font-family:'Fira Code','Menlo',monospace;font-size:0.88rem;
+      outline:none;transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    .enrich-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    .enrich-input::placeholder{color:var(--text-faint);font-family:'Inter',sans-serif;font-size:0.82rem;}
+
+    .enrich-type-badge{
+      display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+      font-size:0.75rem;color:var(--text-dim);
+    }
+    .type-pill{
+      padding:3px 12px;border-radius:999px;font-weight:700;font-size:0.7rem;letter-spacing:0.08em;
+      border:1px solid;
+    }
+    .type-md5    { background:#34d39912;border-color:#34d39940;color:#34d399; }
+    .type-sha1   { background:#22d3ee12;border-color:#22d3ee40;color:#22d3ee; }
+    .type-sha256 { background:#818cf812;border-color:#818cf840;color:#818cf8; }
+    .type-ip     { background:#f8717112;border-color:#f8717140;color:#f87171; }
+    .type-domain { background:#fbbf2412;border-color:#fbbf2440;color:#fbbf24; }
+    .type-url    { background:#a3e63512;border-color:#a3e63540;color:#a3e635; }
+    .type-unknown{ background:var(--s2);border-color:var(--border);color:var(--text-faint); }
+
+    .enrich-empty{
+      text-align:center;padding:60px 20px;
+      color:var(--text-faint);font-size:0.85rem;
+    }
+    .enrich-empty-icon{font-size:2.5rem;margin-bottom:12px;opacity:0.4;}
+
+    .enrich-grid{
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+      gap:10px;
+    }
+
+    .enrich-card{
+      background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+      padding:16px;display:flex;align-items:flex-start;gap:12px;
+      transition:border-color 0.15s,background 0.15s,transform 0.15s;
+    }
+    .enrich-card:hover{border-color:var(--border-hi);background:var(--s2);transform:translateY(-1px);}
+
+    .enrich-card-icon{
+      font-size:1.4rem;flex-shrink:0;width:36px;height:36px;
+      display:grid;place-items:center;
+      background:var(--s2);border:1px solid var(--border);border-radius:8px;
+    }
+    .enrich-card-body{flex:1;min-width:0;}
+    .enrich-card-name{font-size:0.82rem;font-weight:700;margin-bottom:2px;}
+    .enrich-card-desc{font-size:0.71rem;color:var(--text-dim);line-height:1.4;margin-bottom:8px;}
+    .enrich-card-open{
+      display:inline-flex;align-items:center;gap:4px;
+      padding:5px 12px;border-radius:var(--radius-sm);
+      background:var(--accent);color:#fff;
+      font-family:inherit;font-size:0.72rem;font-weight:600;
+      text-decoration:none;border:none;cursor:pointer;
+      transition:opacity 0.15s,transform 0.1s;
+    }
+    .enrich-card-open:hover{opacity:0.85;transform:translateY(-1px);}
+
+    .enrich-section-hdr{
+      display:flex;align-items:center;gap:10px;
+      font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
+      color:var(--text-faint);margin-top:4px;margin-bottom:8px;
+    }
+    .enrich-section-line{flex:1;height:1px;background:var(--border);}
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar{width:5px;height:5px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    ::-webkit-scrollbar-thumb:hover{background:var(--border-hi)}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+
+<div class="bg-layer" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="grid-ov"></div>
+</div>
+
+<div class="main">
+
+  <!-- ── Page Header ── -->
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/generators" class="back-link">← Generators</a>
+      <span class="header-badge">🔍 IOC</span>
+    </div>
+    <div class="page-title">IOC Toolkit</div>
+    <div class="page-sub">Defang · Extract · Enrich — all client-side, nothing leaves your browser</div>
+    <div class="client-side-note">100% client-side — zero network requests</div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── Tab Bar ── -->
+    <div class="tab-bar" role="tablist">
+      <button class="tab-btn active" id="tab-btn-defang" role="tab"
+              onclick="switchTab('defang')" aria-selected="true" aria-controls="panel-defang">
+        <span class="tab-icon">🔒</span>Defanger
+      </button>
+      <button class="tab-btn" id="tab-btn-extract" role="tab"
+              onclick="switchTab('extract')" aria-selected="false" aria-controls="panel-extract">
+        <span class="tab-icon">⛏</span>Extractor
+      </button>
+      <button class="tab-btn" id="tab-btn-enrich" role="tab"
+              onclick="switchTab('enrich')" aria-selected="false" aria-controls="panel-enrich">
+        <span class="tab-icon">🔎</span>Enrich
+      </button>
+    </div>
+
+    <!-- ════════════════════════
+         TAB 1: DEFANGER
+    ════════════════════════ -->
+    <div class="tab-panel active" id="panel-defang" role="tabpanel">
+      <div class="defang-layout">
+
+        <!-- Action buttons -->
+        <div class="defang-btns">
+          <div class="btn-group">
+            <button class="btn-primary" onclick="defang()">🔒 Defang</button>
+            <button class="btn-secondary" onclick="refang()">🔓 Refang</button>
+            <button class="btn-ghost" onclick="autoDetect()" title="Auto-detect and apply the appropriate transformation">
+              ⟳ Auto-detect
+            </button>
+          </div>
+          <div class="btn-sep"></div>
+          <span class="detect-badge empty" id="detect-badge">—</span>
+          <div class="btn-sep"></div>
+          <button class="btn-ghost" onclick="swapDefang()">⇄ Swap</button>
+          <button class="btn-ghost" onclick="clearDefang()">✕ Clear</button>
+        </div>
+
+        <!-- Two-column I/O -->
+        <div class="defang-cols">
+          <div class="io-col">
+            <label class="io-label" for="defang-input">
+              Input
+              <span class="io-label-count" id="defang-in-count" style="display:none"></span>
+            </label>
+            <textarea class="io-textarea" id="defang-input"
+              placeholder="Paste IOCs here — URLs, IPs, domains, email addresses, hashes…&#10;&#10;Example:&#10;http://malicious.example.com/payload&#10;192.168.1.1&#10;evil-actor@threat.ru"
+              oninput="onDefangInput()" spellcheck="false" autocomplete="off" autocorrect="off"></textarea>
+          </div>
+          <div class="io-col">
+            <label class="io-label" for="defang-output">
+              Output
+              <span class="io-label-count" id="defang-out-count" style="display:none"></span>
+            </label>
+            <textarea class="io-textarea output-ta" id="defang-output"
+              placeholder="Transformed output appears here…"
+              readonly spellcheck="false"></textarea>
+            <div class="copy-row">
+              <button class="btn-ghost" id="defang-copy-btn" onclick="copyDefangOutput()">⧉ Copy output</button>
+              <span class="copy-flash" id="defang-copy-flash">Copied!</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════════════════════════
+         TAB 2: EXTRACTOR
+    ════════════════════════ -->
+    <div class="tab-panel" id="panel-extract" role="tabpanel">
+      <div class="extract-layout">
+
+        <div class="extract-input-card">
+          <textarea class="extract-textarea" id="extract-input"
+            placeholder="Paste any text — threat reports, emails, logs, Slack messages, raw packet captures…&#10;&#10;The extractor will scan for IPv4, IPv6, domains, URLs, hashes (MD5/SHA1/SHA256), emails, CVEs, and MITRE ATT&CK IDs."
+            spellcheck="false" autocomplete="off" autocorrect="off"></textarea>
+          <div class="extract-toolbar">
+            <button class="btn-primary" onclick="runExtract()">⛏ Extract IOCs</button>
+            <button class="btn-ghost" onclick="clearExtract()">✕ Clear</button>
+            <span class="extract-stats" id="extract-stats" style="display:none">
+              Found <strong id="extract-total">0</strong> unique IOCs across <strong id="extract-cats">0</strong> categories
+            </span>
+          </div>
+        </div>
+
+        <!-- Results area -->
+        <div id="extract-results-wrap">
+          <div class="extract-empty" id="extract-empty">
+            <div class="extract-empty-icon">⛏</div>
+            Paste text above and click <strong>Extract IOCs</strong><br>to find indicators automatically.
+          </div>
+          <div class="extract-results" id="extract-results" style="display:none"></div>
+          <div class="export-bar" id="export-bar" style="display:none">
+            <span class="export-bar-label">Export all:</span>
+            <button class="btn-ghost" onclick="exportJSON()">JSON</button>
+            <button class="btn-ghost" onclick="exportCSV()">CSV</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════════════════════════
+         TAB 3: ENRICHMENT
+    ════════════════════════ -->
+    <div class="tab-panel" id="panel-enrich" role="tabpanel">
+      <div class="enrich-layout">
+
+        <div class="enrich-input-card">
+          <div class="enrich-input-row">
+            <input class="enrich-input" id="enrich-input" type="text"
+              placeholder="Paste a hash (MD5/SHA1/SHA256), IP address, or domain…"
+              oninput="onEnrichInput()" spellcheck="false" autocomplete="off" autocorrect="off"
+              onkeydown="if(event.key==='Enter')runEnrich()" />
+            <button class="btn-primary" onclick="runEnrich()">🔎 Enrich</button>
+          </div>
+          <div class="enrich-type-badge" id="enrich-type-display">
+            <span style="color:var(--text-faint);font-size:0.72rem;">Auto-detects type by length and format</span>
+          </div>
+        </div>
+
+        <div id="enrich-empty" class="enrich-empty">
+          <div class="enrich-empty-icon">🔎</div>
+          Enter a hash, IP address, or domain above<br>to get enrichment links across threat intel platforms.
+        </div>
+
+        <div id="enrich-results" style="display:none"></div>
+
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════
+   TAB SWITCHING
+══════════════════════════════════════════ */
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
+  document.getElementById('panel-' + name).classList.add('active');
+  const btn = document.getElementById('tab-btn-' + name);
+  btn.classList.add('active');
+  btn.setAttribute('aria-selected', 'true');
+}
+
+/* ══════════════════════════════════════════
+   DEFANG / REFANG LOGIC
+══════════════════════════════════════════ */
+
+// File extensions that should NOT have their dots replaced
+const FILE_EXT_RE = /\.(exe|dll|zip|rar|gz|tar|js|py|sh|bat|ps1|pdf|doc|docx|xls|xlsx|txt|csv|png|jpg|jpeg|gif|svg|iso|img|bin|tmp|log|cfg|conf|ini|xml|json|html|htm|php|asp|jsp|vbs|lnk|scr|pif)(?=[^a-zA-Z]|$)/gi;
+
+function defangText(text) {
+  // Don't re-defang already-defanged content
+  // Process line by line to be accurate
+  return text.split('\n').map(line => defangLine(line)).join('\n');
+}
+
+function defangLine(line) {
+  // Preserve existing defanged markers by placeholding them
+  const holders = [];
+  let s = line;
+
+  // Preserve already-defanged patterns
+  s = s.replace(/hxxps?:\/\//gi, m => { holders.push(m); return `\x00H${holders.length-1}\x00`; });
+  s = s.replace(/\[\.]/g, m => { holders.push(m); return `\x00D${holders.length-1}\x00`; });
+  s = s.replace(/\[@]/g, m => { holders.push(m); return `\x00A${holders.length-1}\x00`; });
+
+  // Defang http/https schemes
+  s = s.replace(/https:\/\//gi, 'hxxps://');
+  s = s.replace(/http:\/\//gi,  'hxxp://');
+
+  // Defang @ in emails
+  s = s.replace(/(?<=[A-Za-z0-9._%+\-])@(?=[A-Za-z0-9.\-])/g, '[@]');
+
+  // Defang dots — but skip file extensions
+  // Strategy: replace all dots, then restore extension dots
+  // We work on domains/IPs only — detect by context
+  s = s.replace(
+    /\b((?:[0-9]{1,3}\.){3}[0-9]{1,3}|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,})\b/g,
+    m => {
+      // Check if this is followed by a file extension pattern we want to preserve
+      return m.replace(/\./g, '[.]');
+    }
+  );
+
+  // Restore placeholders
+  s = s.replace(/\x00H(\d+)\x00/g, (_, i) => holders[parseInt(i)]);
+  s = s.replace(/\x00D(\d+)\x00/g, (_, i) => holders[parseInt(i)]);
+  s = s.replace(/\x00A(\d+)\x00/g, (_, i) => holders[parseInt(i)]);
+
+  return s;
+}
+
+function refangText(text) {
+  return text
+    .replace(/hxxps:\/\//gi, 'https://')
+    .replace(/hxxp:\/\//gi,  'http://')
+    .replace(/\[\.\]/g, '.')
+    .replace(/\[@\]/g, '@');
+}
+
+function detectDirection(text) {
+  if (!text.trim()) return 'empty';
+  const defangedMarkers = (text.match(/hxxp|hxxps|\[\.\]|\[@\]/gi) || []).length;
+  const fangedMarkers   = (text.match(/https?:\/\/|(?<=[A-Za-z0-9])\.(?=[A-Za-z])/g) || []).length;
+  if (defangedMarkers > 0 && fangedMarkers === 0) return 'refanged';
+  if (fangedMarkers > 0 && defangedMarkers === 0) return 'defanged';
+  if (defangedMarkers > 0) return 'mixed';
+  return 'defanged'; // default: assume we want to defang
+}
+
+function defang() {
+  const inp = document.getElementById('defang-input').value;
+  document.getElementById('defang-output').value = defangText(inp);
+  updateDefangCounts();
+}
+
+function refang() {
+  const inp = document.getElementById('defang-input').value;
+  document.getElementById('defang-output').value = refangText(inp);
+  updateDefangCounts();
+}
+
+function autoDetect() {
+  const inp = document.getElementById('defang-input').value;
+  const dir = detectDirection(inp);
+  if (dir === 'refanged' || dir === 'mixed') {
+    refang();
+  } else {
+    defang();
+  }
+}
+
+function swapDefang() {
+  const a = document.getElementById('defang-input').value;
+  const b = document.getElementById('defang-output').value;
+  document.getElementById('defang-input').value  = b;
+  document.getElementById('defang-output').value = a;
+  updateDefangCounts();
+  updateDetectBadge();
+}
+
+function clearDefang() {
+  document.getElementById('defang-input').value  = '';
+  document.getElementById('defang-output').value = '';
+  updateDefangCounts();
+  updateDetectBadge();
+}
+
+function updateDefangCounts() {
+  const inEl  = document.getElementById('defang-in-count');
+  const outEl = document.getElementById('defang-out-count');
+  const inp   = document.getElementById('defang-input').value.trim();
+  const out   = document.getElementById('defang-output').value.trim();
+  const inLines  = inp  ? inp.split('\n').filter(l => l.trim()).length : 0;
+  const outLines = out  ? out.split('\n').filter(l => l.trim()).length : 0;
+  inEl.textContent  = inLines  + ' line' + (inLines  !== 1 ? 's' : '');
+  outEl.textContent = outLines + ' line' + (outLines !== 1 ? 's' : '');
+  inEl.style.display  = inLines  ? '' : 'none';
+  outEl.style.display = outLines ? '' : 'none';
+}
+
+function updateDetectBadge() {
+  const inp = document.getElementById('defang-input').value;
+  const badge = document.getElementById('detect-badge');
+  const dir = detectDirection(inp);
+  badge.className = 'detect-badge ' + dir;
+  const labels = { defanged:'Fanged — ready to defang', refanged:'Defanged — ready to refang', mixed:'Mixed indicators', empty:'—' };
+  badge.textContent = labels[dir] || '—';
+}
+
+function onDefangInput() {
+  updateDefangCounts();
+  updateDetectBadge();
+}
+
+function copyDefangOutput() {
+  const val = document.getElementById('defang-output').value;
+  if (!val) return;
+  navigator.clipboard?.writeText(val);
+  const flash = document.getElementById('defang-copy-flash');
+  flash.style.opacity = '1';
+  setTimeout(() => flash.style.opacity = '0', 2000);
+}
+
+/* ══════════════════════════════════════════
+   IOC EXTRACTOR
+══════════════════════════════════════════ */
+
+const PRIVATE_IP_RE = /^(10\.|127\.|0\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/;
+
+const IOC_PATTERNS = [
+  {
+    id: 'url', name: 'URLs', icon: '🌐',
+    re: /https?:\/\/[^\s"'<>\]]{4,}/gi,
+    defangFn: defangText,
+  },
+  {
+    id: 'ipv4', name: 'IPv4', icon: '📡',
+    re: /\b(?:25[0-5]|2[0-4]\d|[01]?\d\d?)(?:\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)){3}\b/g,
+    filter: v => !PRIVATE_IP_RE.test(v),
+    defangFn: v => v.replace(/\./g, '[.]'),
+  },
+  {
+    id: 'ipv6', name: 'IPv6', icon: '🌐',
+    re: /\b[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{0,4}){2,7}\b/g,
+    filter: v => v.includes(':') && v.length >= 7,
+  },
+  {
+    id: 'domain', name: 'Domains', icon: '🔗',
+    re: /\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+(?:com|net|org|io|co|gov|edu|info|biz|xyz|ru|cn|de|uk|fr|onion)\b/gi,
+    defangFn: v => v.replace(/\./g, '[.]'),
+  },
+  {
+    id: 'sha256', name: 'SHA-256', icon: '🔑',
+    re: /\b[0-9a-fA-F]{64}\b/g,
+  },
+  {
+    id: 'sha1', name: 'SHA-1', icon: '🔑',
+    re: /\b[0-9a-fA-F]{40}\b/g,
+  },
+  {
+    id: 'md5', name: 'MD5', icon: '🔑',
+    re: /\b[0-9a-fA-F]{32}\b/g,
+    // Exclude values that were already matched as sha1/sha256
+  },
+  {
+    id: 'email', name: 'Emails', icon: '✉',
+    re: /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g,
+    defangFn: v => v.replace('@', '[@]').replace(/\./g, (m, off, str) => {
+      // replace dots except the local-part dots before @ (keep those natural)
+      return '[.]';
+    }),
+  },
+  {
+    id: 'cve', name: 'CVEs', icon: '🩸',
+    re: /CVE-\d{4}-\d{4,7}/gi,
+  },
+  {
+    id: 'mitre', name: 'MITRE ATT&CK', icon: '🗺',
+    re: /\bT\d{4}(?:\.\d{3})?\b/g,
+  },
+];
+
+let extractedData = {};
+
+function runExtract() {
+  const text = document.getElementById('extract-input').value;
+  if (!text.trim()) return;
+
+  extractedData = {};
+
+  // Run each pattern; keep track of matched offsets to avoid double-counting hashes
+  // First pass: collect sha256 and sha1 matches to exclude from md5
+  const sha256Matches = new Set();
+  const sha1Matches   = new Set();
+
+  for (const pat of IOC_PATTERNS) {
+    if (pat.id === 'sha256') {
+      const m = text.match(pat.re) || [];
+      m.forEach(v => sha256Matches.add(v.toLowerCase()));
+    }
+    if (pat.id === 'sha1') {
+      const m = text.match(pat.re) || [];
+      m.forEach(v => sha1Matches.add(v.toLowerCase()));
+    }
+  }
+
+  // Also collect URLs to exclude domains that are sub-parts of URLs
+  const urlMatches = new Set();
+  (text.match(/https?:\/\/([^\s"'<>\]\/]{4,})/gi) || []).forEach(u => {
+    try { urlMatches.add(new URL(u).hostname.toLowerCase()); } catch(e) {}
+  });
+
+  for (const pat of IOC_PATTERNS) {
+    let matches = [...new Set((text.match(pat.re) || []).map(v => v.trim()))];
+
+    // Dedup by lowercase
+    const seen = new Map();
+    matches.forEach(v => { const k = v.toLowerCase(); if (!seen.has(k)) seen.set(k, v); });
+    matches = [...seen.values()];
+
+    // Apply custom filter
+    if (pat.filter) matches = matches.filter(pat.filter);
+
+    // Exclude MD5s that are actually sha256 or sha1 prefixes
+    if (pat.id === 'md5') {
+      matches = matches.filter(v => {
+        const lo = v.toLowerCase();
+        return !sha256Matches.has(lo) && !sha1Matches.has(lo);
+      });
+    }
+
+    if (matches.length > 0) {
+      extractedData[pat.id] = { ...pat, values: matches };
+    }
+  }
+
+  renderExtractResults();
+}
+
+function renderExtractResults() {
+  const resultsEl = document.getElementById('extract-results');
+  const emptyEl   = document.getElementById('extract-empty');
+  const exportBar = document.getElementById('export-bar');
+  const statsEl   = document.getElementById('extract-stats');
+
+  const cats = Object.keys(extractedData);
+  if (!cats.length) {
+    resultsEl.style.display = 'none';
+    exportBar.style.display = 'none';
+    statsEl.style.display   = 'none';
+    emptyEl.innerHTML = '<div class="extract-empty-icon">🔍</div>No IOCs found in the provided text.';
+    emptyEl.style.display = '';
+    return;
+  }
+
+  const total = cats.reduce((s, k) => s + extractedData[k].values.length, 0);
+  document.getElementById('extract-total').textContent = total;
+  document.getElementById('extract-cats').textContent  = cats.length;
+  statsEl.style.display = '';
+
+  emptyEl.style.display   = 'none';
+  exportBar.style.display = '';
+
+  const needsDefang = new Set(['url','ipv4','domain','email']);
+
+  resultsEl.innerHTML = cats.map(catId => {
+    const cat = extractedData[catId];
+    const chips = cat.values.map((v, idx) => {
+      const displayVal = (needsDefang.has(catId) && cat.defangFn) ? cat.defangFn(v) : v;
+      const copyVal    = displayVal; // copy defanged version
+      return `<span class="ioc-chip" title="${esc(v)}">
+        <span class="ioc-chip-val">${esc(displayVal)}</span>
+        <button class="ioc-chip-copy" onclick="copyChip(this,'${esc(copyVal).replace(/'/g,'&#39;')}')" title="Copy">⧉</button>
+      </span>`;
+    }).join('');
+
+    return `<div class="ioc-category cat-${catId} open" id="cat-${catId}">
+      <div class="ioc-cat-header" onclick="toggleCat('${catId}')">
+        <span class="ioc-cat-icon">${cat.icon}</span>
+        <span class="ioc-cat-name">${cat.name}</span>
+        <span class="ioc-cat-count">${cat.values.length}</span>
+        <button class="ioc-cat-copy-btn" onclick="event.stopPropagation();copyAllCat('${catId}')" title="Copy all ${cat.name}">
+          Copy all
+        </button>
+        <span class="ioc-cat-chev">▼</span>
+      </div>
+      <div class="ioc-cat-body">
+        <div class="ioc-chips">${chips}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  resultsEl.style.display = '';
+}
+
+function toggleCat(catId) {
+  document.getElementById('cat-' + catId)?.classList.toggle('open');
+}
+
+function copyChip(btn, val) {
+  navigator.clipboard?.writeText(val);
+  btn.textContent = '✓';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = '⧉'; btn.classList.remove('copied'); }, 1400);
+}
+
+function copyAllCat(catId) {
+  const cat = extractedData[catId];
+  if (!cat) return;
+  const needsDefang = new Set(['url','ipv4','domain','email']);
+  const lines = cat.values.map(v =>
+    (needsDefang.has(catId) && cat.defangFn) ? cat.defangFn(v) : v
+  );
+  navigator.clipboard?.writeText(lines.join('\n'));
+  if (typeof showToast === 'function') showToast(`Copied ${lines.length} ${cat.name}`, 'success');
+}
+
+function clearExtract() {
+  document.getElementById('extract-input').value = '';
+  extractedData = {};
+  document.getElementById('extract-results').style.display  = 'none';
+  document.getElementById('export-bar').style.display       = 'none';
+  document.getElementById('extract-stats').style.display    = 'none';
+  document.getElementById('extract-empty').innerHTML =
+    '<div class="extract-empty-icon">⛏</div>Paste text above and click <strong>Extract IOCs</strong><br>to find indicators automatically.';
+  document.getElementById('extract-empty').style.display = '';
+}
+
+function exportJSON() {
+  const out = {};
+  for (const [k, cat] of Object.entries(extractedData)) {
+    out[cat.name] = cat.values;
+  }
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'iocs_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportCSV() {
+  const rows = ['category,value'];
+  for (const [k, cat] of Object.entries(extractedData)) {
+    for (const v of cat.values) {
+      rows.push(`${JSON.stringify(cat.name)},${JSON.stringify(v)}`);
+    }
+  }
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'iocs_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ══════════════════════════════════════════
+   ENRICH LOGIC
+══════════════════════════════════════════ */
+
+function detectEnrichType(val) {
+  val = val.trim();
+  if (!val) return null;
+  if (/^[0-9a-fA-F]{64}$/.test(val)) return 'sha256';
+  if (/^[0-9a-fA-F]{40}$/.test(val)) return 'sha1';
+  if (/^[0-9a-fA-F]{32}$/.test(val)) return 'md5';
+  if (/^(?:25[0-5]|2[0-4]\d|[01]?\d\d?)(?:\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)){3}$/.test(val)) return 'ip';
+  if (/^https?:\/\/.+/.test(val)) return 'url';
+  if (/^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(val)) return 'domain';
+  return 'unknown';
+}
+
+function onEnrichInput() {
+  const val  = document.getElementById('enrich-input').value.trim();
+  const type = detectEnrichType(val);
+  const disp = document.getElementById('enrich-type-display');
+
+  if (!val) {
+    disp.innerHTML = '<span style="color:var(--text-faint);font-size:0.72rem;">Auto-detects type by length and format</span>';
+    return;
+  }
+
+  const labels = {
+    sha256: ['SHA-256 Hash', 'type-sha256'],
+    sha1:   ['SHA-1 Hash',   'type-sha1'],
+    md5:    ['MD5 Hash',     'type-md5'],
+    ip:     ['IP Address',   'type-ip'],
+    domain: ['Domain',       'type-domain'],
+    url:    ['URL',          'type-url'],
+    unknown:['Unknown type', 'type-unknown'],
+  };
+  const [label, cls] = labels[type] || labels.unknown;
+  disp.innerHTML = `<span class="type-pill ${cls}">${label}</span>
+    <span style="color:var(--text-faint);font-size:0.72rem;">— press Enter or click Enrich</span>`;
+}
+
+function runEnrich() {
+  const val  = document.getElementById('enrich-input').value.trim();
+  const type = detectEnrichType(val);
+  const emptyEl   = document.getElementById('enrich-empty');
+  const resultsEl = document.getElementById('enrich-results');
+
+  if (!val || type === 'unknown') {
+    emptyEl.innerHTML = '<div class="enrich-empty-icon">❓</div>Could not detect the indicator type.<br>Enter a valid hash (32/40/64 hex chars), IP address, or domain.';
+    emptyEl.style.display   = '';
+    resultsEl.style.display = 'none';
+    return;
+  }
+
+  emptyEl.style.display   = 'none';
+  resultsEl.style.display = '';
+  resultsEl.innerHTML     = renderEnrichCards(val, type);
+}
+
+function enrichOpen(url) {
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function renderEnrichCards(val, type) {
+  const enc = encodeURIComponent(val);
+  let sections = [];
+
+  if (type === 'md5' || type === 'sha1' || type === 'sha256') {
+    const hashCards = [
+      {
+        icon: '🦠',
+        name: 'VirusTotal',
+        desc: 'AV engine results, behavioral analysis, community score',
+        url: `https://www.virustotal.com/gui/file/${enc}`,
+      },
+      {
+        icon: '🪺',
+        name: 'OTX AlienVault',
+        desc: 'Open Threat Exchange — pulses, YARA rules, network indicators',
+        url: `https://otx.alienvault.com/indicator/file/${enc}`,
+      },
+      {
+        icon: '🧪',
+        name: 'Hybrid Analysis',
+        desc: 'Sandbox report — behavior, network activity, MITRE mapping',
+        url: `https://www.hybrid-analysis.com/search?query=${enc}`,
+      },
+      {
+        icon: '⚙',
+        name: 'Any.run',
+        desc: 'Interactive malware sandbox — search for this hash',
+        url: `https://app.any.run/submissions/#filehash:${enc}`,
+      },
+    ];
+
+    if (type === 'sha256') {
+      hashCards.splice(1, 0, {
+        icon: '🗄',
+        name: 'MalwareBazaar',
+        desc: 'abuse.ch malware repository — sample metadata and download',
+        url: `https://bazaar.abuse.ch/browse.php?search=sha256:${enc}`,
+      });
+      hashCards.push({
+        icon: '🔬',
+        name: 'CIRCL MISP',
+        desc: 'Community MISP feed — check if hash appears in shared threat intelligence',
+        url: `https://www.circl.lu/services/misp-feed-misp-community/`,
+      });
+    }
+
+    sections.push({ label: `${type.toUpperCase()} Hash Lookup`, cards: hashCards });
+  }
+
+  if (type === 'ip') {
+    const ipCards = [
+      {
+        icon: '🦠',
+        name: 'VirusTotal',
+        desc: 'IP reputation, associated files, URLs, and community votes',
+        url: `https://www.virustotal.com/gui/ip-address/${enc}`,
+      },
+      {
+        icon: '🔭',
+        name: 'Shodan',
+        desc: 'Open ports, services, banners, and historical data',
+        url: `https://www.shodan.io/host/${enc}`,
+      },
+      {
+        icon: '🚫',
+        name: 'AbuseIPDB',
+        desc: 'Abuse confidence score, reported categories, ISP info',
+        url: `https://www.abuseipdb.com/check/${enc}`,
+      },
+      {
+        icon: '🌩',
+        name: 'IBM X-Force',
+        desc: 'Threat intelligence — reputation score, malware families',
+        url: `https://exchange.xforce.ibmcloud.com/ip/${enc}`,
+      },
+      {
+        icon: '🌫',
+        name: 'GreyNoise',
+        desc: 'Internet scanner classification — benign vs. malicious background noise',
+        url: `https://viz.greynoise.io/ip/${enc}`,
+      },
+      {
+        icon: '🪺',
+        name: 'OTX AlienVault',
+        desc: 'Community threat intelligence pulses referencing this IP',
+        url: `https://otx.alienvault.com/indicator/ip/${enc}`,
+      },
+    ];
+    sections.push({ label: 'IP Address Lookup', cards: ipCards });
+  }
+
+  if (type === 'domain') {
+    const domainCards = [
+      {
+        icon: '🦠',
+        name: 'VirusTotal',
+        desc: 'Domain reputation, resolved IPs, subdomains, referrers',
+        url: `https://www.virustotal.com/gui/domain/${enc}`,
+      },
+      {
+        icon: '🔭',
+        name: 'Shodan',
+        desc: 'Hosts matching this domain/hostname with open ports',
+        url: `https://www.shodan.io/search?query=hostname:${enc}`,
+      },
+      {
+        icon: '🌐',
+        name: 'URLScan.io',
+        desc: 'Screenshot, DOM, requests, verdicts from automated scans',
+        url: `https://urlscan.io/search/#domain:${enc}`,
+      },
+      {
+        icon: '📋',
+        name: 'DomainTools Whois',
+        desc: 'Registration history, registrant info, DNS records',
+        url: `https://whois.domaintools.com/${enc}`,
+      },
+      {
+        icon: '🪺',
+        name: 'OTX AlienVault',
+        desc: 'Community threat intelligence pulses referencing this domain',
+        url: `https://otx.alienvault.com/indicator/domain/${enc}`,
+      },
+      {
+        icon: '📂',
+        name: 'Certificate Search',
+        desc: 'crt.sh — certificate transparency logs, subdomains',
+        url: `https://crt.sh/?q=${enc}`,
+      },
+    ];
+    sections.push({ label: 'Domain Lookup', cards: domainCards });
+  }
+
+  if (type === 'url') {
+    const urlCards = [
+      {
+        icon: '🦠',
+        name: 'VirusTotal',
+        desc: 'URL reputation scan across 70+ engines',
+        url: `https://www.virustotal.com/gui/url/${btoa(val)}`,
+      },
+      {
+        icon: '🌐',
+        name: 'URLScan.io',
+        desc: 'Submit for screenshot, DOM analysis, threat assessment',
+        url: `https://urlscan.io/search/#page.url:${enc}`,
+      },
+      {
+        icon: '🔗',
+        name: 'URLhaus',
+        desc: 'abuse.ch URL blocklist — malware distribution check',
+        url: `https://urlhaus.abuse.ch/browse.php?search=${enc}`,
+      },
+    ];
+    sections.push({ label: 'URL Lookup', cards: urlCards });
+  }
+
+  return sections.map(sec => `
+    <div class="enrich-section-hdr">
+      <span>${sec.label}</span>
+      <div class="enrich-section-line"></div>
+    </div>
+    <div class="enrich-grid" style="margin-bottom:20px;">
+      ${sec.cards.map(c => `
+        <div class="enrich-card">
+          <div class="enrich-card-icon">${c.icon}</div>
+          <div class="enrich-card-body">
+            <div class="enrich-card-name">${esc(c.name)}</div>
+            <div class="enrich-card-desc">${esc(c.desc)}</div>
+            <a class="enrich-card-open" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">
+              Open →
+            </a>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+/* ══════════════════════════════════════════
+   UTILITY
+══════════════════════════════════════════ */
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+/* Keyboard shortcuts */
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+    if (e.key === 'D') { e.preventDefault(); switchTab('defang'); }
+    if (e.key === 'E') { e.preventDefault(); switchTab('extract'); }
+    if (e.key === 'N') { e.preventDefault(); switchTab('enrich'); }
+  }
+});
+</script>
+</body>
+</html>

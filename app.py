@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import stat
 import tempfile
 import urllib.error
@@ -587,6 +588,81 @@ def waf_bypass():
 @app.route("/reference/c2")
 def c2_reference():
     return render_template("c2_reference.html", active_page="ref-c2")
+
+
+# ── Defensive Tooling (Phase 14) ─────────────────────────────────────────────
+
+@app.route("/tools/logparse")
+def logparse_tool():
+    return render_template("logparse.html", active_page="logparse")
+
+
+@app.route("/tools/ioc")
+def ioc_tool():
+    return render_template("ioc_tool.html", active_page="ioc")
+
+
+@app.route("/tools/tls")
+def tls_tool():
+    return render_template("tls_tool.html", active_page="tls")
+
+
+@app.route("/api/tls")
+def api_tls():
+    import ssl, socket, datetime, json as _json
+    domain = request.args.get("domain", "").strip().lower()
+    # Reject obviously invalid input
+    if not domain or not re.match(r'^[a-zA-Z0-9\.\-]{1,253}$', domain) or '..' in domain:
+        return jsonify({"error": "Invalid domain"}), 400
+    port = 443
+    try:
+        ctx = ssl.create_default_context()
+        with socket.create_connection((domain, port), timeout=8) as sock:
+            with ctx.wrap_socket(sock, server_hostname=domain) as ssock:
+                cert      = ssock.getpeercert()
+                cipher    = ssock.cipher()
+                version   = ssock.version()
+                der       = ssock.getpeercert(binary_form=True)
+        # Parse cert fields
+        subject   = dict(x[0] for x in cert.get("subject", []))
+        issuer    = dict(x[0] for x in cert.get("issuer", []))
+        san_raw   = cert.get("subjectAltName", [])
+        sans      = [v for t, v in san_raw if t == "DNS"]
+        not_after = cert.get("notAfter", "")
+        not_before= cert.get("notBefore", "")
+        serial    = cert.get("serialNumber", "")
+        # Days until expiry
+        try:
+            exp_dt  = datetime.datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z")
+            now_dt  = datetime.datetime.utcnow()
+            days_left = (exp_dt - now_dt).days
+        except Exception:
+            days_left = None
+        import hashlib
+        sha256_fp = hashlib.sha256(der).hexdigest().upper()
+        fp_fmt    = ":".join(sha256_fp[i:i+2] for i in range(0, len(sha256_fp), 2))
+        return jsonify({
+            "domain":     domain,
+            "subject_cn": subject.get("commonName", ""),
+            "issuer_cn":  issuer.get("commonName", ""),
+            "issuer_org": issuer.get("organizationName", ""),
+            "sans":       sans,
+            "not_before": not_before,
+            "not_after":  not_after,
+            "days_left":  days_left,
+            "serial":     serial,
+            "cipher":     cipher[0] if cipher else "",
+            "tls_version":version or "",
+            "sha256_fp":  fp_fmt,
+        })
+    except ssl.SSLCertVerificationError as e:
+        return jsonify({"error": f"Certificate verification failed: {e}"}), 502
+    except (socket.timeout, TimeoutError):
+        return jsonify({"error": "Connection timed out"}), 504
+    except OSError as e:
+        return jsonify({"error": f"Connection failed: {e}"}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Engagement / Playbooks ─────────────────────────────────────────────────────

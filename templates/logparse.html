@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log Parser — Multiblade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;--ease:cubic-bezier(0.16,1,0.3,1);
+      --high:#ef4444;--high-bg:#ef444418;--high-border:#ef444440;
+      --med:#f59e0b;--med-bg:#f59e0b18;--med-border:#f59e0b40;
+      --low:#22d3ee;--low-bg:#22d3ee18;--low-border:#22d3ee40;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+
+    /* ── Background ── */
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:900px;height:900px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-350px;left:-200px;animation:d1 26s ease-in-out infinite alternate;}
+    .blob-2{width:700px;height:700px;background:radial-gradient(circle,#0ea5e90c,transparent 70%);bottom:-200px;right:-100px;animation:d2 30s ease-in-out infinite alternate;}
+    .blob-3{width:500px;height:500px;background:radial-gradient(circle,#6366f10a,transparent 70%);top:40%;left:40%;animation:d3 22s ease-in-out infinite alternate;}
+    @keyframes d1{to{transform:translate(60px,50px) scale(1.08)}}
+    @keyframes d2{to{transform:translate(-50px,-60px) scale(1.12)}}
+    @keyframes d3{to{transform:translate(-40px,40px) scale(0.95)}}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    /* ── Layout ── */
+    .main{position:relative;z-index:1;margin-left:60px;padding:0 0 80px;}
+
+    .page-header{
+      position:sticky;top:0;z-index:50;
+      background:linear-gradient(180deg,var(--bg) 80%,transparent);
+      padding:24px 32px 16px;
+    }
+    .header-top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;white-space:nowrap;}
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);margin-left:auto;}
+
+    /* ── Two-panel layout ── */
+    .workspace{
+      display:grid;
+      grid-template-columns:420px 1fr;
+      gap:16px;
+      padding:0 32px;
+      align-items:start;
+    }
+    @media(max-width:900px){
+      .workspace{grid-template-columns:1fr;padding:0 16px;}
+    }
+
+    /* ── Card ── */
+    .card{
+      background:var(--s1);border:1.5px solid var(--border);
+      border-radius:var(--radius);overflow:hidden;
+    }
+    .card-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 14px;border-bottom:1px solid var(--border);background:var(--s2);
+    }
+    .card-label{font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);}
+    .card-actions{display:flex;gap:6px;}
+
+    /* ── Format chips ── */
+    .format-chips{
+      display:flex;flex-wrap:wrap;gap:6px;
+      padding:14px 14px 0;
+    }
+    .fmt-chip{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:5px 12px;border-radius:99px;
+      border:1.5px solid var(--border);background:transparent;
+      color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;user-select:none;font-family:'Inter',sans-serif;
+    }
+    .fmt-chip:hover{border-color:var(--border-hi);color:var(--text);}
+    .fmt-chip.active{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    /* ── Textarea ── */
+    .log-textarea-wrap{padding:12px 14px 14px;}
+    .log-textarea{
+      width:100%;height:340px;resize:vertical;
+      background:var(--s2);border:1.5px solid var(--border);
+      border-radius:10px;outline:none;
+      padding:12px 14px;
+      font-family:'Fira Code',monospace;font-size:0.76rem;line-height:1.65;
+      color:#c4c9f5;
+      transition:border-color 0.15s;
+    }
+    .log-textarea:focus{border-color:var(--border-hi);}
+    .log-textarea::placeholder{color:var(--text-faint);font-size:0.72rem;}
+
+    /* ── Analyze button ── */
+    .analyze-row{padding:0 14px 14px;display:flex;gap:8px;align-items:center;}
+    .btn-analyze{
+      display:inline-flex;align-items:center;gap:7px;
+      padding:9px 22px;border-radius:9px;
+      background:var(--accent);border:none;color:#fff;
+      font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;
+    }
+    .btn-analyze:hover{background:var(--accent-hi);box-shadow:0 0 20px var(--accent-glow);}
+    .btn-analyze:active{transform:scale(0.97);}
+    .btn-clear{
+      padding:9px 14px;border-radius:9px;
+      background:transparent;border:1.5px solid var(--border);color:var(--text-dim);
+      font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;
+    }
+    .btn-clear:hover{border-color:var(--border-hi);color:var(--text);}
+    .line-count{font-size:0.72rem;color:var(--text-faint);margin-left:auto;}
+
+    /* ── Stats bar ── */
+    .stats-bar{
+      display:none;flex-wrap:wrap;gap:0;
+      border-bottom:1px solid var(--border);
+    }
+    .stats-bar.visible{display:flex;}
+    .stat-item{
+      flex:1;min-width:100px;
+      padding:12px 16px;border-right:1px solid var(--border);
+      text-align:center;
+    }
+    .stat-item:last-child{border-right:none;}
+    .stat-val{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:var(--text);}
+    .stat-val.danger{color:var(--high);}
+    .stat-val.warn{color:var(--med);}
+    .stat-label{font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.1em;margin-top:2px;}
+
+    /* ── Output tabs ── */
+    .output-tabs{
+      display:flex;gap:0;border-bottom:1px solid var(--border);
+      background:var(--s2);
+    }
+    .out-tab{
+      padding:10px 18px;font-size:0.75rem;font-weight:600;
+      color:var(--text-dim);cursor:pointer;border:none;background:none;
+      border-bottom:2px solid transparent;margin-bottom:-1px;
+      font-family:'Inter',sans-serif;transition:all 0.15s;
+      display:flex;align-items:center;gap:6px;
+    }
+    .out-tab:hover{color:var(--text);}
+    .out-tab.active{color:var(--accent-hi);border-bottom-color:var(--accent);}
+    .tab-count{
+      background:var(--s3);border:1px solid var(--border);
+      border-radius:99px;padding:1px 7px;font-size:0.65rem;color:var(--text-faint);
+    }
+    .out-tab.active .tab-count{background:var(--accent-glow);border-color:var(--accent);color:var(--accent-hi);}
+
+    /* ── Empty state ── */
+    .empty-state{
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:60px 24px;color:var(--text-faint);text-align:center;
+      gap:10px;
+    }
+    .empty-icon{font-size:2.2rem;opacity:0.4;}
+    .empty-msg{font-size:0.82rem;color:var(--text-dim);}
+    .empty-sub{font-size:0.72rem;color:var(--text-faint);}
+
+    /* ── Finding row ── */
+    .findings-list{padding:4px 0;}
+    .finding-row{
+      padding:10px 14px;border-bottom:1px solid var(--border);
+      display:flex;flex-direction:column;gap:5px;
+      transition:background 0.1s;
+    }
+    .finding-row:last-child{border-bottom:none;}
+    .finding-row:hover{background:var(--s2);}
+    .finding-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+    .flag-badge{
+      display:inline-flex;align-items:center;
+      padding:2px 8px;border-radius:4px;
+      font-size:0.65rem;font-weight:700;letter-spacing:0.06em;
+      background:var(--s3);border:1px solid var(--border);color:var(--text-dim);
+    }
+    .sev-high{background:var(--high-bg);border:1px solid var(--high-border);color:var(--high);font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:0.08em;}
+    .sev-med{background:var(--med-bg);border:1px solid var(--med-border);color:var(--med);font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:0.08em;}
+    .sev-low{background:var(--low-bg);border:1px solid var(--low-border);color:var(--low);font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:0.08em;}
+    .ip-chip{
+      font-family:'Fira Code',monospace;font-size:0.68rem;
+      color:var(--accent-hi);background:var(--accent-glow);
+      border:1px solid var(--accent);border-radius:4px;
+      padding:2px 8px;
+    }
+    .finding-line{
+      font-family:'Fira Code',monospace;font-size:0.72rem;
+      color:#8b92c9;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      max-width:100%;
+    }
+    .finding-line .hl-ip{color:var(--accent-hi);}
+    .finding-line .hl-high{color:var(--high);}
+    .finding-line .hl-med{color:var(--med);}
+
+    /* ── IP Table ── */
+    .ip-table-wrap{overflow-x:auto;}
+    .ip-table{
+      width:100%;border-collapse:collapse;
+      font-size:0.76rem;
+    }
+    .ip-table thead{position:sticky;top:0;background:var(--s2);}
+    .ip-table th{
+      padding:9px 14px;text-align:left;
+      font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      color:var(--text-faint);border-bottom:1px solid var(--border);
+      white-space:nowrap;cursor:pointer;user-select:none;
+    }
+    .ip-table th:hover{color:var(--text-dim);}
+    .ip-table th.sorted{color:var(--accent-hi);}
+    .ip-table th .sort-arrow{font-size:0.6rem;margin-left:3px;opacity:0.5;}
+    .ip-table th.sorted .sort-arrow{opacity:1;color:var(--accent-hi);}
+    .ip-table td{
+      padding:9px 14px;border-bottom:1px solid var(--border);
+      font-family:'Fira Code',monospace;color:#8b92c9;
+      vertical-align:middle;
+    }
+    .ip-table tr:last-child td{border-bottom:none;}
+    .ip-table tr:hover td{background:var(--s2);}
+    .ip-table td.ip-col{color:var(--accent-hi);}
+    .ip-table td.count-col{color:var(--text);font-weight:600;font-family:'Inter',sans-serif;}
+    .ip-table td.time-col{font-size:0.68rem;color:var(--text-faint);}
+    .ip-table td.flags-col{font-family:'Inter',sans-serif;}
+    .ip-flag-pill{
+      display:inline-flex;align-items:center;
+      padding:2px 7px;border-radius:4px;margin:1px 2px;
+      font-size:0.62rem;font-weight:600;
+      background:var(--s3);border:1px solid var(--border);color:var(--text-dim);
+    }
+    .ip-flag-pill.high{background:var(--high-bg);border-color:var(--high-border);color:var(--high);}
+    .ip-flag-pill.med{background:var(--med-bg);border-color:var(--med-border);color:var(--med);}
+    .ip-flag-pill.low{background:var(--low-bg);border-color:var(--low-border);color:var(--low);}
+
+    /* ── Timeline ── */
+    .timeline-bar{padding:14px 16px;font-family:'Fira Code',monospace;font-size:0.72rem;line-height:1.9;}
+    .tl-row{display:flex;align-items:center;gap:8px;white-space:nowrap;}
+    .tl-label{color:var(--text-dim);min-width:130px;text-align:right;flex-shrink:0;}
+    .tl-blocks{color:var(--accent-hi);letter-spacing:0.02em;}
+    .tl-blocks.high{color:var(--high);}
+    .tl-blocks.med{color:var(--med);}
+    .tl-count{color:var(--text-faint);font-size:0.65rem;margin-left:4px;}
+    .tl-empty{color:var(--text-faint);padding:40px 20px;text-align:center;font-size:0.78rem;}
+
+    /* ── Panel tab content ── */
+    .tab-panel{display:none;}
+    .tab-panel.active{display:block;}
+
+    /* ── Small utility ── */
+    .pnl-btn{
+      display:inline-flex;align-items:center;gap:4px;
+      padding:4px 10px;border-radius:7px;border:1px solid var(--border);
+      background:transparent;color:var(--text-dim);font-size:0.7rem;font-weight:600;
+      cursor:pointer;font-family:inherit;transition:all 0.15s;
+    }
+    .pnl-btn:hover{background:var(--s3);color:var(--text);border-color:var(--border-hi);}
+
+    .privacy-note{
+      display:flex;align-items:center;gap:6px;
+      font-size:0.68rem;color:var(--text-faint);
+      padding:0 14px 12px;
+    }
+    .privacy-note::before{content:"🔒";font-size:0.72rem;}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+
+<div class="bg-layer" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="main">
+
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/generators" class="back-link">← Generators</a>
+      <span class="page-title">Log Parser</span>
+      <span class="page-sub">Paste logs to highlight scanners, auth failures, and anomalies</span>
+    </div>
+  </div>
+
+  <div class="workspace">
+
+    <!-- ── LEFT: Input Panel ── -->
+    <div class="log-input-panel card">
+      <div class="card-head">
+        <span class="card-label">Input</span>
+        <div class="card-actions">
+          <button class="pnl-btn" onclick="pasteLog()">Paste</button>
+          <button class="pnl-btn" onclick="loadSample()">Sample</button>
+        </div>
+      </div>
+
+      <!-- Format chips -->
+      <div class="format-chips" id="format-chips">
+        <button class="fmt-chip active" data-fmt="auto" onclick="setFormat(this)">Auto-detect</button>
+        <button class="fmt-chip" data-fmt="apache" onclick="setFormat(this)">Apache / Nginx</button>
+        <button class="fmt-chip" data-fmt="auth" onclick="setFormat(this)">Auth Log</button>
+        <button class="fmt-chip" data-fmt="syslog" onclick="setFormat(this)">Syslog</button>
+        <button class="fmt-chip" data-fmt="windows" onclick="setFormat(this)">Windows Event</button>
+      </div>
+
+      <!-- Textarea -->
+      <div class="log-textarea-wrap">
+        <textarea
+          class="log-textarea"
+          id="log-input"
+          spellcheck="false"
+          placeholder="192.168.1.10 - - [21/Jun/2026:14:23:01 +0000] &quot;GET /index.php?cmd=id HTTP/1.1&quot; 200 512 &quot;-&quot; &quot;nikto/2.1.6&quot;"
+          oninput="updateLineCount()"
+        ></textarea>
+      </div>
+
+      <div class="analyze-row">
+        <button class="btn-analyze" onclick="analyze()">⚡ Analyze</button>
+        <button class="btn-clear" onclick="clearAll()">Clear</button>
+        <span class="line-count" id="line-count">0 lines</span>
+      </div>
+
+      <div class="privacy-note">Logs never leave your browser — 100% client-side</div>
+    </div>
+
+    <!-- ── RIGHT: Output Panel ── -->
+    <div class="log-output-panel card">
+
+      <!-- Stats bar -->
+      <div class="stats-bar" id="stats-bar">
+        <div class="stat-item">
+          <div class="stat-val" id="stat-total">0</div>
+          <div class="stat-label">Total Lines</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val danger" id="stat-flagged">0</div>
+          <div class="stat-label">Flagged</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val" id="stat-ips">0</div>
+          <div class="stat-label">Unique IPs</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val warn" id="stat-top-offender">—</div>
+          <div class="stat-label">Top Offender</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="output-tabs">
+        <button class="out-tab active" data-tab="findings" onclick="switchTab(this)">
+          Flagged Lines <span class="tab-count" id="cnt-findings">0</span>
+        </button>
+        <button class="out-tab" data-tab="ips" onclick="switchTab(this)">
+          IP Summary <span class="tab-count" id="cnt-ips">0</span>
+        </button>
+        <button class="out-tab" data-tab="timeline" onclick="switchTab(this)">
+          Timeline <span class="tab-count" id="cnt-tl">0</span>
+        </button>
+      </div>
+
+      <!-- Findings tab -->
+      <div class="tab-panel active" id="tab-findings">
+        <div class="empty-state" id="empty-findings">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-msg">No logs analyzed yet</div>
+          <div class="empty-sub">Paste log lines on the left and click Analyze</div>
+        </div>
+        <div class="findings-list" id="findings-list" style="display:none;"></div>
+      </div>
+
+      <!-- IP Summary tab -->
+      <div class="tab-panel" id="tab-ips">
+        <div class="empty-state" id="empty-ips">
+          <div class="empty-icon">🗺</div>
+          <div class="empty-msg">No IP data yet</div>
+          <div class="empty-sub">Run analysis to populate the IP summary</div>
+        </div>
+        <div class="ip-table-wrap" id="ip-table-wrap" style="display:none;">
+          <table class="ip-table" id="ip-table">
+            <thead>
+              <tr>
+                <th onclick="sortIPs('ip')" id="th-ip">IP Address <span class="sort-arrow">↕</span></th>
+                <th onclick="sortIPs('count')" id="th-count" class="sorted">Requests <span class="sort-arrow">↓</span></th>
+                <th id="th-first">First Seen</th>
+                <th id="th-last">Last Seen</th>
+                <th>Flags</th>
+              </tr>
+            </thead>
+            <tbody id="ip-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Timeline tab -->
+      <div class="tab-panel" id="tab-timeline">
+        <div class="empty-state" id="empty-tl">
+          <div class="empty-icon">📊</div>
+          <div class="empty-msg">No timeline data yet</div>
+          <div class="empty-sub">Run analysis to see request density over time</div>
+        </div>
+        <div class="timeline-bar" id="timeline-content" style="display:none;"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── Format placeholders ──────────────────────────────────────────────────────
+const PLACEHOLDERS = {
+  auto:    '192.168.1.10 - - [21/Jun/2026:14:23:01 +0000] "GET /index.php?cmd=id HTTP/1.1" 200 512 "-" "nikto/2.1.6"',
+  apache:  '192.168.1.10 - - [21/Jun/2026:14:23:01 +0000] "GET /index.php?cmd=id HTTP/1.1" 200 512 "-" "nikto/2.1.6"',
+  auth:    'Jun 21 14:23:01 server sshd[12345]: Failed password for root from 192.168.1.55 port 22 ssh2',
+  syslog:  'Jun 21 14:23:01 server kernel: [12345.678] Out of memory: Kill process 9876 (java) score 800 or sacrifice child',
+  windows: 'EventID 4625 An account failed to log on. Account Name: Administrator Failure Reason: %%2313',
+};
+
+// ── Detection rules ──────────────────────────────────────────────────────────
+const RULES = {
+  apache: [
+    // User-Agent based
+    { id:'nikto',     label:'Nikto Scanner',        sev:'HIGH',   test:(p)=> /nikto/i.test(p.ua) },
+    { id:'sqlmap-ua', label:'SQLMap',                sev:'HIGH',   test:(p)=> /sqlmap/i.test(p.ua) },
+    { id:'sqlmap-uri',label:'SQLMap',                sev:'HIGH',   test:(p)=> /sqlmap/i.test(p.uri) },
+    { id:'nmap',      label:'Nmap',                  sev:'MEDIUM', test:(p)=> /nmap/i.test(p.ua) },
+    { id:'masscan',   label:'Masscan',               sev:'MEDIUM', test:(p)=> /masscan/i.test(p.ua) },
+    { id:'dirbust',   label:'Directory Brute Force', sev:'HIGH',   test:(p)=> /dirbuster|gobuster|feroxbuster|ffuf|wfuzz/i.test(p.ua) },
+    { id:'nuclei',    label:'Nuclei Scanner',        sev:'HIGH',   test:(p)=> /nuclei/i.test(p.ua) },
+    { id:'autoclient',label:'Automated Client',      sev:'LOW',    test:(p)=> /python-requests|python-urllib|go-http-client|^curl\//i.test(p.ua) },
+    // URI based
+    { id:'traversal', label:'Path Traversal',        sev:'HIGH',   test:(p)=> /\.\.\//i.test(p.uri) || /%2e%2e/i.test(p.uri) },
+    { id:'lfi',       label:'LFI Attempt',           sev:'HIGH',   test:(p)=> /etc\/passwd|etc\/shadow/i.test(p.uri) },
+    { id:'webshell',  label:'Webshell / RCE',        sev:'HIGH',   test:(p)=> /\.php\?.*?(cmd|exec|system)=/i.test(p.uri) },
+    { id:'sqli',      label:'SQL Injection',         sev:'HIGH',   test:(p)=> /UNION\s+SELECT|'\s*OR\s*1\s*=\s*1/i.test(p.uri) },
+    { id:'xss',       label:'XSS Attempt',           sev:'HIGH',   test:(p)=> /<script|onerror\s*=/i.test(p.uri) },
+    { id:'sensfile',  label:'Sensitive File Probe',  sev:'MEDIUM', test:(p)=> /\/\.git\/|\/\.env|\/wp-config/i.test(p.uri) },
+    { id:'adminprobe',label:'Admin Panel Probe',     sev:'MEDIUM', test:(p)=> /^[45]\d\d$/.test(String(p.status)) && /\/admin|\/manager|\/phpmyadmin/i.test(p.uri) },
+  ],
+  auth: [
+    { id:'failed-ssh',  label:'Failed SSH Auth',    sev:'MEDIUM', test:(p)=> /Failed password/i.test(p.msg) },
+    { id:'invalid-user',label:'Unknown User Auth',  sev:'MEDIUM', test:(p)=> /Invalid user/i.test(p.msg) },
+    { id:'accepted',    label:'Successful Auth',    sev:'LOW',    test:(p)=> /Accepted password|Accepted publickey/i.test(p.msg) },
+    { id:'pam-fail',    label:'PAM Auth Failure',   sev:'MEDIUM', test:(p)=> /authentication failure/i.test(p.msg) },
+    { id:'breakin',     label:'Break-in Attempt',   sev:'HIGH',   test:(p)=> /BREAK-IN ATTEMPT/i.test(p.msg) },
+  ],
+  syslog: [
+    { id:'segfault',label:'Kernel Error',  sev:'MEDIUM', test:(p)=> /segfault|kernel:\s*oops/i.test(p.msg) },
+    { id:'oom',     label:'OOM Event',     sev:'MEDIUM', test:(p)=> /oom-kill|Out of memory/i.test(p.msg) },
+    { id:'sudo',    label:'Sudo Usage',    sev:'LOW',    test:(p)=> /sudo:.*COMMAND/i.test(p.msg) },
+  ],
+  windows: [
+    { id:'evid4625',label:'Failed Logon',             sev:'MEDIUM', test:(p)=> /EventID\s*:?\s*4625|Event\s+ID\s*:\s*4625/i.test(p.raw) },
+    { id:'evid4624',label:'Successful Logon',         sev:'LOW',    test:(p)=> /EventID\s*:?\s*4624|Event\s+ID\s*:\s*4624/i.test(p.raw) },
+    { id:'evid4648',label:'Explicit Credential Logon',sev:'MEDIUM', test:(p)=> /EventID\s*:?\s*4648|Event\s+ID\s*:\s*4648/i.test(p.raw) },
+    { id:'evid472x',label:'Account/Group Modified',   sev:'HIGH',   test:(p)=> /EventID\s*:?\s*472[028]|Event\s+ID\s*:\s*472[028]/i.test(p.raw) },
+    { id:'evid4688',label:'Process Created',          sev:'LOW',    test:(p)=> /EventID\s*:?\s*4688|Event\s+ID\s*:\s*4688/i.test(p.raw) },
+    { id:'evid7045',label:'New Service Installed',    sev:'HIGH',   test:(p)=> /EventID\s*:?\s*7045|Event\s+ID\s*:\s*7045/i.test(p.raw) },
+    { id:'evid1102',label:'Audit Log Cleared',        sev:'HIGH',   test:(p)=> /EventID\s*:?\s*1102|Event\s+ID\s*:\s*1102/i.test(p.raw) },
+  ],
+};
+
+// ── State ────────────────────────────────────────────────────────────────────
+let currentFormat = 'auto';
+let ipSortCol = 'count';
+let ipSortAsc = false;
+let lastIPData = [];
+
+// ── Format selector ──────────────────────────────────────────────────────────
+function setFormat(btn) {
+  document.querySelectorAll('.fmt-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  currentFormat = btn.dataset.fmt;
+  document.getElementById('log-input').placeholder = PLACEHOLDERS[currentFormat] || PLACEHOLDERS.auto;
+}
+
+// ── Line count ───────────────────────────────────────────────────────────────
+function updateLineCount() {
+  const val = document.getElementById('log-input').value;
+  const n = val.trim() === '' ? 0 : val.split('\n').filter(l => l.trim()).length;
+  document.getElementById('line-count').textContent = n + (n === 1 ? ' line' : ' lines');
+}
+
+// ── Paste ────────────────────────────────────────────────────────────────────
+async function pasteLog() {
+  try {
+    const t = await navigator.clipboard.readText();
+    document.getElementById('log-input').value = t;
+    updateLineCount();
+  } catch(e) {}
+}
+
+// ── Clear ────────────────────────────────────────────────────────────────────
+function clearAll() {
+  document.getElementById('log-input').value = '';
+  updateLineCount();
+  document.getElementById('stats-bar').classList.remove('visible');
+  document.getElementById('empty-findings').style.display = '';
+  document.getElementById('findings-list').style.display = 'none';
+  document.getElementById('findings-list').innerHTML = '';
+  document.getElementById('empty-ips').style.display = '';
+  document.getElementById('ip-table-wrap').style.display = 'none';
+  document.getElementById('empty-tl').style.display = '';
+  document.getElementById('timeline-content').style.display = 'none';
+  ['cnt-findings','cnt-ips','cnt-tl'].forEach(id => document.getElementById(id).textContent = '0');
+}
+
+// ── Load sample ──────────────────────────────────────────────────────────────
+function loadSample() {
+  const samples = {
+    apache: `192.168.1.10 - - [21/Jun/2026:14:20:01 +0000] "GET /index.php HTTP/1.1" 200 1024 "-" "Mozilla/5.0"
+192.168.1.55 - - [21/Jun/2026:14:20:02 +0000] "GET /login.php HTTP/1.1" 200 512 "-" "nikto/2.1.6"
+10.0.0.99 - - [21/Jun/2026:14:20:03 +0000] "GET /index.php?cmd=id HTTP/1.1" 200 80 "-" "python-requests/2.28"
+192.168.1.55 - - [21/Jun/2026:14:20:04 +0000] "GET /admin/config.php HTTP/1.1" 403 210 "-" "nikto/2.1.6"
+10.0.0.5 - - [21/Jun/2026:14:20:05 +0000] "GET /etc/passwd HTTP/1.1" 404 180 "-" "curl/7.68"
+10.0.0.99 - - [21/Jun/2026:14:20:06 +0000] "GET /shell.php?exec=whoami HTTP/1.1" 200 12 "-" "python-requests/2.28"
+203.0.113.42 - - [21/Jun/2026:14:20:07 +0000] "GET /?q=1' OR 1=1-- HTTP/1.1" 200 4096 "-" "sqlmap/1.7"
+192.168.1.55 - - [21/Jun/2026:14:20:08 +0000] "GET /.git/config HTTP/1.1" 200 220 "-" "gobuster/3.1"
+10.0.0.5 - - [21/Jun/2026:14:20:09 +0000] "GET /../../../etc/shadow HTTP/1.1" 403 180 "-" "curl/7.68"
+192.168.1.1 - - [21/Jun/2026:14:20:10 +0000] "GET /favicon.ico HTTP/1.1" 200 4286 "-" "Mozilla/5.0"
+203.0.113.42 - - [21/Jun/2026:14:20:11 +0000] "GET /phpmyadmin/ HTTP/1.1" 404 209 "-" "sqlmap/1.7"
+10.0.0.99 - - [21/Jun/2026:14:20:12 +0000] "GET /index.php?system=cat+/etc/passwd HTTP/1.1" 200 1200 "-" "python-requests/2.28"`,
+    auth: `Jun 21 14:20:01 server sshd[1234]: Failed password for root from 192.168.1.55 port 54321 ssh2
+Jun 21 14:20:02 server sshd[1235]: Failed password for root from 192.168.1.55 port 54322 ssh2
+Jun 21 14:20:03 server sshd[1236]: Invalid user admin from 10.0.0.99 port 32100 ssh2
+Jun 21 14:20:04 server sshd[1237]: Failed password for invalid user admin from 10.0.0.99 port 32101 ssh2
+Jun 21 14:20:05 server sshd[1238]: Accepted publickey for deploy from 172.16.0.1 port 12345 ssh2
+Jun 21 14:20:06 server sshd[1239]: Failed password for root from 192.168.1.55 port 54323 ssh2
+Jun 21 14:20:07 server sshd[1240]: Failed password for root from 192.168.1.55 port 54324 ssh2
+Jun 21 14:20:08 server sshd[1241]: Failed password for root from 192.168.1.55 port 54325 ssh2
+Jun 21 14:20:09 server sshd[1242]: BREAK-IN ATTEMPT! from 192.168.1.55 port 54326
+Jun 21 14:20:10 server sshd[1243]: authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.0.0.5
+Jun 21 14:20:11 server sshd[1244]: Accepted password for ubuntu from 172.16.0.2 port 55001 ssh2`,
+  };
+  const fmt = currentFormat === 'auto' ? 'apache' : currentFormat;
+  document.getElementById('log-input').value = samples[fmt] || samples.apache;
+  updateLineCount();
+}
+
+// ── Parsers ──────────────────────────────────────────────────────────────────
+const APACHE_RE = /^(\S+)\s+\S+\s+\S+\s+\[([^\]]+)\]\s+"(\S+)\s+(\S+)\s+\S+"\s+(\d+)\s+(\S+)(?:\s+"([^"]*)"\s+"([^"]*)")?/;
+const AUTH_RE   = /^(\w+\s+\d+\s+[\d:]+)\s+(\S+)\s+(\S+)\[(\d+)\]:\s+(.*)$/;
+const AUTH_IP   = /from\s+([\d.]+)/;
+const SYSLOG_RE = /^(\w+\s+\d+\s+[\d:]+)\s+(\S+)\s+(.+)$/;
+
+function parseApache(line) {
+  const m = APACHE_RE.exec(line);
+  if (!m) return null;
+  return { ip:m[1], timestamp:m[2], method:m[3], uri:m[4], status:parseInt(m[5],10), bytes:m[6], referer:m[7]||'', ua:m[8]||'', raw:line };
+}
+
+function parseAuth(line) {
+  const m = AUTH_RE.exec(line);
+  if (!m) return null;
+  const ipMatch = AUTH_IP.exec(m[5]);
+  return { timestamp:m[1], hostname:m[2], service:m[3], pid:m[4], msg:m[5], ip:ipMatch ? ipMatch[1] : null, raw:line };
+}
+
+function parseSyslog(line) {
+  const m = SYSLOG_RE.exec(line);
+  if (!m) return null;
+  return { timestamp:m[1], hostname:m[2], msg:m[3], ip:null, raw:line };
+}
+
+function parseWindows(line) {
+  return { raw:line, ip:null, timestamp:null, msg:line };
+}
+
+// ── Auto-detect format ───────────────────────────────────────────────────────
+function detectFormat(lines) {
+  const sample = lines.slice(0,10).join('\n');
+  if (/EventID|Event ID/i.test(sample)) return 'windows';
+  if (APACHE_RE.test(lines[0])) return 'apache';
+  if (AUTH_RE.test(lines[0])) return /sshd|su\[|sudo/i.test(sample) ? 'auth' : 'syslog';
+  return 'apache';
+}
+
+// ── Main analyze ─────────────────────────────────────────────────────────────
+function analyze() {
+  const raw = document.getElementById('log-input').value;
+  if (!raw.trim()) return;
+
+  const lines = raw.split('\n').filter(l => l.trim());
+  const fmt = currentFormat === 'auto' ? detectFormat(lines) : currentFormat;
+  const rules = RULES[fmt] || RULES.apache;
+
+  // Parse lines
+  const parsed = lines.map(line => {
+    switch(fmt) {
+      case 'apache': return parseApache(line) || { raw:line, ip:null, uri:'', ua:'', status:0, timestamp:null, msg:line };
+      case 'auth':   return parseAuth(line)   || { raw:line, ip:null, msg:line, timestamp:null };
+      case 'syslog': return parseSyslog(line) || { raw:line, ip:null, msg:line, timestamp:null };
+      case 'windows':return parseWindows(line);
+      default:       return { raw:line, ip:null, uri:'', ua:'', status:0, timestamp:null, msg:line };
+    }
+  });
+
+  // Per-IP request tracking for rate detection
+  const ipMinuteBuckets = {};
+  if (fmt === 'apache') {
+    parsed.forEach(p => {
+      if (!p.ip || !p.timestamp) return;
+      const minuteKey = p.timestamp.replace(/:\d\d\s+/, ' '); // drop seconds
+      const k = p.ip + '::' + minuteKey;
+      ipMinuteBuckets[k] = (ipMinuteBuckets[k] || 0) + 1;
+    });
+  }
+
+  // Per-IP auth failure counting
+  const ipAuthFails = {};
+  if (fmt === 'auth') {
+    parsed.forEach(p => {
+      if (!p.ip) return;
+      if (/Failed password|Invalid user|authentication failure/i.test(p.msg)) {
+        ipAuthFails[p.ip] = (ipAuthFails[p.ip] || 0) + 1;
+      }
+    });
+  }
+
+  // Flag each line
+  const findings = [];
+  parsed.forEach((p, idx) => {
+    const hits = [];
+    rules.forEach(rule => {
+      try { if (rule.test(p)) hits.push(rule); } catch(e) {}
+    });
+
+    // Rate detection (apache)
+    if (fmt === 'apache' && p.ip && p.timestamp) {
+      const minuteKey = p.timestamp.replace(/:\d\d\s+/, ' ');
+      const k = p.ip + '::' + minuteKey;
+      if ((ipMinuteBuckets[k] || 0) >= 40) {
+        if (!hits.find(h => h.id === 'rate')) {
+          hits.push({ id:'rate', label:'High Request Rate', sev:'MEDIUM' });
+        }
+      }
+    }
+
+    // Brute force detection (auth)
+    if (fmt === 'auth' && p.ip && (ipAuthFails[p.ip] || 0) >= 5) {
+      if (!hits.find(h => h.id === 'bruteforce')) {
+        hits.push({ id:'bruteforce', label:'Brute Force', sev:'HIGH' });
+      }
+    }
+
+    if (hits.length) findings.push({ parsed:p, hits, lineIdx:idx });
+  });
+
+  // Build IP map
+  const ipMap = {};
+  parsed.forEach(p => {
+    const ip = p.ip;
+    if (!ip) return;
+    if (!ipMap[ip]) ipMap[ip] = { ip, count:0, first:null, last:null, flags:new Set() };
+    ipMap[ip].count++;
+    const ts = p.timestamp || null;
+    if (ts) {
+      if (!ipMap[ip].first || ts < ipMap[ip].first) ipMap[ip].first = ts;
+      if (!ipMap[ip].last  || ts > ipMap[ip].last)  ipMap[ip].last  = ts;
+    }
+  });
+  findings.forEach(f => {
+    const ip = f.parsed.ip;
+    if (ip && ipMap[ip]) {
+      f.hits.forEach(h => ipMap[ip].flags.add(JSON.stringify({ label:h.label, sev:h.sev })));
+    }
+  });
+  const ipData = Object.values(ipMap);
+
+  // Build timeline
+  const timeBuckets = {};
+  parsed.forEach(p => {
+    if (!p.timestamp) return;
+    let key;
+    if (fmt === 'apache') {
+      // minute precision: "21/Jun/2026:14:23"
+      key = p.timestamp.replace(/(.*:\d+:\d+):\d+(.*)/, '$1$2').trim();
+    } else if (fmt === 'auth' || fmt === 'syslog') {
+      // hour precision
+      key = p.timestamp.replace(/(\w+\s+\d+\s+\d+):\d+:\d+/, '$1:xx').trim();
+    } else {
+      return;
+    }
+    timeBuckets[key] = (timeBuckets[key] || 0) + 1;
+  });
+
+  // Update stats
+  const uniqueIPs = ipData.length;
+  const topOffender = ipData.sort((a,b) => b.count - a.count)[0];
+  document.getElementById('stat-total').textContent    = lines.length;
+  document.getElementById('stat-flagged').textContent  = findings.length;
+  document.getElementById('stat-ips').textContent      = uniqueIPs;
+  document.getElementById('stat-top-offender').textContent = topOffender ? topOffender.ip : '—';
+  document.getElementById('stats-bar').classList.add('visible');
+
+  // Render findings
+  renderFindings(findings);
+  // Render IP table
+  lastIPData = ipData;
+  renderIPTable(ipData);
+  // Render timeline
+  renderTimeline(timeBuckets, fmt);
+
+  // Update tab counts
+  document.getElementById('cnt-findings').textContent = findings.length;
+  document.getElementById('cnt-ips').textContent = ipData.length;
+  document.getElementById('cnt-tl').textContent  = Object.keys(timeBuckets).length;
+}
+
+// ── Render findings ──────────────────────────────────────────────────────────
+function renderFindings(findings) {
+  const list = document.getElementById('findings-list');
+  const empty = document.getElementById('empty-findings');
+
+  if (!findings.length) {
+    empty.innerHTML = '<div class="empty-icon">✅</div><div class="empty-msg">No threats detected</div><div class="empty-sub">All ' + document.getElementById('stat-total').textContent + ' lines appear clean</div>';
+    empty.style.display = '';
+    list.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  list.style.display = '';
+
+  list.innerHTML = findings.map(f => {
+    const p = f.parsed;
+    const ip = p.ip || '';
+    const rawTrunc = escHtml(p.raw.length > 200 ? p.raw.slice(0, 200) + '…' : p.raw);
+
+    const badges = f.hits.map(h =>
+      `<span class="flag-badge">${escHtml(h.label)}</span><span class="sev-${h.sev.toLowerCase()}">${h.sev}</span>`
+    ).join('');
+
+    const ipChip = ip ? `<span class="ip-chip">${escHtml(ip)}</span>` : '';
+
+    return `<div class="finding-row">
+      <div class="finding-meta">${ipChip}${badges}</div>
+      <div class="finding-line">${rawTrunc}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render IP table ──────────────────────────────────────────────────────────
+function renderIPTable(data) {
+  const wrap  = document.getElementById('ip-table-wrap');
+  const empty = document.getElementById('empty-ips');
+  const tbody = document.getElementById('ip-tbody');
+
+  if (!data.length) {
+    empty.style.display = '';
+    wrap.style.display = 'none';
+    return;
+  }
+
+  // Sort
+  const sorted = [...data].sort((a,b) => {
+    let va = a[ipSortCol] ?? '';
+    let vb = b[ipSortCol] ?? '';
+    if (typeof va === 'number') return ipSortAsc ? va - vb : vb - va;
+    return ipSortAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+  });
+
+  tbody.innerHTML = sorted.map(row => {
+    const flags = [...row.flags].map(f => {
+      const obj = JSON.parse(f);
+      const cls = obj.sev === 'HIGH' ? 'high' : obj.sev === 'MEDIUM' ? 'med' : 'low';
+      return `<span class="ip-flag-pill ${cls}">${escHtml(obj.label)}</span>`;
+    }).join('');
+    return `<tr>
+      <td class="ip-col">${escHtml(row.ip)}</td>
+      <td class="count-col">${row.count}</td>
+      <td class="time-col">${row.first ? escHtml(row.first) : '—'}</td>
+      <td class="time-col">${row.last  ? escHtml(row.last)  : '—'}</td>
+      <td class="flags-col">${flags || '<span style="color:var(--text-faint);font-size:0.7rem;">none</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  empty.style.display = 'none';
+  wrap.style.display = '';
+}
+
+function sortIPs(col) {
+  if (ipSortCol === col) { ipSortAsc = !ipSortAsc; }
+  else { ipSortCol = col; ipSortAsc = false; }
+  // Update header indicators
+  ['ip','count'].forEach(c => {
+    const th = document.getElementById('th-' + c);
+    if (!th) return;
+    th.classList.toggle('sorted', c === ipSortCol);
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = c === ipSortCol ? (ipSortAsc ? '↑' : '↓') : '↕';
+  });
+  renderIPTable(lastIPData);
+}
+
+// ── Render timeline ──────────────────────────────────────────────────────────
+function renderTimeline(buckets, fmt) {
+  const el    = document.getElementById('timeline-content');
+  const empty = document.getElementById('empty-tl');
+  const keys  = Object.keys(buckets).sort();
+
+  if (!keys.length) {
+    empty.style.display = '';
+    el.style.display = 'none';
+    return;
+  }
+
+  const max = Math.max(...Object.values(buckets));
+  const BAR_WIDTH = 40;
+
+  const rows = keys.map(k => {
+    const count = buckets[k];
+    const fill  = Math.round((count / max) * BAR_WIDTH);
+    const ratio = count / max;
+    const cls   = ratio >= 0.75 ? 'high' : ratio >= 0.4 ? 'med' : '';
+    const blocks = '█'.repeat(fill) + '░'.repeat(BAR_WIDTH - fill);
+    return `<div class="tl-row">
+      <span class="tl-label">${escHtml(k)}</span>
+      <span class="tl-blocks ${cls}">${blocks}</span>
+      <span class="tl-count">${count}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = rows;
+  empty.style.display = 'none';
+  el.style.display = '';
+}
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(btn) {
+  document.querySelectorAll('.out-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+}
+
+// ── Utility ──────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+// Init line count
+updateLineCount();
+document.getElementById('log-input').addEventListener('input', updateLineCount);
+document.getElementById('log-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { analyze(); }
+});
+</script>
+</body>
+</html>

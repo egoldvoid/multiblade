@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TLS Inspector — Multiblade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12; --s1:#0d0f1c; --s2:#121525; --s3:#191d31;
+      --border:#1e2240; --border-hi:#2d3260;
+      --text:#dde1f5; --text-dim:#6b7099; --text-faint:#373b5c;
+      --accent:#6366f1; --accent-hi:#818cf8; --accent-glow:#6366f133;
+      --radius:12px; --radius-sm:7px; --ease:cubic-bezier(0.16,1,0.3,1);
+      --ok:#22d3a5; --ok-bg:#22d3a512; --ok-border:#22d3a530;
+      --warn:#f59e0b; --warn-bg:#f59e0b12; --warn-border:#f59e0b30;
+      --bad:#ef4444; --bad-bg:#ef444412; --bad-border:#ef444430;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Background decoration ── */
+    .bg-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .blob { position: absolute; border-radius: 50%; filter: blur(100px); }
+    .blob-1 {
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, #3730a314, transparent 70%);
+      top: -250px; left: -100px;
+      animation: d1 22s ease-in-out infinite alternate;
+    }
+    .blob-2 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, #6366f10a, transparent 70%);
+      bottom: -100px; right: -50px;
+      animation: d2 28s ease-in-out infinite alternate;
+    }
+    .blob-3 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, #0ea5e908, transparent 70%);
+      top: 40%; left: 50%;
+      animation: d3 18s ease-in-out infinite alternate;
+    }
+    .grid-ov {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: radial-gradient(circle, #6366f10a 1px, transparent 1px);
+      background-size: 32px 32px;
+      opacity: 0.5;
+    }
+    @keyframes d1 { to { transform: translate(50px, 40px) scale(1.05); } }
+    @keyframes d2 { to { transform: translate(-40px, -50px) scale(1.12); } }
+    @keyframes d3 { to { transform: translate(-60px, 30px) scale(0.9); } }
+
+    /* ── Layout ── */
+    .main {
+      position: relative; z-index: 1;
+      margin-left: 60px;
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8, 10, 18, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px 14px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .back-link {
+      color: var(--text-faint);
+      text-decoration: none;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      transition: color 0.15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .back-link:hover { color: var(--text-dim); }
+    .header-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+    .header-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: #6366f118; border: 1px solid #6366f140;
+      display: grid; place-items: center; font-size: 1.15rem; flex-shrink: 0;
+    }
+    .header-title-group { flex: 1; min-width: 0; }
+    .header-title {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 1.05rem; letter-spacing: 0.04em; line-height: 1.2;
+    }
+    .header-subtitle { font-size: 0.72rem; color: var(--text-dim); margin-top: 1px; }
+
+    /* ── Content area ── */
+    .content {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 28px 32px 0;
+    }
+
+    /* ── Input section ── */
+    .input-card {
+      background: var(--s1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      margin-bottom: 24px;
+    }
+    .input-label {
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--text-faint); margin-bottom: 10px; display: block;
+    }
+    .domain-bar {
+      display: flex; gap: 10px; align-items: stretch;
+    }
+    .domain-input-wrap { flex: 1; position: relative; }
+    .domain-input {
+      width: 100%; height: 44px;
+      background: var(--s2); border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      padding: 0 14px;
+      color: var(--text); font-family: 'Fira Code', monospace; font-size: 0.88rem;
+      outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .domain-input::placeholder { color: var(--text-faint); font-family: 'Inter', sans-serif; font-size: 0.82rem; }
+    .domain-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .port-input {
+      width: 90px; height: 44px;
+      background: var(--s2); border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      padding: 0 12px;
+      color: var(--text); font-family: 'Fira Code', monospace; font-size: 0.88rem;
+      outline: none; transition: border-color 0.15s, box-shadow 0.15s; flex-shrink: 0;
+    }
+    .port-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .port-input::placeholder { color: var(--text-faint); font-family: 'Inter', sans-serif; font-size: 0.78rem; }
+    .inspect-btn {
+      height: 44px; padding: 0 22px; flex-shrink: 0;
+      background: var(--accent); color: #fff;
+      font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600;
+      border: none; border-radius: var(--radius-sm); cursor: pointer;
+      box-shadow: 0 4px 14px var(--accent-glow);
+      transition: opacity 0.15s, transform 0.15s;
+      display: flex; align-items: center; gap: 8px;
+      white-space: nowrap;
+    }
+    .inspect-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .inspect-btn:disabled { opacity: 0.5; transform: none; cursor: not-allowed; }
+
+    .preset-chips {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px;
+    }
+    .preset-chip {
+      padding: 4px 11px;
+      font-size: 0.72rem; font-weight: 500; font-family: 'Fira Code', monospace;
+      background: var(--s2); border: 1px solid var(--border); border-radius: 999px;
+      color: var(--text-dim); cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+    .preset-chip:hover {
+      border-color: var(--accent); color: var(--accent-hi);
+      background: var(--accent-glow);
+    }
+    .preset-chip.preset-bad:hover { border-color: var(--bad); color: var(--bad); background: var(--bad-bg); }
+    .preset-chip.preset-warn:hover { border-color: var(--warn); color: var(--warn); background: var(--warn-bg); }
+
+    /* ── Loading spinner ── */
+    #loading-state { display: none; }
+    #loading-state.visible { display: flex; }
+    .loading-state-inner {
+      flex-direction: column; align-items: center; justify-content: center;
+      padding: 48px 24px; gap: 16px;
+      display: flex;
+    }
+    .loading-spinner {
+      width: 44px; height: 44px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 0.82rem; color: var(--text-dim); }
+    .loading-domain { font-family: 'Fira Code', monospace; font-size: 0.82rem; color: var(--accent-hi); }
+
+    /* ── Error state ── */
+    #error-state { display: none; }
+    #error-state.visible { display: block; }
+    .error-card {
+      background: var(--bad-bg);
+      border: 1px solid var(--bad-border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      margin-bottom: 20px;
+    }
+    .error-card-title {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 0.9rem; color: var(--bad); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .error-msg { font-family: 'Fira Code', monospace; font-size: 0.82rem; color: var(--text-dim); margin-bottom: 12px; }
+    .error-hints { font-size: 0.78rem; color: var(--text-faint); line-height: 1.7; }
+    .error-hints li { margin-left: 18px; }
+
+    /* ── Results ── */
+    #result-state { display: none; }
+    #result-state.visible { display: block; }
+    @keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    #result-state.visible > * { animation: fade-up 0.3s var(--ease) both; }
+
+    /* ── Result header card ── */
+    .result-header {
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 18px;
+      border: 1px solid;
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .result-header.expiry-ok { background: var(--ok-bg); border-color: var(--ok-border); }
+    .result-header.expiry-warn { background: var(--warn-bg); border-color: var(--warn-border); }
+    .result-header.expiry-bad { background: var(--bad-bg); border-color: var(--bad-border); }
+    .rh-domain-wrap { flex: 1; min-width: 0; }
+    .rh-domain {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 1.2rem; letter-spacing: 0.04em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .rh-scan-time { font-size: 0.68rem; color: var(--text-faint); margin-top: 2px; }
+    .expiry-badge {
+      font-size: 0.85rem; font-weight: 600;
+      padding: 8px 16px; border-radius: 8px; border: 1px solid; white-space: nowrap; flex-shrink: 0;
+    }
+    .expiry-ok .expiry-badge { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok); }
+    .expiry-warn .expiry-badge { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn); }
+    .expiry-bad .expiry-badge { background: var(--bad-bg); border-color: var(--bad-border); color: var(--bad); }
+
+    /* ── Two-column layout for info + findings ── */
+    .result-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 18px;
+      align-items: start;
+    }
+    @media (max-width: 780px) { .result-layout { grid-template-columns: 1fr; } }
+
+    /* ── Section titles ── */
+    .section-hdr {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .section-hdr-title {
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--text-faint);
+    }
+    .section-hdr-line { flex: 1; height: 1px; background: var(--border); }
+
+    /* ── Info grid ── */
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 600px) { .result-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 400px) { .result-grid { grid-template-columns: 1fr; } }
+    .info-card {
+      background: var(--s1); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      transition: border-color 0.15s;
+    }
+    .info-card:hover { border-color: var(--border-hi); }
+    .info-card.span-2 { grid-column: span 2; }
+    .info-card.span-3 { grid-column: span 3; }
+    .info-card-label {
+      font-size: 0.58rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--text-faint); margin-bottom: 5px;
+    }
+    .info-card-value {
+      font-size: 0.82rem; color: var(--text); line-height: 1.4; word-break: break-all;
+    }
+    .info-card-value.mono {
+      font-family: 'Fira Code', monospace; font-size: 0.78rem; color: var(--accent-hi);
+    }
+    .info-card-sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
+    .tls-version-ok { color: var(--ok); }
+    .tls-version-warn { color: var(--warn); }
+    .tls-version-bad { color: var(--bad); }
+
+    /* Fingerprint expand */
+    .fp-wrap { position: relative; }
+    .fp-text { font-family: 'Fira Code', monospace; font-size: 0.75rem; color: var(--accent-hi); }
+    .fp-truncated { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: block; }
+    .fp-full { display: none; word-break: break-all; }
+    .fp-toggle {
+      font-size: 0.68rem; color: var(--text-faint); cursor: pointer;
+      background: none; border: none; padding: 0; margin-top: 3px; display: block;
+      transition: color 0.12s; font-family: 'Inter', sans-serif;
+    }
+    .fp-toggle:hover { color: var(--accent-hi); }
+
+    /* ── SANs panel ── */
+    .san-panel {
+      background: var(--s1); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px 18px; margin-bottom: 18px;
+    }
+    .san-list {
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .san-chip {
+      font-family: 'Fira Code', monospace; font-size: 0.72rem;
+      padding: 3px 10px; border-radius: 6px;
+      background: var(--s2); border: 1px solid var(--border); color: var(--text-dim);
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .san-chip:hover { border-color: var(--accent); color: var(--accent-hi); }
+    .san-chip.wildcard { border-color: var(--warn-border); color: var(--warn); background: var(--warn-bg); }
+    .san-more-btn {
+      font-size: 0.72rem; padding: 3px 10px; border-radius: 6px;
+      background: var(--s3); border: 1px dashed var(--border-hi); color: var(--accent-hi);
+      cursor: pointer; transition: background 0.12s, border-color 0.12s;
+      font-family: 'Inter', sans-serif; font-weight: 600;
+    }
+    .san-more-btn:hover { background: var(--accent-glow); border-color: var(--accent); }
+    .san-empty { font-size: 0.78rem; color: var(--text-faint); }
+
+    /* ── Security findings ── */
+    .findings-panel {
+      background: var(--s1); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px 18px; margin-bottom: 18px;
+    }
+    .finding-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+    .finding-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .finding-item:first-child { padding-top: 0; }
+    .finding-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px;
+    }
+    .finding-dot.ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+    .finding-dot.warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+    .finding-dot.bad { background: var(--bad); box-shadow: 0 0 6px var(--bad); }
+    .finding-text { color: var(--text-dim); line-height: 1.5; }
+    .finding-text strong { color: var(--text); font-weight: 600; }
+    .finding-empty { font-size: 0.78rem; color: var(--text-faint); padding: 4px 0; }
+
+    /* ── External links ── */
+    .external-links-panel {
+      background: var(--s1); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .external-links {
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .ext-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: var(--radius-sm);
+      background: var(--s2); border: 1px solid var(--border);
+      text-decoration: none; color: var(--text-dim);
+      font-size: 0.8rem; font-weight: 500;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .ext-link:hover {
+      border-color: var(--accent); color: var(--text);
+      background: var(--accent-glow);
+    }
+    .ext-link-icon { font-size: 0.95rem; flex-shrink: 0; }
+    .ext-link-label { flex: 1; }
+    .ext-link-desc { font-size: 0.68rem; color: var(--text-faint); margin-top: 1px; }
+    .ext-link-arrow { font-size: 0.72rem; color: var(--text-faint); transition: transform 0.15s, color 0.15s; }
+    .ext-link:hover .ext-link-arrow { transform: translateX(2px); color: var(--accent-hi); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Light theme adjustments (inherits from _nav.html) ── */
+    [data-theme="light"] .input-card,
+    [data-theme="light"] .info-card,
+    [data-theme="light"] .san-panel,
+    [data-theme="light"] .findings-panel,
+    [data-theme="light"] .external-links-panel,
+    [data-theme="light"] .san-chip,
+    [data-theme="light"] .ext-link { background: var(--s1); }
+    [data-theme="light"] .domain-input,
+    [data-theme="light"] .port-input { background: var(--s2); }
+  </style>
+</head>
+<body>
+
+<div class="bg-layer" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+{% include '_nav.html' %}
+
+<div class="main">
+
+  <!-- ── Sticky page header ── -->
+  <header class="page-header">
+    <a href="/generators" class="back-link">← Generators</a>
+    <div class="header-divider"></div>
+    <div class="header-icon">🔐</div>
+    <div class="header-title-group">
+      <div class="header-title">TLS Inspector</div>
+      <div class="header-subtitle">Check certificate details, expiry, SANs, and cipher suites for any domain</div>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ── Input card ── -->
+    <div class="input-card">
+      <label class="input-label">Domain</label>
+      <div class="domain-bar">
+        <div class="domain-input-wrap">
+          <input
+            id="domain-input"
+            class="domain-input"
+            type="text"
+            placeholder="example.com"
+            spellcheck="false"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="none"
+            onkeydown="if(event.key==='Enter')inspect()"
+          />
+        </div>
+        <input
+          id="port-input"
+          class="port-input"
+          type="number"
+          placeholder="Port"
+          value="443"
+          min="1"
+          max="65535"
+          title="Port (default 443)"
+        />
+        <button class="inspect-btn" id="inspect-btn" onclick="inspect()">
+          <span id="btn-icon">🔍</span>
+          <span id="btn-label">Inspect</span>
+        </button>
+      </div>
+
+      <div class="preset-chips">
+        <span class="preset-chip" onclick="setPreset('google.com')">google.com</span>
+        <span class="preset-chip" onclick="setPreset('github.com')">github.com</span>
+        <span class="preset-chip preset-bad" onclick="setPreset('expired.badssl.com')">expired.badssl.com</span>
+        <span class="preset-chip preset-warn" onclick="setPreset('self-signed.badssl.com')">self-signed.badssl.com</span>
+      </div>
+    </div>
+
+    <!-- ── Loading state ── -->
+    <div id="loading-state">
+      <div class="loading-state-inner">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Connecting to <span class="loading-domain" id="loading-domain"></span></div>
+      </div>
+    </div>
+
+    <!-- ── Error state ── -->
+    <div id="error-state">
+      <div class="error-card">
+        <div class="error-card-title">
+          <span>✕</span>
+          <span>Inspection Failed</span>
+        </div>
+        <div class="error-msg" id="error-msg"></div>
+        <ul class="error-hints">
+          <li>The domain may be unreachable or behind a firewall</li>
+          <li>The server may not support TLS on the given port</li>
+          <li>The domain name may be invalid or non-existent</li>
+          <li>Check that you entered the domain without <code>https://</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ── Result state ── -->
+    <div id="result-state">
+
+      <!-- Header banner -->
+      <div class="result-header" id="result-header">
+        <div class="rh-domain-wrap">
+          <div class="rh-domain" id="rh-domain"></div>
+          <div class="rh-scan-time" id="rh-scan-time"></div>
+        </div>
+        <div class="expiry-badge" id="expiry-badge"></div>
+      </div>
+
+      <div class="result-layout">
+
+        <!-- Left column: info grid + SANs -->
+        <div>
+
+          <!-- Info grid -->
+          <div class="section-hdr">
+            <span class="section-hdr-title">Certificate Details</span>
+            <div class="section-hdr-line"></div>
+          </div>
+          <div class="result-grid" id="result-grid">
+            <!-- Populated by JS -->
+          </div>
+
+          <!-- SANs panel -->
+          <div class="san-panel">
+            <div class="section-hdr" style="margin-bottom:10px">
+              <span class="section-hdr-title">Subject Alternative Names</span>
+              <div class="section-hdr-line"></div>
+              <span id="san-count" style="font-size:0.65rem;color:var(--text-faint);white-space:nowrap;flex-shrink:0;margin-left:6px;"></span>
+            </div>
+            <div class="san-list" id="san-list"></div>
+          </div>
+
+          <!-- External links -->
+          <div class="external-links-panel" id="ext-links-panel">
+            <div class="section-hdr" style="margin-bottom:12px">
+              <span class="section-hdr-title">External Tools</span>
+              <div class="section-hdr-line"></div>
+            </div>
+            <div class="external-links" id="ext-links"></div>
+          </div>
+
+        </div>
+
+        <!-- Right column: security findings -->
+        <div>
+          <div class="section-hdr">
+            <span class="section-hdr-title">Security Findings</span>
+            <div class="section-hdr-line"></div>
+          </div>
+          <div class="findings-panel">
+            <div id="findings-list"></div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /result-state -->
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+'use strict';
+
+/* ── State ── */
+let currentDomain = null;
+
+/* ── Preset ── */
+function setPreset(domain) {
+  document.getElementById('domain-input').value = domain;
+  document.getElementById('port-input').value = '443';
+  inspect();
+}
+
+/* ── Visibility helpers ── */
+function showLoading(domain) {
+  hide('error-state');
+  hide('result-state');
+  show('loading-state');
+  document.getElementById('loading-domain').textContent = domain;
+  const btn = document.getElementById('inspect-btn');
+  btn.disabled = true;
+  document.getElementById('btn-icon').textContent = '⏳';
+  document.getElementById('btn-label').textContent = 'Inspecting…';
+}
+
+function showError(msg) {
+  hide('loading-state');
+  hide('result-state');
+  show('error-state');
+  document.getElementById('error-msg').textContent = msg;
+  resetBtn();
+}
+
+function showResult(data) {
+  hide('loading-state');
+  hide('error-state');
+  show('result-state');
+  resetBtn();
+  renderResult(data);
+}
+
+function show(id) { document.getElementById(id).classList.add('visible'); }
+function hide(id) { document.getElementById(id).classList.remove('visible'); }
+
+function resetBtn() {
+  const btn = document.getElementById('inspect-btn');
+  btn.disabled = false;
+  document.getElementById('btn-icon').textContent = '🔍';
+  document.getElementById('btn-label').textContent = 'Inspect';
+}
+
+/* ── Main inspect function ── */
+async function inspect() {
+  const raw = document.getElementById('domain-input').value.trim()
+    .replace(/^https?:\/\//, '').replace(/\/.*$/, '').trim();
+  if (!raw) {
+    document.getElementById('domain-input').focus();
+    return;
+  }
+  const port = parseInt(document.getElementById('port-input').value) || 443;
+  currentDomain = raw;
+
+  showLoading(raw + (port !== 443 ? ':' + port : ''));
+
+  try {
+    const params = new URLSearchParams({ domain: raw, port: port });
+    const r = await fetch('/api/tls?' + params.toString());
+    const data = await r.json();
+    if (data.error) {
+      showError(data.error);
+    } else {
+      showResult(data);
+    }
+  } catch (e) {
+    showError('Request failed: ' + e.message);
+  }
+}
+
+/* ── Render result ── */
+function renderResult(d) {
+  /* Header */
+  const header = document.getElementById('result-header');
+  const badge  = document.getElementById('expiry-badge');
+  header.className = 'result-header';
+
+  if (d.days_left > 30) {
+    header.classList.add('expiry-ok');
+    badge.textContent = '✓ Valid — expires in ' + d.days_left + ' days';
+  } else if (d.days_left >= 1) {
+    header.classList.add('expiry-warn');
+    badge.textContent = '⚠ Expires in ' + d.days_left + ' days';
+  } else {
+    header.classList.add('expiry-bad');
+    const daysAgo = Math.abs(d.days_left);
+    badge.textContent = '✕ EXPIRED ' + daysAgo + ' day' + (daysAgo !== 1 ? 's' : '') + ' ago';
+  }
+
+  document.getElementById('rh-domain').textContent = d.domain;
+  document.getElementById('rh-scan-time').textContent = 'Inspected ' + new Date().toLocaleString();
+
+  /* Info grid */
+  const tlsClass = tlsVersionClass(d.tls_version);
+  const fpShort  = (d.sha256_fp || '').slice(0, 29) + '…';
+  const fpFull   = d.sha256_fp || '';
+
+  const cards = [
+    { label: 'Subject CN',    value: esc(d.subject_cn || '—'),           cls: '' },
+    { label: 'Issuer',        value: esc(d.issuer_cn || '—') + (d.issuer_org ? '<div class="info-card-sub">' + esc(d.issuer_org) + '</div>' : ''), cls: '' },
+    { label: 'TLS Version',   value: '<span class="' + tlsClass + '">' + esc(d.tls_version || '—') + '</span>', cls: '' },
+    { label: 'Valid From',    value: esc(d.not_before || '—'),            cls: '' },
+    { label: 'Valid Until',   value: esc(d.not_after || '—'),             cls: '' },
+    { label: 'Cipher Suite',  value: esc(d.cipher || '—'),               cls: '' },
+    { label: 'Serial Number', value: '<span class="mono">' + esc(d.serial || '—') + '</span>', cls: '' },
+    {
+      label: 'SHA-256 Fingerprint',
+      value: '<div class="fp-wrap">'
+           + '<span class="fp-text fp-truncated" id="fp-short">' + esc(fpShort) + '</span>'
+           + '<span class="fp-text fp-full" id="fp-full">' + esc(fpFull) + '</span>'
+           + '<button class="fp-toggle" id="fp-btn" onclick="toggleFp()">Show full</button>'
+           + '</div>',
+      cls: 'span-2'
+    },
+  ];
+
+  const grid = document.getElementById('result-grid');
+  grid.innerHTML = cards.map(c =>
+    '<div class="info-card ' + c.cls + '">'
+    + '<div class="info-card-label">' + c.label + '</div>'
+    + '<div class="info-card-value">' + c.value + '</div>'
+    + '</div>'
+  ).join('');
+
+  /* SANs */
+  const sans = d.sans || [];
+  const sanList = document.getElementById('san-list');
+  const sanCount = document.getElementById('san-count');
+  sanCount.textContent = sans.length + ' name' + (sans.length !== 1 ? 's' : '');
+  sanList.innerHTML = '';
+
+  if (sans.length === 0) {
+    sanList.innerHTML = '<span class="san-empty">No SANs found</span>';
+  } else {
+    const visible = sans.slice(0, 10);
+    const hidden  = sans.slice(10);
+
+    visible.forEach(san => {
+      const chip = document.createElement('span');
+      chip.className = 'san-chip' + (san.startsWith('*.') ? ' wildcard' : '');
+      chip.textContent = san;
+      sanList.appendChild(chip);
+    });
+
+    if (hidden.length > 0) {
+      const moreBtn = document.createElement('button');
+      moreBtn.className = 'san-more-btn';
+      moreBtn.textContent = '+' + hidden.length + ' more';
+      moreBtn.onclick = function() {
+        hidden.forEach(san => {
+          const chip = document.createElement('span');
+          chip.className = 'san-chip' + (san.startsWith('*.') ? ' wildcard' : '');
+          chip.textContent = san;
+          sanList.insertBefore(chip, moreBtn);
+        });
+        moreBtn.remove();
+      };
+      sanList.appendChild(moreBtn);
+    }
+  }
+
+  /* Security findings */
+  const findings = buildFindings(d);
+  const findingsList = document.getElementById('findings-list');
+  if (findings.length === 0) {
+    findingsList.innerHTML = '<div class="finding-empty">No issues detected</div>';
+  } else {
+    findingsList.innerHTML = findings.map(f =>
+      '<div class="finding-item">'
+      + '<span class="finding-dot ' + f.level + '"></span>'
+      + '<span class="finding-text">' + f.html + '</span>'
+      + '</div>'
+    ).join('');
+  }
+
+  /* External links */
+  const dom = encodeURIComponent(d.domain);
+  const links = [
+    {
+      icon: '🔍',
+      label: 'Certificate Transparency',
+      desc: 'crt.sh — search CT logs for issued certificates',
+      href: 'https://crt.sh/?q=' + dom,
+    },
+    {
+      icon: '🛡',
+      label: 'Full SSL Analysis',
+      desc: 'SSL Labs — detailed protocol and cipher grading',
+      href: 'https://www.ssllabs.com/ssltest/analyze.html?d=' + dom,
+    },
+    {
+      icon: '🔒',
+      label: 'HTTP Security Headers',
+      desc: 'SecurityHeaders.com — HSTS, CSP, X-Frame and more',
+      href: 'https://securityheaders.com/?q=' + dom,
+    },
+  ];
+  document.getElementById('ext-links').innerHTML = links.map(l =>
+    '<a class="ext-link" href="' + l.href + '" target="_blank" rel="noopener noreferrer">'
+    + '<span class="ext-link-icon">' + l.icon + '</span>'
+    + '<div><div class="ext-link-label">' + esc(l.label) + '</div>'
+    + '<div class="ext-link-desc">' + esc(l.desc) + '</div></div>'
+    + '<span class="ext-link-arrow">→</span>'
+    + '</a>'
+  ).join('');
+}
+
+/* ── Build security findings ── */
+function buildFindings(d) {
+  const findings = [];
+
+  /* TLS version */
+  const tv = (d.tls_version || '').toLowerCase();
+  if (tv.includes('1.3')) {
+    findings.push({ level: 'ok', html: '<strong>TLS 1.3</strong> — modern, forward-secret, secure' });
+  } else if (tv.includes('1.2')) {
+    findings.push({ level: 'warn', html: '<strong>TLS 1.2</strong> — acceptable but consider upgrading to TLS 1.3' });
+  } else if (tv.includes('1.1') || tv.includes('1.0')) {
+    findings.push({ level: 'bad', html: '<strong>' + esc(d.tls_version) + '</strong> — deprecated protocol, upgrade required' });
+  }
+
+  /* Self-signed */
+  if (d.issuer_cn && d.subject_cn && d.issuer_cn === d.subject_cn) {
+    findings.push({ level: 'bad', html: '<strong>Self-signed certificate</strong> — not trusted by browsers; issuer equals subject' });
+  }
+
+  /* Wildcard */
+  if (d.subject_cn && d.subject_cn.startsWith('*.')) {
+    findings.push({ level: 'warn', html: '<strong>Wildcard certificate</strong> — ' + esc(d.subject_cn) + ' covers all subdomains' });
+  }
+
+  /* Expiry warning */
+  if (d.days_left >= 1 && d.days_left <= 30) {
+    findings.push({ level: 'warn', html: '<strong>Expiring soon</strong> — certificate expires in ' + d.days_left + ' day' + (d.days_left !== 1 ? 's' : '') + '; renew now' });
+  } else if (d.days_left <= 0) {
+    findings.push({ level: 'bad', html: '<strong>Expired certificate</strong> — expired ' + Math.abs(d.days_left) + ' day' + (Math.abs(d.days_left) !== 1 ? 's' : '') + ' ago' });
+  }
+
+  /* Weak cipher */
+  const cipher = (d.cipher || '').toUpperCase();
+  const weakCiphers = ['RC4', 'DES', '3DES', 'NULL', 'EXPORT', 'ANON'];
+  const found = weakCiphers.find(w => cipher.includes(w));
+  if (found) {
+    findings.push({ level: 'bad', html: '<strong>Weak cipher suite</strong> — ' + esc(d.cipher) + ' uses deprecated ' + found });
+  }
+
+  return findings;
+}
+
+/* ── TLS version CSS class ── */
+function tlsVersionClass(ver) {
+  if (!ver) return '';
+  const v = ver.toLowerCase();
+  if (v.includes('1.3')) return 'tls-version-ok';
+  if (v.includes('1.2')) return 'tls-version-warn';
+  return 'tls-version-bad';
+}
+
+/* ── Toggle fingerprint ── */
+function toggleFp() {
+  const short = document.getElementById('fp-short');
+  const full  = document.getElementById('fp-full');
+  const btn   = document.getElementById('fp-btn');
+  if (!short || !full || !btn) return;
+  const expanded = full.style.display === 'block';
+  short.style.display = expanded ? 'block' : 'none';
+  full.style.display  = expanded ? 'none'  : 'block';
+  btn.textContent     = expanded ? 'Show full' : 'Collapse';
+}
+
+/* ── Escape HTML ── */
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Keyboard: Enter in port input ── */
+document.getElementById('port-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') inspect();
+});
+
+/* ── Auto-focus on load ── */
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('domain-input').focus();
+});
+</script>
+</body>
+</html>
