@@ -2074,3 +2074,77 @@ class TestInstallHints:
         if no_hint:
             r = client.get(f"/generators/{no_hint}")
             assert b"install-block" not in r.data
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 12 — Network Security Tools
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestNetworkSecurityTools:
+    """iptables, hping3, nft are in tool_data and have valid definitions."""
+
+    NEW_TOOLS = ["iptables", "hping3", "nft"]
+
+    def test_new_tools_exist_in_tool_data(self):
+        from zip_analyzer.tool_data import get_tool
+        for slug in self.NEW_TOOLS:
+            t = get_tool(slug)
+            assert t is not None, f"{slug} missing from tool_data"
+
+    def test_new_tools_have_correct_category(self):
+        from zip_analyzer.tool_data import get_tool
+        for slug in self.NEW_TOOLS:
+            t = get_tool(slug)
+            assert t["category"] == "Network", f"{slug} should be in Network category"
+
+    def test_new_tools_have_presets(self):
+        from zip_analyzer.tool_data import get_tool
+        for slug in self.NEW_TOOLS:
+            t = get_tool(slug)
+            assert len(t.get("presets", [])) >= 3, f"{slug} needs at least 3 presets"
+
+    def test_new_tools_have_install_hints(self):
+        from zip_analyzer.tool_data import get_install
+        for slug in self.NEW_TOOLS:
+            hints = get_install(slug)
+            assert hints is not None, f"{slug} missing from INSTALL_MAP"
+
+    def test_iptables_generator_page_loads(self, client):
+        r = client.get("/generators/iptables")
+        assert r.status_code == 200
+        assert b"iptables" in r.data
+
+    def test_hping3_generator_page_loads(self, client):
+        r = client.get("/generators/hping3")
+        assert r.status_code == 200
+        assert b"hping3" in r.data
+
+    def test_nft_generator_page_loads(self, client):
+        r = client.get("/generators/nft")
+        assert r.status_code == 200
+        assert b"nft" in r.data
+
+    def test_iptables_page_shows_install_hints(self, client):
+        r = client.get("/generators/iptables")
+        assert b"install-block" in r.data
+
+    def test_hping3_page_shows_brew_hint(self, client):
+        r = client.get("/generators/hping3")
+        assert b"brew install hping" in r.data
+
+    def test_iptables_in_all_tools_list(self):
+        from zip_analyzer.tool_data import get_all_tools
+        slugs = [t["slug"] for t in get_all_tools()]
+        assert "iptables" in slugs
+        assert "hping3" in slugs
+        assert "nft" in slugs
+
+    def test_network_category_count_increased(self):
+        from zip_analyzer.tool_data import get_all_tools
+        network_tools = [t for t in get_all_tools() if t["category"] == "Network"]
+        # Was 4 (nc, socat, tcpdump, tshark) + 3 new = 7 minimum
+        assert len(network_tools) >= 7
+
+    def test_tool_count_increased(self):
+        from zip_analyzer.tool_data import get_all_tools
+        assert len(get_all_tools()) >= 166  # was 163

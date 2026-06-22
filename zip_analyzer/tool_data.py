@@ -3915,9 +3915,163 @@ _CONTAINER = [
 ]  # end _CONTAINER
 
 
+# ── Network Security Tools (Phase 12) ────────────────────────────────────────
+
+_NETWORK_NEW = [
+
+    {
+        "slug": "iptables", "name": "iptables", "full_name": "iptables Firewall",
+        "desc": "Linux kernel packet filter — manage firewall rules for INPUT, OUTPUT, and FORWARD chains.",
+        "category": "Network", "tier": 2, "icon": "🔥", "color": "#34d399",
+        "sections": [
+            S("table", "Table & Action", "📋",
+              Sel("t", "-t", "Table (-t)", "Which table to operate on",
+                  _opts(("filter (default)", "filter"), ("nat", "nat"), ("mangle", "mangle"), ("raw", "raw"))),
+              Sel("action", "", "Action *", "Append, Insert, Delete, or List rules",
+                  [("(choose)", ""), ("-A (append)", "-A"), ("-I (insert)", "-I"),
+                   ("-D (delete)", "-D"), ("-L (list)", "-L"), ("-F (flush)", "-F"),
+                   ("-P (policy)", "-P"), ("-N (new chain)", "-N")]),
+              Sel("chain", "", "Chain *", "Rule chain",
+                  [("(choose)", ""), ("INPUT", "INPUT"), ("OUTPUT", "OUTPUT"),
+                   ("FORWARD", "FORWARD"), ("PREROUTING", "PREROUTING"), ("POSTROUTING", "POSTROUTING")]),
+            ),
+            S("match", "Match Criteria", "🎯",
+              Sel("p", "-p", "Protocol (-p)", "Match by protocol",
+                  _opts(("tcp", "tcp"), ("udp", "udp"), ("icmp", "icmp"), ("all", "all"))),
+              F("s", "-s", "Source IP (-s)", "Source address/CIDR", "192.168.1.0/24"),
+              F("d", "-d", "Destination IP (-d)", "Destination address/CIDR", "10.0.0.1"),
+              F("sport", "--sport", "Source port (--sport)", "Source port or range", "1024:65535"),
+              F("dport", "--dport", "Dest port (--dport)", "Destination port", "22"),
+              F("i", "-i", "In-interface (-i)", "Input network interface", "eth0"),
+              F("o", "-o", "Out-interface (-o)", "Output network interface", "eth0"),
+            ),
+            S("state", "Connection State", "🔗",
+              Sel("state", "--state", "State (--state)", "Connection tracking state (requires -m state)",
+                  _opts(("NEW", "NEW"), ("ESTABLISHED", "ESTABLISHED"),
+                        ("RELATED", "RELATED"), ("INVALID", "INVALID"),
+                        ("NEW,ESTABLISHED", "NEW,ESTABLISHED"),
+                        ("RELATED,ESTABLISHED", "RELATED,ESTABLISHED"))),
+            ),
+            S("target", "Target", "⚡",
+              Sel("j", "-j", "Jump (-j) *", "What to do with matching packets",
+                  _opts(("ACCEPT", "ACCEPT"), ("DROP", "DROP"), ("REJECT", "REJECT"),
+                        ("LOG", "LOG"), ("MASQUERADE", "MASQUERADE"),
+                        ("DNAT", "DNAT"), ("SNAT", "SNAT"), ("RETURN", "RETURN"))),
+              F("to_destination", "--to-destination", "To-destination", "DNAT target IP:port", "10.0.0.5:80"),
+              F("to_source", "--to-source", "To-source", "SNAT source IP", "203.0.113.1"),
+              F("log_prefix", "--log-prefix", "Log prefix", "String to prefix log entries", "iptables-DROP: "),
+            ),
+        ],
+        "presets": [
+            P("Allow SSH in",       {"action": "-A", "chain": "INPUT", "p": "tcp", "dport": "22", "state": "NEW,ESTABLISHED", "j": "ACCEPT"}),
+            P("Block IP",           {"action": "-A", "chain": "INPUT", "s": "10.0.0.1", "j": "DROP"}),
+            P("Allow established",  {"action": "-A", "chain": "INPUT", "state": "RELATED,ESTABLISHED", "j": "ACCEPT"}),
+            P("Log and drop",       {"action": "-A", "chain": "INPUT", "j": "LOG", "log_prefix": "iptables-DROP: "}),
+            P("List all rules",     {"action": "-L", "chain": "INPUT", "t": "filter"}),
+            P("MASQUERADE NAT",     {"action": "-A", "chain": "POSTROUTING", "t": "nat", "j": "MASQUERADE"}),
+        ],
+    },
+
+    {
+        "slug": "hping3", "name": "hping3", "full_name": "hping3",
+        "desc": "TCP/IP packet assembler and analyzer — craft custom packets for firewall testing, port scanning, and DoS simulation.",
+        "category": "Network", "tier": 2, "icon": "🏓", "color": "#34d399",
+        "sections": [
+            S("tgt", "Target", "🎯",
+              Tgt("192.168.1.1", "Target host or IP"),
+              F("p", "-p", "Dest port (-p)", "Target port", "80", "number"),
+              F("s", "-s", "Source port (-s)", "Source port (random if omitted)", "4444", "number"),
+            ),
+            S("mode", "Packet Mode", "📦",
+              Sel("mode", "", "Protocol mode", "IP mode to use",
+                  [("(TCP — default)", ""),
+                   ("-S (SYN)", "-S"), ("-A (ACK)", "-A"), ("-F (FIN)", "-F"),
+                   ("-R (RST)", "-R"), ("-P (PUSH)", "-P"), ("-U (URG)", "-U"),
+                   ("--udp (UDP mode)", "--udp"),
+                   ("--icmp (ICMP mode)", "--icmp"),
+                   ("--rawip (raw IP)", "--rawip")]),
+              T("--syn", "Set SYN flag explicitly"),
+              T("--ack", "Set ACK flag explicitly"),
+              T("--fin", "Set FIN flag"),
+              T("--rst", "Set RST flag"),
+            ),
+            S("send", "Send Options", "📡",
+              F("c", "-c", "Count (-c)", "Send N packets then stop", "10", "number"),
+              F("i", "-i", "Interval (-i)", "Wait microseconds between packets (u100 = 100µs)", "u100"),
+              T("--flood", "Send as fast as possible — flood mode"),
+              T("--rand-source", "Randomize source IP address"),
+              T("-n", "Numeric output — no hostname resolution"),
+              T("-V", "Verbose mode"),
+            ),
+            S("payload", "Payload & Size", "📝",
+              F("d", "-d", "Data size (-d)", "Data body size in bytes", "120", "number"),
+              F("E", "-E", "File (-E)", "Use file as payload data", "payload.txt"),
+              F("sign", "--sign", "Signature (--sign)", "Add signature string at start of payload", ""),
+            ),
+            S("advanced", "Routing & TTL", "🔧",
+              F("t", "-t", "TTL (-t)", "Time-to-live value", "64", "number"),
+              F("a", "-a", "Spoof source (-a)", "Spoof source address (requires root)", "1.2.3.4"),
+              F("I", "-I", "Interface (-I)", "Network interface", "eth0"),
+            ),
+        ],
+        "presets": [
+            P("SYN scan",          {"mode": "-S", "p": "80", "c": "1", "n": True}),
+            P("Firewall probe",    {"mode": "-A", "p": "80", "c": "3", "V": True}),
+            P("ICMP ping",         {"mode": "--icmp", "c": "4"}),
+            P("UDP port check",    {"mode": "--udp", "p": "53", "c": "2"}),
+            P("Flood test (root)", {"mode": "-S", "p": "80", "flood": True, "rand_source": True}),
+            P("TTL trace",         {"mode": "-S", "p": "80", "t": "1", "V": True}),
+        ],
+    },
+
+    {
+        "slug": "nft", "name": "nft", "full_name": "nftables (nft)",
+        "desc": "Modern Linux netfilter framework — replaces iptables with unified syntax for filtering, NAT, and packet mangling.",
+        "category": "Network", "tier": 3, "icon": "🔥", "color": "#34d399",
+        "sections": [
+            S("sub", "Operation", "⚡",
+              Sel("sub", "", "Subcommand *", "Operation to perform",
+                  [("(choose)", ""),
+                   ("add rule", "add rule"), ("delete rule", "delete rule"),
+                   ("add table", "add table"), ("add chain", "add chain"),
+                   ("list ruleset", "list ruleset"), ("flush ruleset", "flush ruleset"),
+                   ("list table", "list table")]),
+              Sel("family", "", "Family", "Address family",
+                  _opts(("ip (IPv4)", "ip"), ("ip6 (IPv6)", "ip6"),
+                        ("inet (dual-stack)", "inet"), ("arp", "arp"), ("bridge", "bridge"))),
+              F("table", "", "Table name", "e.g. filter, nat, mangle", "filter"),
+              F("chain", "", "Chain name", "e.g. input, output, forward", "input"),
+            ),
+            S("match", "Match Expression", "🎯",
+              Sel("proto", "", "Protocol", "Layer 4 protocol",
+                  _opts(("tcp", "tcp"), ("udp", "udp"), ("icmp", "icmp"), ("icmpv6", "icmpv6"))),
+              F("saddr", "saddr", "Source address", "Source IP/CIDR", "192.168.1.0/24"),
+              F("daddr", "daddr", "Dest address", "Destination IP/CIDR", "10.0.0.1"),
+              F("sport", "sport", "Source port", "Source port number", ""),
+              F("dport", "dport", "Dest port", "Destination port number", "80"),
+            ),
+            S("verdict", "Verdict", "🏛",
+              Sel("verdict", "", "Verdict *", "What to do with matching packets",
+                  [("(choose)", ""), ("accept", "accept"), ("drop", "drop"),
+                   ("reject", "reject"), ("log", "log"), ("masquerade", "masquerade"),
+                   ("dnat to", "dnat to"), ("snat to", "snat to")]),
+              F("nat_target", "", "NAT target", "For dnat/snat: target IP[:port]", "10.0.0.5:80"),
+            ),
+        ],
+        "presets": [
+            P("Allow SSH",         {"sub": "add rule", "family": "inet", "table": "filter", "chain": "input", "proto": "tcp", "dport": "22", "verdict": "accept"}),
+            P("Drop source IP",    {"sub": "add rule", "family": "ip", "table": "filter", "chain": "input", "saddr": "10.0.0.1", "verdict": "drop"}),
+            P("List full ruleset", {"sub": "list ruleset", "family": "inet"}),
+            P("Masquerade NAT",    {"sub": "add rule", "family": "ip", "table": "nat", "chain": "postrouting", "verdict": "masquerade"}),
+        ],
+    },
+
+]  # end _NETWORK_NEW
+
+
 # ── Combine all tools ─────────────────────────────────────────────────────────
 
-_raw = _T1 + _T2 + _T3 + _UNIX + _CLOUD_NEW + _FORENSICS + _RE + _CRYPTO + _AD + _CRED_NEW + _VULN_NEW + _EXPLOIT + _OSINT_NEW + _CONTAINER
+_raw = _T1 + _T2 + _T3 + _UNIX + _CLOUD_NEW + _FORENSICS + _RE + _CRYPTO + _AD + _CRED_NEW + _VULN_NEW + _EXPLOIT + _OSINT_NEW + _CONTAINER + _NETWORK_NEW
 # Deduplicate: later definitions (new categories) override earlier ones by slug
 _seen: set = set()
 TOOLS = []
@@ -4512,6 +4666,20 @@ INSTALL_MAP = {
     "theharvester":   {"pip": "pip install theHarvester", "apt": "sudo apt install -y theharvester"},
     "maigret":        {"pip": "pip install maigret"},
     "holehe":         {"pip": "pip install holehe"},
+
+    # ── Network security (Phase 12) ───────────────────────────────────────────
+    "iptables": {
+        "builtin": "Pre-installed on most Linux distributions.",
+        "apt":     "sudo apt install -y iptables",
+    },
+    "hping3": {
+        "brew": "brew install hping",
+        "apt":  "sudo apt install -y hping3",
+    },
+    "nft": {
+        "builtin": "Pre-installed on modern Linux distributions (kernel 3.13+).",
+        "apt":     "sudo apt install -y nftables",
+    },
 
     # ── Container security ────────────────────────────────────────────────────
     "snyk":           {"brew": "brew install snyk/tap/snyk", "apt": "sudo npm install -g snyk"},
