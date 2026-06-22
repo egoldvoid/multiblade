@@ -227,8 +227,28 @@
     </a>
 
     <div class="nav-divider"></div>
+    <div class="nav-section-label">Network</div>
+
+    <a href="/tools/netfilter" class="nav-link {% if active_page == 'netfilter' %}active{% endif %}" title="Wireshark / tcpdump Filter Builder">
+      <span class="nav-icon">🦈</span>
+      <span class="nav-label">Filter Builder</span>
+    </a>
+    <a href="/tools/ids-rule" class="nav-link {% if active_page == 'ids-rule' %}active{% endif %}" title="Suricata / Snort Rule Builder">
+      <span class="nav-icon">🚨</span>
+      <span class="nav-label">IDS Rule Builder</span>
+    </a>
+    <a href="/tools/scapy" class="nav-link {% if active_page == 'scapy' %}active{% endif %}" title="Scapy Packet Crafter">
+      <span class="nav-icon">🦑</span>
+      <span class="nav-label">Packet Crafter</span>
+    </a>
+
+    <div class="nav-divider"></div>
     <div class="nav-section-label">Reference</div>
 
+    <a href="/reference/protocols" class="nav-link {% if active_page == 'ref-protocols' %}active{% endif %}" title="Network Protocol Reference">
+      <span class="nav-icon">📡</span>
+      <span class="nav-label">Protocols</span>
+    </a>
     <a href="/reference/ports" class="nav-link {% if active_page == 'ref-ports' %}active{% endif %}" title="Port Reference">
       <span class="nav-icon">⛵</span>
       <span class="nav-label">Port Reference</span>

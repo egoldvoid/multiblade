@@ -530,6 +530,31 @@ def api_cve_search():
     return jsonify({"total": raw.get("totalResults", 0), "results": results})
 
 
+# ── Network Security Tools (Phase 12) ────────────────────────────────────────
+
+@app.route("/tools/netfilter")
+def netfilter():
+    return render_template("netfilter.html", active_page="netfilter")
+
+
+@app.route("/tools/ids-rule")
+def ids_rule():
+    return render_template("ids_rule.html", active_page="ids-rule")
+
+
+@app.route("/tools/scapy")
+def scapy_tool():
+    return render_template("scapy_tool.html", active_page="scapy")
+
+
+@app.route("/reference/protocols")
+def reference_protocols():
+    from zip_analyzer.protocol_data import PROTOCOLS
+    return render_template("reference_protocols.html",
+                           protocols=PROTOCOLS,
+                           active_page="ref-protocols")
+
+
 # ── Engagement / Playbooks ─────────────────────────────────────────────────────
 
 @app.route("/playbook")

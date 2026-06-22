@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IDS Rule Builder — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-150px;right:-80px;}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .main{position:relative;z-index:1;flex:1;min-width:0;padding:0 0 100px;margin-left:60px;}
+
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 16px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:4px;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;}
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);}
+
+    .content{display:grid;grid-template-columns:1fr 320px;gap:24px;padding:16px 40px 0;align-items:start;}
+    @media(max-width:900px){.content{grid-template-columns:1fr;}.page-header{padding:16px;}.content{padding:12px 16px 0;}}
+
+    .builder-card{background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);padding:24px;}
+
+    .section-label{font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:10px;}
+
+    .field-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px;}
+    .field{display:flex;flex-direction:column;gap:5px;}
+    .field label{font-size:0.72rem;color:var(--text-dim);font-weight:500;}
+    .field input,.field select,.field textarea{
+      background:var(--s2);border:1.5px solid var(--border);border-radius:8px;
+      padding:8px 10px;color:var(--text);font-family:'Fira Code',monospace;font-size:0.8rem;
+      outline:none;transition:border-color 0.15s;resize:vertical;
+    }
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+    .field input::placeholder,.field textarea::placeholder{color:var(--text-faint);}
+
+    .checkbox-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px;}
+    .cb-item{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.78rem;color:var(--text-dim);}
+    .cb-item input[type=checkbox]{accent-color:var(--accent);cursor:pointer;}
+
+    /* Rule output */
+    .rule-out-wrap{margin-top:4px;}
+    .rule-out{
+      background:var(--s2);border:1.5px solid var(--border);border-radius:10px;
+      padding:14px;font-family:'Fira Code',monospace;font-size:0.78rem;
+      color:var(--text);word-break:break-all;white-space:pre-wrap;min-height:70px;
+      line-height:1.6;
+    }
+    .rule-out-empty{color:var(--text-faint);}
+    .out-actions{display:flex;gap:8px;margin-top:8px;}
+    .out-btn{
+      padding:6px 14px;border-radius:8px;border:1.5px solid var(--border);
+      background:var(--s2);color:var(--text-dim);font-family:inherit;font-size:0.78rem;
+      cursor:pointer;transition:all 0.15s;
+    }
+    .out-btn:hover{border-color:var(--border-hi);color:var(--text);}
+    .out-btn.primary{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    /* Presets */
+    .presets-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:20px;}
+    .preset-card{
+      background:var(--s2);border:1.5px solid var(--border);border-radius:10px;
+      padding:10px 12px;cursor:pointer;transition:all 0.15s;
+    }
+    .preset-card:hover{border-color:var(--border-hi);}
+    .preset-name{font-size:0.78rem;font-weight:600;color:var(--text);margin-bottom:2px;}
+    .preset-desc{font-size:0.68rem;color:var(--text-dim);}
+
+    /* Ref panel */
+    .ref-panel{background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);padding:20px;position:sticky;top:80px;}
+    .ref-entry{margin-bottom:14px;}
+    .ref-kw{font-size:0.7rem;font-weight:700;font-family:'Fira Code',monospace;color:var(--accent-hi);margin-bottom:3px;}
+    .ref-explain{font-size:0.7rem;color:var(--text-dim);}
+    .ref-divider{border:none;border-top:1px solid var(--border);margin:10px 0;}
+  </style>
+</head>
+<body>
+  <div class="bg-layer"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+  <div class="grid-ov"></div>
+
+  {% include '_nav.html' %}
+
+  <main class="main">
+    <div class="page-header">
+      <div class="header-top">
+        <a href="/generators" class="back-link">← Generators</a>
+        <div>
+          <div class="page-title">IDS Rule Builder</div>
+          <div class="page-sub">Generate Suricata / Snort detection rules</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="builder-card">
+
+        <!-- Presets -->
+        <div class="section-label">Signature presets</div>
+        <div class="presets-grid" id="presetGrid"></div>
+
+        <!-- Action + header -->
+        <div class="section-label">Rule header</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Action</label>
+            <select id="action" onchange="build()">
+              <option value="alert">alert</option>
+              <option value="drop">drop</option>
+              <option value="pass">pass</option>
+              <option value="reject">reject</option>
+              <option value="log">log</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Protocol</label>
+            <select id="proto" onchange="build()">
+              <option value="tcp">tcp</option>
+              <option value="udp">udp</option>
+              <option value="icmp">icmp</option>
+              <option value="http">http</option>
+              <option value="dns">dns</option>
+              <option value="tls">tls</option>
+              <option value="smb">smb</option>
+              <option value="any">any</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Source IP</label>
+            <input id="src_ip" placeholder="$EXTERNAL_NET" oninput="build()" />
+          </div>
+          <div class="field">
+            <label>Source port</label>
+            <input id="src_port" placeholder="any" oninput="build()" />
+          </div>
+          <div class="field">
+            <label>Direction</label>
+            <select id="direction" onchange="build()">
+              <option value="-&gt;">→ (unidirectional)</option>
+              <option value="&lt;&gt;">↔ (bidirectional)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Destination IP</label>
+            <input id="dst_ip" placeholder="$HOME_NET" oninput="build()" />
+          </div>
+          <div class="field">
+            <label>Destination port</label>
+            <input id="dst_port" placeholder="any" oninput="build()" />
+          </div>
+        </div>
+
+        <!-- Rule options -->
+        <div class="section-label">Rule options</div>
+        <div class="field-grid">
+          <div class="field" style="grid-column:span 2">
+            <label>msg (description)</label>
+            <input id="msg" placeholder="ET MALWARE Suspicious Beacon" oninput="build()" />
+          </div>
+          <div class="field" style="grid-column:span 2">
+            <label>content match (exact bytes)</label>
+            <input id="content" placeholder="|00 50|" oninput="build()" />
+          </div>
+          <div class="field" style="grid-column:span 2">
+            <label>PCRE pattern</label>
+            <input id="pcre" placeholder="/^User-Agent: [^\r]{200}/Hsi" oninput="build()" />
+          </div>
+          <div class="field">
+            <label>classtype</label>
+            <select id="classtype" onchange="build()">
+              <option value="">— none —</option>
+              <option value="trojan-activity">trojan-activity</option>
+              <option value="attempted-recon">attempted-recon</option>
+              <option value="policy-violation">policy-violation</option>
+              <option value="attempted-user">attempted-user</option>
+              <option value="attempted-admin">attempted-admin</option>
+              <option value="web-application-attack">web-application-attack</option>
+              <option value="network-scan">network-scan</option>
+              <option value="denial-of-service">denial-of-service</option>
+              <option value="credential-theft">credential-theft</option>
+              <option value="bad-unknown">bad-unknown</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>SID (unique rule ID)</label>
+            <input id="sid" placeholder="9000001" oninput="build()" />
+          </div>
+          <div class="field">
+            <label>rev</label>
+            <input id="rev" placeholder="1" oninput="build()" />
+          </div>
+          <div class="field">
+            <label>priority (1–4)</label>
+            <select id="priority" onchange="build()">
+              <option value="">— none —</option>
+              <option value="1">1 (highest)</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4 (lowest)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Modifiers -->
+        <div class="section-label">Content modifiers</div>
+        <div class="checkbox-row">
+          <label class="cb-item"><input type="checkbox" id="mod_nocase" onchange="build()"> nocase</label>
+          <label class="cb-item"><input type="checkbox" id="mod_http_uri" onchange="build()"> http_uri</label>
+          <label class="cb-item"><input type="checkbox" id="mod_http_header" onchange="build()"> http_header</label>
+          <label class="cb-item"><input type="checkbox" id="mod_http_client_body" onchange="build()"> http_client_body</label>
+          <label class="cb-item"><input type="checkbox" id="mod_fast_pattern" onchange="build()"> fast_pattern</label>
+          <label class="cb-item"><input type="checkbox" id="mod_rawbytes" onchange="build()"> rawbytes</label>
+        </div>
+
+        <!-- Output -->
+        <div class="section-label">Generated rule</div>
+        <div class="rule-out-wrap">
+          <div class="rule-out rule-out-empty" id="ruleOut">— fill in rule header above —</div>
+          <div class="out-actions">
+            <button class="out-btn primary" onclick="copyRule()">Copy rule</button>
+            <button class="out-btn" onclick="resetAll()">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reference panel -->
+      <aside class="ref-panel">
+        <div class="section-label" style="margin-bottom:14px;">Keyword reference</div>
+
+        <div class="ref-entry">
+          <div class="ref-kw">msg</div>
+          <div class="ref-explain">Human-readable alert description. Shown in logs and SIEM.</div>
+        </div>
+        <hr class="ref-divider">
+        <div class="ref-entry">
+          <div class="ref-kw">content</div>
+          <div class="ref-explain">Match literal bytes in payload. Use <code>|XX XX|</code> for hex. Multiple content keywords are ANDed.</div>
+        </div>
+        <hr class="ref-divider">
+        <div class="ref-entry">
+          <div class="ref-kw">pcre</div>
+          <div class="ref-explain">Perl-compatible regex. Modifiers: <code>i</code>=nocase, <code>s</code>=dotall, <code>H</code>=http_header, <code>U</code>=http_uri.</div>
+        </div>
+        <hr class="ref-divider">
+        <div class="ref-entry">
+          <div class="ref-kw">nocase</div>
+          <div class="ref-explain">Make preceding content match case-insensitive.</div>
+        </div>
+        <hr class="ref-divider">
+        <div class="ref-entry">
+          <div class="ref-kw">fast_pattern</div>
+          <div class="ref-explain">Tell the engine to use this content for the fast-pattern matcher (performance hint).</div>
+        </div>
+        <hr class="ref-divider">
+        <div class="ref-entry">
+          <div class="ref-kw">classtype</div>
+          <div class="ref-explain">Categorizes the rule. Affects default priority if <code>priority</code> is not set.</div>
+        </div>
+        <hr class="ref-divider">
+        <div class="ref-entry">
+          <div class="ref-kw">sid / rev</div>
+          <div class="ref-explain">Unique rule identifier + revision. SIDs 1–999999 reserved for official rules. Use 9000000+ for custom.</div>
+        </div>
+        <hr class="ref-divider">
+        <div class="ref-entry">
+          <div class="ref-kw">flow</div>
+          <div class="ref-explain">Direction context: <code>to_server,established</code> for client→server on existing TCP sessions.</div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+  const PRESETS = [
+    {
+      name:"DNS Tunnel", desc:"Long subdomains (DGA/exfil)",
+      action:"alert", proto:"dns", src_ip:"$HOME_NET", src_port:"any",
+      dst_ip:"any", dst_port:"53",
+      msg:"ET DNS Possible DNS Tunneling / DGA Long Label",
+      pcre:"/^[a-z0-9-]{40,}\\./i",
+      classtype:"bad-unknown", sid:"9000001", rev:"1",
+    },
+    {
+      name:"Mimikatz LSASS", desc:"sekurlsa::logonpasswords",
+      action:"alert", proto:"smb", src_ip:"any", src_port:"any",
+      dst_ip:"$HOME_NET", dst_port:"445",
+      msg:"ET ATTACK Mimikatz sekurlsa keyword in SMB traffic",
+      content:"sekurlsa", nocase:true,
+      classtype:"credential-theft", sid:"9000002", rev:"1",
+    },
+    {
+      name:"Cobalt Strike Beacon", desc:"Default sleep jitter URI pattern",
+      action:"alert", proto:"http", src_ip:"$HOME_NET", src_port:"any",
+      dst_ip:"any", dst_port:"any",
+      msg:"ET MALWARE Cobalt Strike Beacon Checkin",
+      content:"/ca", http_uri:true,
+      pcre:"/^\\/[a-zA-Z0-9]{4}$/U",
+      classtype:"trojan-activity", sid:"9000003", rev:"1",
+    },
+    {
+      name:"Log4Shell (CVE-2021-44228)", desc:"JNDI lookup in User-Agent",
+      action:"alert", proto:"http", src_ip:"any", src_port:"any",
+      dst_ip:"$HTTP_SERVERS", dst_port:"$HTTP_PORTS",
+      msg:"ET EXPLOIT Apache Log4j RCE Attempt (CVE-2021-44228)",
+      content:"${jndi:", nocase:true, http_header:true,
+      classtype:"attempted-admin", sid:"9000004", rev:"1",
+    },
+    {
+      name:"SQL Injection", desc:"UNION SELECT in URI",
+      action:"alert", proto:"http", src_ip:"any", src_port:"any",
+      dst_ip:"$HTTP_SERVERS", dst_port:"$HTTP_PORTS",
+      msg:"ET WEB_SERVER SQL Injection UNION SELECT",
+      content:"UNION", nocase:true, http_uri:true,
+      classtype:"web-application-attack", sid:"9000005", rev:"1",
+    },
+    {
+      name:"ICMP Tunnel", desc:"Large ICMP payload >200 bytes",
+      action:"alert", proto:"icmp", src_ip:"any", src_port:"any",
+      dst_ip:"any", dst_port:"any",
+      msg:"ET SCAN Possible ICMP Tunneling Large Payload",
+      classtype:"policy-violation", sid:"9000006", rev:"1",
+    },
+  ];
+
+  (function initPresets(){
+    const grid = document.getElementById('presetGrid');
+    PRESETS.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'preset-card';
+      card.innerHTML = `<div class="preset-name">${p.name}</div><div class="preset-desc">${p.desc}</div>`;
+      card.onclick = () => loadPreset(p);
+      grid.appendChild(card);
+    });
+  })();
+
+  function loadPreset(p) {
+    sv('action', p.action || 'alert');
+    sv('proto', p.proto || 'tcp');
+    sv('src_ip', p.src_ip || '$EXTERNAL_NET');
+    sv('src_port', p.src_port || 'any');
+    sv('dst_ip', p.dst_ip || '$HOME_NET');
+    sv('dst_port', p.dst_port || 'any');
+    sv('msg', p.msg || '');
+    sv('content', p.content || '');
+    sv('pcre', p.pcre || '');
+    sv('classtype', p.classtype || '');
+    sv('sid', p.sid || '');
+    sv('rev', p.rev || '1');
+    sv('priority', '');
+    scheck('mod_nocase', !!p.nocase);
+    scheck('mod_http_uri', !!p.http_uri);
+    scheck('mod_http_header', !!p.http_header);
+    scheck('mod_http_client_body', !!p.http_client_body);
+    scheck('mod_fast_pattern', false);
+    scheck('mod_rawbytes', false);
+    build();
+  }
+
+  function sv(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  }
+  function scheck(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.checked = val;
+  }
+  function g(id) { return (document.getElementById(id)?.value || '').trim(); }
+  function gc(id) { return document.getElementById(id)?.checked || false; }
+
+  function build() {
+    const action    = g('action') || 'alert';
+    const proto     = g('proto') || 'tcp';
+    const srcIp     = g('src_ip') || 'any';
+    const srcPort   = g('src_port') || 'any';
+    const dstIp     = g('dst_ip') || 'any';
+    const dstPort   = g('dst_port') || 'any';
+    const dirEl     = document.getElementById('direction');
+    const dir       = dirEl ? dirEl.options[dirEl.selectedIndex]?.text.trim().split(' ')[0] || '->' : '->';
+    const dirVal    = dir === '→' ? '->' : '<>';
+
+    const msg       = g('msg');
+    const content   = g('content');
+    const pcre      = g('pcre');
+    const classtype = g('classtype');
+    const sid       = g('sid') || '9000001';
+    const rev       = g('rev') || '1';
+    const priority  = g('priority');
+
+    const modifiers = [];
+    if (gc('mod_nocase')) modifiers.push('nocase;');
+    if (gc('mod_http_uri')) modifiers.push('http_uri;');
+    if (gc('mod_http_header')) modifiers.push('http_header;');
+    if (gc('mod_http_client_body')) modifiers.push('http_client_body;');
+    if (gc('mod_fast_pattern')) modifiers.push('fast_pattern;');
+    if (gc('mod_rawbytes')) modifiers.push('rawbytes;');
+
+    const opts = [];
+    if (msg) opts.push(`msg:"${msg}";`);
+    if (content) {
+      opts.push(`content:"${content}";`);
+      modifiers.forEach(m => opts.push(m));
+    }
+    if (pcre) opts.push(`pcre:"${pcre}";`);
+    if (classtype) opts.push(`classtype:${classtype};`);
+    if (priority) opts.push(`priority:${priority};`);
+    opts.push(`sid:${sid};`);
+    opts.push(`rev:${rev};`);
+
+    const header = `${action} ${proto} ${srcIp} ${srcPort} ${dirVal} ${dstIp} ${dstPort}`;
+    const rule   = `${header} (${opts.join(' ')})`;
+
+    const el = document.getElementById('ruleOut');
+    el.textContent = rule;
+    el.classList.remove('rule-out-empty');
+  }
+
+  function copyRule() {
+    const val = document.getElementById('ruleOut').textContent;
+    if (val.startsWith('—')) return;
+    navigator.clipboard.writeText(val).then(() => showToast('Rule copied', 'success'));
+  }
+
+  function resetAll() {
+    ['action','proto','direction','classtype','priority'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.selectedIndex = 0;
+    });
+    ['src_ip','src_port','dst_ip','dst_port','msg','content','pcre','sid','rev'].forEach(id => sv(id, ''));
+    ['mod_nocase','mod_http_uri','mod_http_header','mod_http_client_body','mod_fast_pattern','mod_rawbytes'].forEach(id => scheck(id, false));
+    const el = document.getElementById('ruleOut');
+    el.textContent = '— fill in rule header above —';
+    el.classList.add('rule-out-empty');
+  }
+
+  /* toast */
+  function showToast(msg, type) {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = 'vt' + (type ? ' ' + type : '');
+    t.innerHTML = `<i class="vt-icon">${type === 'success' ? '✓' : 'ℹ'}</i><span>${msg}</span>`;
+    c.appendChild(t);
+    requestAnimationFrame(() => { requestAnimationFrame(() => t.classList.add('show')); });
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 350); }, 2500);
+  }
+
+  // Render default on load
+  build();
+  </script>
+</body>
+</html>

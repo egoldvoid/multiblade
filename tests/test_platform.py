@@ -2148,3 +2148,77 @@ class TestNetworkSecurityTools:
     def test_tool_count_increased(self):
         from zip_analyzer.tool_data import get_all_tools
         assert len(get_all_tools()) >= 166  # was 163
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 12b — Network Security Wing (builder tools + protocol reference)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestPhase12bPages:
+    """Netfilter builder, IDS rule builder, Scapy crafter, and protocol reference pages."""
+
+    def test_netfilter_page_loads(self, client):
+        r = client.get("/tools/netfilter")
+        assert r.status_code == 200
+        assert b"netfilter" in r.data.lower() or b"filter" in r.data.lower()
+
+    def test_netfilter_has_bpf_output(self, client):
+        r = client.get("/tools/netfilter")
+        assert b"bpf" in r.data.lower() or b"tcpdump" in r.data.lower()
+
+    def test_netfilter_has_wireshark_output(self, client):
+        r = client.get("/tools/netfilter")
+        assert b"wireshark" in r.data.lower()
+
+    def test_ids_rule_page_loads(self, client):
+        r = client.get("/tools/ids-rule")
+        assert r.status_code == 200
+
+    def test_ids_rule_has_suricata(self, client):
+        r = client.get("/tools/ids-rule")
+        assert b"suricata" in r.data.lower() or b"snort" in r.data.lower()
+
+    def test_ids_rule_has_action_field(self, client):
+        r = client.get("/tools/ids-rule")
+        assert b"alert" in r.data.lower() or b"action" in r.data.lower()
+
+    def test_scapy_page_loads(self, client):
+        r = client.get("/tools/scapy")
+        assert r.status_code == 200
+
+    def test_scapy_has_python_snippet(self, client):
+        r = client.get("/tools/scapy")
+        assert b"scapy" in r.data.lower()
+        assert b"python" in r.data.lower() or b"from scapy" in r.data.lower()
+
+    def test_protocols_page_loads(self, client):
+        r = client.get("/reference/protocols")
+        assert r.status_code == 200
+
+    def test_protocols_page_has_content(self, client):
+        r = client.get("/reference/protocols")
+        assert b"tcp" in r.data.lower()
+        assert b"dns" in r.data.lower()
+
+    def test_protocols_data_module_imports(self):
+        from zip_analyzer.protocol_data import PROTOCOLS, CATEGORIES
+        assert len(PROTOCOLS) >= 30
+        assert len(CATEGORIES) >= 5
+
+    def test_protocols_have_required_fields(self):
+        from zip_analyzer.protocol_data import PROTOCOLS
+        required = {"name", "full", "layer", "category", "desc", "attacks", "tools"}
+        for p in PROTOCOLS:
+            missing = required - p.keys()
+            assert not missing, f"{p['name']} missing fields: {missing}"
+
+    def test_protocols_attacks_are_lists(self):
+        from zip_analyzer.protocol_data import PROTOCOLS
+        for p in PROTOCOLS:
+            assert isinstance(p["attacks"], list), f"{p['name']}.attacks must be a list"
+            assert len(p["attacks"]) >= 1, f"{p['name']} needs at least 1 attack vector"
+
+    def test_protocols_tools_are_lists(self):
+        from zip_analyzer.protocol_data import PROTOCOLS
+        for p in PROTOCOLS:
+            assert isinstance(p["tools"], list), f"{p['name']}.tools must be a list"
