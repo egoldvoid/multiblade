@@ -1,5 +1,5 @@
 <!-- Shared sidebar navigation — include in every inner page -->
-<script>(function(){var t=localStorage.getItem('vantage_theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+<script>(function(){var t=localStorage.getItem('multiblade_theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
 <style>
   /* ── Light mode overrides ── */
   :root[data-theme="light"] {
@@ -145,7 +145,7 @@
   <a href="/" class="nav-logo" title="Back to Hub">
     <div class="nav-hex">⬡</div>
     <div class="nav-brand-wrap">
-      <div class="nav-brand">VANTAGE</div>
+      <div class="nav-brand">MULTIBLADE</div>
       <div class="nav-sub">Security Platform</div>
     </div>
   </a>
@@ -311,14 +311,14 @@
 </nav>
 <script>
 (function(){
-  var t = localStorage.getItem('vantage_target');
+  var t = localStorage.getItem('multiblade_target');
   if (t) {
     var bar = document.getElementById('nav-target-bar');
     var val = document.getElementById('nav-target-val');
     if (bar) { bar.classList.add('has-target'); bar.title = 'Active target: ' + t; }
     if (val) val.textContent = t;
   }
-  var theme = localStorage.getItem('vantage_theme') || 'dark';
+  var theme = localStorage.getItem('multiblade_theme') || 'dark';
   var icon  = document.getElementById('theme-icon');
   var lbl   = document.getElementById('theme-label');
   if (theme === 'light') { if (icon) icon.textContent = '☾'; if (lbl) lbl.textContent = 'Dark mode'; }
@@ -329,7 +329,7 @@ function toggleTheme() {
   var cur = document.documentElement.getAttribute('data-theme') || 'dark';
   var next = cur === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('vantage_theme', next);
+  localStorage.setItem('multiblade_theme', next);
   var icon = document.getElementById('theme-icon');
   var lbl  = document.getElementById('theme-label');
   if (next === 'light') { if (icon) icon.textContent = '☾'; if (lbl) lbl.textContent = 'Dark mode'; }
@@ -339,10 +339,10 @@ function toggleTheme() {
 /* ── Global toast system ── */
 window.showToast = function(msg, type) {
   type = type || 'default';
-  var container = document.getElementById('vantage-toast-container');
+  var container = document.getElementById('multiblade-toast-container');
   if (!container) {
     container = document.createElement('div');
-    container.id = 'vantage-toast-container';
+    container.id = 'multiblade-toast-container';
     container.className = 'toast-container';
     document.body.appendChild(container);
   }

@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vantage — Security Operations Platform</title>
+  <title>Multiblade — Security Operations Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
-  <script>(function(){var t=localStorage.getItem('vantage_theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+  <script>(function(){var t=localStorage.getItem('multiblade_theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
   <style>
     :root[data-theme="light"] {
       --bg:#f5f6fc;--s1:#ecedfa;--s2:#e4e6f5;--s3:#d8daf0;
@@ -210,7 +210,7 @@
 </head>
 <body>
 
-<button class="theme-toggle-btn" id="theme-btn-landing" onclick="(function(){var c=document.documentElement.getAttribute('data-theme')||'dark';var n=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('vantage_theme',n);var b=document.getElementById('theme-btn-landing');b.innerHTML=n==='light'?'&#9790; Dark':'&#9728; Light';})()">&#9728; Light</button>
+<button class="theme-toggle-btn" id="theme-btn-landing" onclick="(function(){var c=document.documentElement.getAttribute('data-theme')||'dark';var n=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('multiblade_theme',n);var b=document.getElementById('theme-btn-landing');b.innerHTML=n==='light'?'&#9790; Dark':'&#9728; Light';})()">&#9728; Light</button>
 
 <div class="bg-layer" aria-hidden="true">
   <div class="blob blob-1"></div>
@@ -225,7 +225,7 @@
   <div class="brand">
     <div class="brand-hex">V</div>
     <div>
-      <div class="brand-name">VANTAGE</div>
+      <div class="brand-name">MULTIBLADE</div>
       <div class="brand-tagline">Security Operations Platform</div>
     </div>
   </div>
@@ -418,7 +418,7 @@
           </div>
           <div class="card-label-sm">MITRE ATT&amp;CK</div>
           <div class="card-title">Technique browser.</div>
-          <div class="card-desc">Browse tactics and techniques, each mapped to the tools in Vantage that execute them.</div>
+          <div class="card-desc">Browse tactics and techniques, each mapped to the tools in Multiblade that execute them.</div>
           <div class="card-cta">Browse ATT&amp;CK →</div>
         </a>
 
@@ -498,7 +498,7 @@
 </div><!-- /page -->
 <script>
 (function(){
-  var theme = localStorage.getItem('vantage_theme') || 'dark';
+  var theme = localStorage.getItem('multiblade_theme') || 'dark';
   var btn = document.getElementById('theme-btn-landing');
   if (btn) btn.innerHTML = theme === 'light' ? '&#9790; Dark' : '&#9728; Light';
 

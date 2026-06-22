@@ -1,11 +1,11 @@
-"""SQLite persistence layer for Vantage platform."""
+"""SQLite persistence layer for Multiblade platform."""
 import json
 import sqlite3
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-_DB_PATH = Path(__file__).parent.parent / "data" / "vantage.db"
+_DB_PATH = Path(__file__).parent.parent / "data" / "multiblade.db"
 _lock = threading.Lock()
 _conn: Optional[sqlite3.Connection] = None
 

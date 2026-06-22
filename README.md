@@ -1,4 +1,4 @@
-# Vantage — Security Operations Platform
+# Multiblade — Security Operations Platform
 
 A local-first security platform for penetration testers and security researchers. Ships as a self-hosted Flask app with three integrated wings: a 163-tool command generator, an archive malware analyzer, and a reference library — all behind a unified sidebar UI.
 
@@ -66,7 +66,7 @@ Static analysis engine for ZIP and TAR archives. Detects 30+ threat classes befo
 ### Engagement Features
 
 - **Playbooks** (`/playbook`) — saved commands grouped by engagement name; add from any generator tool page via Save ↗
-- **MITRE ATT&CK Browser** (`/mitre`) — 14 tactics, 50+ techniques, each linked to the relevant Vantage tools
+- **MITRE ATT&CK Browser** (`/mitre`) — 14 tactics, 50+ techniques, each linked to the relevant Multiblade tools
 
 ---
 
@@ -282,7 +282,7 @@ zip-analyzer/
 │   ├── models.py            # Severity, Finding, AnalysisResult
 │   ├── yara_scanner.py      # YARA rule scanning (optional — yara-python)
 │   ├── virustotal.py        # VirusTotal v3 hash lookup (optional — VT_API_KEY)
-│   ├── database.py          # SQLite (vantage.db) — scans, IOCs, playbooks, watches
+│   ├── database.py          # SQLite (multiblade.db) — scans, IOCs, playbooks, watches
 │   ├── tool_data.py         # 163-tool definitions for generator pages
 │   ├── port_data.py         # 85-port reference database
 │   ├── custom_check_engine.py

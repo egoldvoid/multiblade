@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Command Generators — Vantage</title>
+  <title>Command Generators — Multiblade</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
-  <script>(function(){var t=localStorage.getItem('vantage_theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
+  <script>(function(){var t=localStorage.getItem('multiblade_theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root[data-theme="light"] {
@@ -199,7 +199,7 @@
 <div class="page">
   <div class="page-header">
     <div class="header-top">
-      <a href="/" class="back-link">← Vantage</a>
+      <a href="/" class="back-link">← Multiblade</a>
       <div class="page-title">Command Generators</div>
       <div class="result-count" id="result-count"></div>
       <div class="kb-hint">
@@ -275,8 +275,8 @@
 </div>
 
 <script>
-  const SAVED_KEY  = 'vantage_saved';
-  const RECENT_KEY = 'vantage_recent';
+  const SAVED_KEY  = 'multiblade_saved';
+  const RECENT_KEY = 'multiblade_recent';
   const cards      = Array.from(document.querySelectorAll('.tool-card'));
   const search     = document.getElementById('search');
   const chips      = document.querySelectorAll('.cat-chip');
@@ -429,10 +429,10 @@
   /* Toast system */
   function showToast(msg, type) {
     type = type || 'default';
-    let container = document.getElementById('vantage-toast-container');
+    let container = document.getElementById('multiblade-toast-container');
     if (!container) {
       container = document.createElement('div');
-      container.id = 'vantage-toast-container';
+      container.id = 'multiblade-toast-container';
       container.className = 'toast-container';
       document.body.appendChild(container);
     }
@@ -450,13 +450,13 @@
     const cur  = document.documentElement.getAttribute('data-theme') || 'dark';
     const next = cur === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('vantage_theme', next);
+    localStorage.setItem('multiblade_theme', next);
     const btn = document.getElementById('gen-theme-btn');
     if (btn) btn.textContent = next === 'light' ? '☾ Dark' : '☀ Light';
   }
 
   (function initThemeBtn() {
-    const t   = localStorage.getItem('vantage_theme') || 'dark';
+    const t   = localStorage.getItem('multiblade_theme') || 'dark';
     const btn = document.getElementById('gen-theme-btn');
     if (btn) btn.textContent = t === 'light' ? '☾ Dark' : '☀ Light';
   })();

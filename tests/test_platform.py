@@ -1,4 +1,4 @@
-"""Tests for the Vantage platform: routes, APIs, database, and custom checks."""
+"""Tests for the Multiblade platform: routes, APIs, database, and custom checks."""
 
 import io
 import json
@@ -77,7 +77,7 @@ class TestPageRoutes:
     def test_landing(self, client):
         r = client.get("/")
         assert r.status_code == 200
-        assert b"Vantage" in r.data
+        assert b"Multiblade" in r.data
 
     def test_platform_hub(self, client):
         assert client.get("/platform").status_code == 200
@@ -2300,3 +2300,81 @@ class TestPayloadsTool:
     def test_payloads_are_copyable(self, client):
         r = client.get("/tools/payloads")
         assert b"copy" in r.data.lower()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 13 — OFFENSIVE TOOLING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestAdAuthTool:
+    def test_page_loads(self, client):
+        r = client.get("/generators/ad-auth")
+        assert r.status_code == 200
+
+    def test_has_pth_section(self, client):
+        r = client.get("/generators/ad-auth")
+        assert b"pass-the-hash" in r.data.lower() or b"pth" in r.data.lower()
+
+    def test_has_ticket_section(self, client):
+        r = client.get("/generators/ad-auth")
+        assert b"ticket" in r.data.lower() or b"kerberos" in r.data.lower()
+
+    def test_has_netexec_or_impacket(self, client):
+        r = client.get("/generators/ad-auth")
+        assert b"netexec" in r.data.lower() or b"impacket" in r.data.lower()
+
+    def test_has_dcsync(self, client):
+        r = client.get("/generators/ad-auth")
+        assert b"dcsync" in r.data.lower() or b"secretsdump" in r.data.lower()
+
+    def test_has_copy_buttons(self, client):
+        r = client.get("/generators/ad-auth")
+        assert b"copy" in r.data.lower()
+
+
+class TestWafBypassReference:
+    def test_page_loads(self, client):
+        r = client.get("/reference/waf-bypass")
+        assert r.status_code == 200
+
+    def test_has_sqli_bypasses(self, client):
+        r = client.get("/reference/waf-bypass")
+        assert b"sql" in r.data.lower()
+
+    def test_has_xss_bypasses(self, client):
+        r = client.get("/reference/waf-bypass")
+        assert b"xss" in r.data.lower()
+
+    def test_has_encoding_techniques(self, client):
+        r = client.get("/reference/waf-bypass")
+        assert b"encod" in r.data.lower() or b"bypass" in r.data.lower()
+
+    def test_has_copy_or_search(self, client):
+        r = client.get("/reference/waf-bypass")
+        assert b"copy" in r.data.lower() or b"search" in r.data.lower()
+
+
+class TestC2Reference:
+    def test_page_loads(self, client):
+        r = client.get("/reference/c2")
+        assert r.status_code == 200
+
+    def test_has_cobalt_strike(self, client):
+        r = client.get("/reference/c2")
+        assert b"cobalt" in r.data.lower()
+
+    def test_has_sliver(self, client):
+        r = client.get("/reference/c2")
+        assert b"sliver" in r.data.lower()
+
+    def test_has_metasploit(self, client):
+        r = client.get("/reference/c2")
+        assert b"metasploit" in r.data.lower() or b"msfconsole" in r.data.lower()
+
+    def test_has_opsec_notes(self, client):
+        r = client.get("/reference/c2")
+        assert b"opsec" in r.data.lower() or b"sleep" in r.data.lower()
+
+    def test_has_malleable_or_profile(self, client):
+        r = client.get("/reference/c2")
+        assert b"malleable" in r.data.lower() or b"profile" in r.data.lower()

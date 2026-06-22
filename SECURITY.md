@@ -2,7 +2,7 @@
 
 ## Scope
 
-Vantage is a **localhost-only developer tool** — it is not designed to be exposed
+Multiblade is a **localhost-only developer tool** — it is not designed to be exposed
 on a public network. The mitigations below reflect that deployment model.
 
 ---

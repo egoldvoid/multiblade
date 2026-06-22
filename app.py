@@ -20,7 +20,7 @@ from zip_analyzer.port_data import PORTS
 
 try:
     from werkzeug.serving import WSGIRequestHandler as _WRH
-    _WRH.version_string = lambda self: "vantage"
+    _WRH.version_string = lambda self: "multiblade"
 except Exception:
     pass
 
@@ -488,7 +488,7 @@ def api_cve_search():
 
     url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?{params}"
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Vantage/1.0 Security Platform"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Multiblade/1.0 Security Platform"})
         with urllib.request.urlopen(req, timeout=10) as r:
             raw = json.loads(r.read())
     except (urllib.error.URLError, OSError) as exc:
@@ -570,6 +570,23 @@ def reference_protocols():
     return render_template("reference_protocols.html",
                            protocols=PROTOCOLS,
                            active_page="ref-protocols")
+
+
+# ── Offensive Tooling (Phase 13) ─────────────────────────────────────────────
+
+@app.route("/generators/ad-auth")
+def ad_auth_tool():
+    return render_template("ad_auth.html", active_page="ad-auth")
+
+
+@app.route("/reference/waf-bypass")
+def waf_bypass():
+    return render_template("waf_bypass.html", active_page="ref-waf")
+
+
+@app.route("/reference/c2")
+def c2_reference():
+    return render_template("c2_reference.html", active_page="ref-c2")
 
 
 # ── Engagement / Playbooks ─────────────────────────────────────────────────────

