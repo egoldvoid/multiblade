@@ -5,7 +5,7 @@
 PORT=5002
 
 # Kill anything already squatting on the port
-lsxof -ti :$PORT | xargs kill -9 2>/dev/null || true
+lsof -ti :$PORT | xargs kill -9 2>/dev/null || true
 
 # Activate venv if not already active
 if [ -z "$VIRTUAL_ENV" ] && [ -f ".venv/bin/activate" ]; then
