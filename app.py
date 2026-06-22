@@ -607,6 +607,25 @@ def tls_tool():
     return render_template("tls_tool.html", active_page="tls")
 
 
+_BLOCKED_HOSTS = {
+    "localhost", "localhost.localdomain", "metadata", "metadata.google.internal",
+}
+_BLOCKED_PREFIXES = (
+    "127.", "0.", "169.254.",                  # loopback, this-net, link-local
+    "10.", "192.168.",                          # RFC1918
+    "172.16.","172.17.","172.18.","172.19.",    # RFC1918 172.16/12
+    "172.20.","172.21.","172.22.","172.23.",
+    "172.24.","172.25.","172.26.","172.27.",
+    "172.28.","172.29.","172.30.","172.31.",
+    "::1", "fc", "fd",                          # IPv6 loopback / ULA
+)
+
+def _is_blocked_host(h: str) -> bool:
+    if h in _BLOCKED_HOSTS:
+        return True
+    return any(h.startswith(p) for p in _BLOCKED_PREFIXES)
+
+
 @app.route("/api/tls")
 def api_tls():
     import ssl, socket, datetime, json as _json
@@ -614,6 +633,8 @@ def api_tls():
     # Reject obviously invalid input
     if not domain or not re.match(r'^[a-zA-Z0-9\.\-]{1,253}$', domain) or '..' in domain:
         return jsonify({"error": "Invalid domain"}), 400
+    if _is_blocked_host(domain):
+        return jsonify({"error": "Private/reserved addresses are not allowed"}), 400
     port = 443
     try:
         ctx = ssl.create_default_context()

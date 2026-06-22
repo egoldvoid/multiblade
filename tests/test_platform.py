@@ -2474,3 +2474,23 @@ class TestTlsApi:
         monkeypatch.setattr(socket, "create_connection", lambda *a, **kw: (_ for _ in ()).throw(OSError("mock")))
         r = client.get("/api/tls?domain=example.com")
         assert r.content_type.startswith("application/json")
+
+    def test_localhost_blocked(self, client):
+        r = client.get("/api/tls?domain=localhost")
+        assert r.status_code == 400
+
+    def test_loopback_ip_blocked(self, client):
+        r = client.get("/api/tls?domain=127.0.0.1")
+        assert r.status_code == 400
+
+    def test_rfc1918_blocked(self, client):
+        r = client.get("/api/tls?domain=192.168.1.1")
+        assert r.status_code == 400
+
+    def test_metadata_endpoint_blocked(self, client):
+        r = client.get("/api/tls?domain=169.254.169.254")
+        assert r.status_code == 400
+
+    def test_link_local_blocked(self, client):
+        r = client.get("/api/tls?domain=172.16.0.1")
+        assert r.status_code == 400
