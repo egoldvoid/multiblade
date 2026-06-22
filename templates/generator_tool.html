@@ -137,6 +137,10 @@
     }
     .field-input:focus,.field-select:focus,.field-textarea:focus { border-color:var(--tc);box-shadow:0 0 0 3px var(--tc)22; }
     .field-input::placeholder,.field-textarea::placeholder { color:var(--text-faint); }
+    .field-input.field-error { border-color:#ef4444 !important; box-shadow:0 0 0 3px #ef444422 !important; }
+    .field-err-msg { font-size:0.65rem; color:#f87171; margin-top:3px; display:none; }
+    .field-err-msg.show { display:block; }
+    .validation-banner { display:none; background:#1c0a0a; border:1px solid #ef444440; border-radius:var(--radius-sm); padding:7px 12px; margin-bottom:10px; font-size:0.75rem; color:#f87171; }
     .field-select {
       cursor:pointer;appearance:none;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7099'/%3E%3C/svg%3E");
@@ -418,7 +422,9 @@ const TOOL = {{ tool | tojson }};
             <div class="field">
               <label class="field-label" for="f_{{ field.id }}">{{ field.label }}</label>
               <input class="field-input" id="f_{{ field.id }}" type="{{ field.type }}"
-                     placeholder="{{ field.placeholder }}" oninput="update()" />
+                     placeholder="{{ field.placeholder }}" oninput="update()"
+                     data-id="{{ field.id }}" data-ftype="{{ field.type }}" />
+              <div class="field-err-msg" id="err_{{ field.id }}"></div>
             </div>
             {% endif %}
           {% endfor %}
@@ -444,6 +450,7 @@ const TOOL = {{ tool | tojson }};
       </div>
     </div>
 
+    <div class="validation-banner" id="validation-banner">⚠ Some fields have invalid values — fix them to get a valid command.</div>
     <textarea class="cmd-textarea" id="cmd-output"
       spellcheck="false" autocomplete="off" autocorrect="off"
       placeholder="Fill in the form on the left…"></textarea>
@@ -553,6 +560,70 @@ function setFieldVal(field, val) {
   else { el.value = val || ''; }
 }
 
+/* ── Input validation ────────────────────────────────────────────────────── */
+const PORT_KEYS  = ['port','lport','rport','dport','sport'];
+const NUM_LIMITS = {
+  thread:10000, concurr:10000, rate:100000,
+  timeout:3600, retry:100, depth:100, top:65535,
+};
+
+function getFieldLimits(id) {
+  const lo = id.toLowerCase();
+  if (PORT_KEYS.some(k => lo === k || lo.endsWith('_'+k) || lo.startsWith(k+'_') || lo.endsWith(k))) {
+    return { min:1, max:65535, label:'port (1–65535)' };
+  }
+  for (const [key, max] of Object.entries(NUM_LIMITS)) {
+    if (lo.includes(key)) return { min:0, max, label:`0–${max}` };
+  }
+  return null;
+}
+
+function validateField(field, val) {
+  if (!val || String(val).trim() === '') return null;
+  const lim = getFieldLimits(field.id);
+  if (field.type === 'number' || lim) {
+    const n = Number(val);
+    if (!Number.isFinite(n)) return 'Must be a number';
+    if (lim) {
+      if (n < lim.min) return `Min ${lim.min}`;
+      if (n > lim.max) return `Invalid ${lim.label}`;
+    }
+  }
+  return null;
+}
+
+function validateAllFields() {
+  let anyError = false;
+  for (const sec of TOOL.sections) {
+    for (const field of sec.fields) {
+      if (field.type === 'checkbox' || field.type === 'select' || field.type === 'textarea') continue;
+      const el  = document.getElementById('f_' + field.id);
+      const err = document.getElementById('err_' + field.id);
+      if (!el) continue;
+      const msg = validateField(field, el.value);
+      el.classList.toggle('field-error', !!msg);
+      if (err) { err.textContent = msg || ''; err.classList.toggle('show', !!msg); }
+      if (msg) anyError = true;
+    }
+  }
+  const banner = document.getElementById('validation-banner');
+  if (banner) banner.style.display = anyError ? '' : 'none';
+  return !anyError;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  for (const sec of TOOL.sections) {
+    for (const field of sec.fields) {
+      if (field.type !== 'number') continue;
+      const el  = document.getElementById('f_' + field.id);
+      if (!el) continue;
+      const lim = getFieldLimits(field.id);
+      if (lim) { el.min = lim.min; el.max = lim.max; }
+      else      { el.min = 0; }
+    }
+  }
+});
+
 /* ── Build command ───────────────────────────────────────────────────────── */
 function sq(s) { return String(s || '').replace(/'/g, "'\\''"); }
 
@@ -564,6 +635,7 @@ function buildCommand() {
     for (const field of sec.fields) {
       const v = fieldVal(field);
       if (v === null || v === '' || v === false) continue;
+      if (validateField(field, v)) continue; // skip invalid — don't emit broken values
 
       if (field.position === 'last') {
         if (v && String(v).trim()) positional = String(v).trim();
@@ -606,6 +678,7 @@ function writeCmd(cmd) {
 
 /* ── Update (form → textarea + breakdown) ───────────────────────────────── */
 function update() {
+  validateAllFields();
   if (!manualMode) writeCmd(buildCommand());
   renderBreakdown();
 }

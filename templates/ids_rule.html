@@ -49,6 +49,8 @@
     }
     .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
     .field input::placeholder,.field textarea::placeholder{color:var(--text-faint);}
+    .field input.input-error{border-color:#ef4444!important;box-shadow:0 0 0 2px #ef444422!important;}
+    .inp-err{font-size:0.65rem;color:#f87171;margin-top:2px;display:none;}
 
     .checkbox-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px;}
     .cb-item{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.78rem;color:var(--text-dim);}
@@ -384,6 +386,29 @@
   function g(id) { return (document.getElementById(id)?.value || '').trim(); }
   function gc(id) { return document.getElementById(id)?.checked || false; }
 
+  function isValidIdsPort(v) {
+    // Allow: "any", Suricata vars like $HTTP_PORTS, integers 1-65535, port groups like [80,443]
+    if (!v || v === 'any') return true;
+    if (/^\$[A-Z0-9_]+$/.test(v)) return true;
+    if (/^\[[\d,\s]+\]$/.test(v)) return true;
+    const n = parseInt(v, 10); return /^\d+$/.test(v) && n >= 1 && n <= 65535;
+  }
+  function isValidIpOrVar(v) {
+    if (!v || v === 'any') return true;
+    if (/^\$[A-Z0-9_]+$/.test(v)) return true;
+    if (/^\[.*\]$/.test(v)) return true;
+    const cidr = v.split('/');
+    const parts = cidr[0].split('.');
+    return parts.length === 4 && parts.every(x => /^\d+$/.test(x) && +x <= 255);
+  }
+  function setIdsErr(id, msg) {
+    const el = document.getElementById(id); if (!el) return;
+    el.classList.toggle('input-error', !!msg);
+    let er = el.parentElement.querySelector('.inp-err');
+    if (!er) { er = document.createElement('div'); er.className = 'inp-err'; el.after(er); }
+    er.textContent = msg || ''; er.style.display = msg ? '' : 'none';
+  }
+
   function build() {
     const action    = g('action') || 'alert';
     const proto     = g('proto') || 'tcp';
@@ -399,9 +424,21 @@
     const content   = g('content');
     const pcre      = g('pcre');
     const classtype = g('classtype');
-    const sid       = g('sid') || '9000001';
-    const rev       = g('rev') || '1';
+    const sidRaw    = g('sid');
+    const revRaw    = g('rev');
+    const sid       = sidRaw || '9000001';
+    const rev       = revRaw || '1';
     const priority  = g('priority');
+
+    // Validate
+    const srcIpRaw  = g('src_ip'); const srcPortRaw = g('src_port');
+    const dstIpRaw  = g('dst_ip'); const dstPortRaw = g('dst_port');
+    setIdsErr('src_ip',   srcIpRaw  && !isValidIpOrVar(srcIpRaw)   ? 'Invalid IP / variable' : '');
+    setIdsErr('dst_ip',   dstIpRaw  && !isValidIpOrVar(dstIpRaw)   ? 'Invalid IP / variable' : '');
+    setIdsErr('src_port', srcPortRaw && !isValidIdsPort(srcPortRaw) ? 'Port: 1–65535 or "any"' : '');
+    setIdsErr('dst_port', dstPortRaw && !isValidIdsPort(dstPortRaw) ? 'Port: 1–65535 or "any"' : '');
+    setIdsErr('sid', sidRaw && (!/^\d+$/.test(sidRaw) || +sidRaw < 1) ? 'SID must be a positive integer' : '');
+    setIdsErr('rev', revRaw && (!/^\d+$/.test(revRaw) || +revRaw < 1) ? 'Rev must be a positive integer' : '');
 
     const modifiers = [];
     if (gc('mod_nocase')) modifiers.push('nocase;');

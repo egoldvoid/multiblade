@@ -52,6 +52,8 @@
     .url-input{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 13px;color:var(--text);font-family:'Menlo','Consolas',monospace;font-size:0.83rem;outline:none;transition:border-color 0.15s,box-shadow 0.15s}
     .url-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
     .url-input::placeholder{color:var(--text-faint);font-family:'Inter',sans-serif}
+    .url-input.input-error{border-color:#ef4444!important;box-shadow:0 0 0 3px #ef444422!important;}
+    .url-err{font-size:0.65rem;color:#f87171;margin-top:4px;display:none;}
 
     /* ── Form sections ─────────────────────────────────────────────── */
     .form-section{border-bottom:1px solid var(--border)}
@@ -236,6 +238,7 @@
       </select>
       <input class="url-input" id="url" placeholder="https://api.example.com/v1/resource" oninput="update()" />
     </div>
+    <div class="url-err" id="url-err"></div>
 
     <!-- Headers -->
     <div class="form-section open" id="sec-headers">
@@ -796,8 +799,26 @@ function writeToTextarea(cmd) {
   if (ta) ta.value = cmd;
 }
 
+/* ── URL validation ─────────────────────────────────────────────────────────── */
+function validateUrl() {
+  const urlEl  = q('url');
+  const errEl  = document.getElementById('url-err');
+  const rawUrl = val('url').trim();
+  let msg = '';
+  if (rawUrl) {
+    try {
+      const u = new URL(rawUrl);
+      if (!['http:', 'https:'].includes(u.protocol)) msg = 'URL must start with http:// or https://';
+    } catch { msg = 'Invalid URL'; }
+  }
+  urlEl.classList.toggle('input-error', !!msg);
+  if (errEl) { errEl.textContent = msg; errEl.style.display = msg ? '' : 'none'; }
+  return !msg;
+}
+
 /* ── Main update ────────────────────────────────────────────────────────────── */
 function update() {
+  validateUrl();
   // Update badges
   q('badge-headers').textContent = state.headers.filter(h => h.key).length;
   q('badge-query').textContent   = state.query.filter(p => p.key).length;

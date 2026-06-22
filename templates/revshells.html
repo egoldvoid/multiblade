@@ -44,6 +44,8 @@
       outline:none;transition:border-color 0.15s,box-shadow 0.15s;min-width:160px;
     }
     .config-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    .config-input.input-error{border-color:#ef4444!important;box-shadow:0 0 0 3px #ef444422!important;}
+    .cfg-err{font-size:0.65rem;color:#f87171;margin-top:3px;display:none;}
     .config-input.ip{min-width:200px;}
     .config-input.port{min-width:90px;}
 
@@ -147,10 +149,12 @@
       <div class="config-group">
         <label class="config-label" for="input-ip">Listener IP</label>
         <input id="input-ip" class="config-input ip" type="text" placeholder="10.10.14.1" value="10.10.14.1" oninput="rebuildAll()" />
+        <div class="cfg-err" id="err-ip"></div>
       </div>
       <div class="config-group">
         <label class="config-label" for="input-port">Port</label>
         <input id="input-port" class="config-input port" type="number" placeholder="4444" value="4444" min="1" max="65535" oninput="rebuildAll()" />
+        <div class="cfg-err" id="err-port"></div>
       </div>
     </div>
   </div>
@@ -200,8 +204,27 @@ const state = {
   url: {},   // shell id → bool
 };
 
-function getIP()   { return document.getElementById('input-ip').value.trim()   || '10.10.14.1'; }
-function getPort() { return document.getElementById('input-port').value.trim() || '4444'; }
+function isValidIp(v) {
+  const p = v.split('.');
+  return p.length === 4 && p.every(x => /^\d+$/.test(x) && +x <= 255);
+}
+function setErr(id, msg) {
+  const el = document.getElementById(id);
+  const er = document.getElementById('err-' + id.replace('input-',''));
+  if (el) el.classList.toggle('input-error', !!msg);
+  if (er) { er.textContent = msg || ''; er.style.display = msg ? '' : 'none'; }
+}
+function getIP() {
+  const v = document.getElementById('input-ip').value.trim();
+  if (v && !isValidIp(v)) { setErr('input-ip', 'Invalid IP address'); return '10.10.14.1'; }
+  setErr('input-ip', ''); return v || '10.10.14.1';
+}
+function getPort() {
+  const v = document.getElementById('input-port').value.trim();
+  const n = parseInt(v, 10);
+  if (v && (isNaN(n) || n < 1 || n > 65535)) { setErr('input-port', 'Port must be 1–65535'); return '4444'; }
+  setErr('input-port', ''); return v || '4444';
+}
 
 function buildCmd(raw, ip, port) {
   return raw.replace(/{IP}/g, ip).replace(/{PORT}/g, port);

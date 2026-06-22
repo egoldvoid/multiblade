@@ -52,6 +52,8 @@
     }
     .field input:focus,.field select:focus{border-color:var(--accent);}
     .field input::placeholder{color:var(--text-faint);}
+    .field input.input-error{border-color:#ef4444!important;box-shadow:0 0 0 2px #ef444422!important;}
+    .inp-err{font-size:0.65rem;color:#f87171;margin-top:2px;display:none;}
 
     .flag-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
     .flag-btn{
@@ -359,6 +361,30 @@
 
   function g(id) { return (document.getElementById(id)?.value || '').trim(); }
 
+  function isValidIpOrCidr(v) {
+    if (!v) return true;
+    const parts = v.split('/');
+    const ipParts = parts[0].split('.');
+    if (ipParts.length !== 4 || !ipParts.every(x => /^\d+$/.test(x) && +x <= 255)) return false;
+    if (parts[1] !== undefined) { const p = parseInt(parts[1], 10); if (isNaN(p) || p < 0 || p > 32) return false; }
+    return true;
+  }
+  function isValidPortNum(v) {
+    if (!v) return true;
+    const n = parseInt(v, 10); return /^\d+$/.test(v) && n >= 1 && n <= 65535;
+  }
+  function setNfErr(id, msg) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('input-error', !!msg);
+    let er = el.nextElementSibling;
+    if (!er || !er.classList.contains('inp-err')) {
+      er = el.parentElement.querySelector('.inp-err');
+    }
+    if (!er) { er = document.createElement('div'); er.className = 'inp-err'; el.after(er); }
+    er.textContent = msg || ''; er.style.display = msg ? '' : 'none';
+  }
+
   function build() {
     const proto  = g('proto');
     const dir    = g('dir');
@@ -369,6 +395,17 @@
     const pRange = g('port_range');
     const lenOp  = g('len_op');
     const lenVal = g('len_val');
+
+    setNfErr('src_host', srcH && !isValidIpOrCidr(srcH) ? 'Invalid IP/CIDR' : '');
+    setNfErr('dst_host', dstH && !isValidIpOrCidr(dstH) ? 'Invalid IP/CIDR' : '');
+    setNfErr('src_port', srcP && !isValidPortNum(srcP) ? 'Port must be 1–65535' : '');
+    setNfErr('dst_port', dstP && !isValidPortNum(dstP) ? 'Port must be 1–65535' : '');
+    if (pRange) {
+      const [lo, hi] = pRange.split('-');
+      const rangeOk = lo && hi && isValidPortNum(lo) && isValidPortNum(hi) && parseInt(lo) <= parseInt(hi);
+      setNfErr('port_range', !rangeOk ? 'Format: 1–65535 (e.g. 1024-8080)' : '');
+    } else { setNfErr('port_range', ''); }
+    setNfErr('len_val', lenVal && !/^\d+$/.test(lenVal) ? 'Must be a number' : '');
     const activeFlags = [...document.querySelectorAll('.flag-btn.active')].map(b => b.dataset.flag);
 
     /* ── BPF ── */

