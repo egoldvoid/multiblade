@@ -204,121 +204,99 @@
 const HASH_DB = [
   // ── MD variants ────────────────────────────────────────────────────────────
   { name:"MD5",          bits:128, len:[32],  hex:true,  hc:"0",   john:"md5",      confidence:"high",
-    note:"Extremely common — passwords, file checksums. Broken — do not use for security.",
-    refs:["hashcat -m 0 hash.txt wordlist.txt","john --format=md5 --wordlist=rockyou.txt hash.txt"] },
+    note:"Extremely common — passwords, file checksums. Broken — do not use for security." },
   { name:"MD4",          bits:128, len:[32],  hex:true,  hc:"900", john:"md4",      confidence:"medium",
-    note:"Older Windows auth (LM/NTLM chain). Rarely seen standalone.",
-    refs:[] },
+    note:"Older Windows auth (LM/NTLM chain). Rarely seen standalone." },
   { name:"MD2",          bits:128, len:[32],  hex:true,  hc:"",    john:"md2",      confidence:"low",
-    note:"Obsolete. Practically never encountered.",
-    refs:[] },
+    note:"Obsolete. Practically never encountered." },
 
   // ── SHA variants ───────────────────────────────────────────────────────────
   { name:"SHA-1",        bits:160, len:[40],  hex:true,  hc:"100", john:"sha1",     confidence:"high",
-    note:"Git commits, TLS certs (deprecated), older password storage.",
-    refs:["hashcat -m 100 hash.txt wordlist.txt","john --format=sha1 --wordlist=rockyou.txt hash.txt"] },
-  { name:"SHA-224",      bits:224, len:[56],  hex:true,  hc:"1300",john:"sha224",   confidence:"high", note:"SHA-2 family variant.", refs:[] },
+    note:"Git commits, TLS certs (deprecated), older password storage." },
+  { name:"SHA-224",      bits:224, len:[56],  hex:true,  hc:"1300",john:"sha224",   confidence:"high", note:"SHA-2 family variant." },
   { name:"SHA-256",      bits:256, len:[64],  hex:true,  hc:"1400",john:"sha256",   confidence:"high",
-    note:"Very common — JWT signatures, TLS, file integrity.",
-    refs:["hashcat -m 1400 hash.txt wordlist.txt","john --format=sha256 --wordlist=rockyou.txt hash.txt"] },
-  { name:"SHA-384",      bits:384, len:[96],  hex:true,  hc:"10800",john:"sha384",  confidence:"high", note:"SHA-2 variant.", refs:[] },
+    note:"Very common — JWT signatures, TLS, file integrity." },
+  { name:"SHA-384",      bits:384, len:[96],  hex:true,  hc:"10800",john:"sha384",  confidence:"high", note:"SHA-2 variant." },
   { name:"SHA-512",      bits:512, len:[128], hex:true,  hc:"1700",john:"sha512",   confidence:"high",
-    note:"Strong but fast — use bcrypt/Argon2 for passwords instead.",
-    refs:["hashcat -m 1700 hash.txt wordlist.txt","john --format=sha512 --wordlist=rockyou.txt hash.txt"] },
-  { name:"SHA3-256",     bits:256, len:[64],  hex:true,  hc:"17300",john:"sha3-256",confidence:"medium", note:"SHA-3 family. Same length as SHA-256 — context clues needed.", refs:[] },
-  { name:"SHA3-512",     bits:512, len:[128], hex:true,  hc:"17500",john:"sha3-512",confidence:"medium", note:"SHA-3 family. Same length as SHA-512 — context clues needed.", refs:[] },
+    note:"Strong but fast — use bcrypt/Argon2 for passwords instead." },
+  { name:"SHA3-256",     bits:256, len:[64],  hex:true,  hc:"17300",john:"sha3-256",confidence:"medium", note:"SHA-3 family. Same length as SHA-256 — context clues needed." },
+  { name:"SHA3-512",     bits:512, len:[128], hex:true,  hc:"17500",john:"sha3-512",confidence:"medium", note:"SHA-3 family. Same length as SHA-512 — context clues needed." },
 
   // ── Windows / AD ──────────────────────────────────────────────────────────
   { name:"NTLM",         bits:128, len:[32],  hex:true,  hc:"1000",john:"NT",       confidence:"medium",
-    note:"Windows password hashes — from /etc/passwd, SAM dump, secretsdump. MD4(UTF16-LE(pass)).",
-    refs:["hashcat -m 1000 hash.txt wordlist.txt","john --format=NT --wordlist=rockyou.txt hash.txt"] },
+    note:"Windows password hashes — from /etc/passwd, SAM dump, secretsdump. MD4(UTF16-LE(pass))." },
   { name:"LM",           bits:64,  len:[32],  hex:true,  hc:"3000",john:"LM",       confidence:"medium",
-    note:"Legacy Windows (pre-Vista). Two 7-char DES chunks, all uppercase.",
-    refs:["hashcat -m 3000 hash.txt wordlist.txt"] },
+    note:"Legacy Windows (pre-Vista). Two 7-char DES chunks, all uppercase." },
   { name:"NetNTLMv1",    bits:null, len:null, pattern:/^[a-f0-9]+::[^:]+:[a-f0-9]{48}:[a-f0-9]{48}:[a-f0-9]{16}$/i,
     hc:"5500", john:"netntlm", confidence:"high",
-    note:"Challenge-response from Responder/ntlmrelayx captures.",
-    refs:["hashcat -m 5500 hash.txt wordlist.txt","john --format=netntlm --wordlist=rockyou.txt hash.txt"] },
+    note:"Challenge-response from Responder/ntlmrelayx captures." },
   { name:"NetNTLMv2",    bits:null, len:null, pattern:/^[^:]+::[^:]+:[a-f0-9]{16}:[a-f0-9]{32}:[a-f0-9]+$/i,
     hc:"5600", john:"netntlmv2", confidence:"high",
-    note:"Modern Windows challenge-response. Commonly captured via Responder.",
-    refs:["hashcat -m 5600 hash.txt wordlist.txt","john --format=netntlmv2 --wordlist=rockyou.txt hash.txt"] },
+    note:"Modern Windows challenge-response. Commonly captured via Responder." },
 
   // ── *nix crypt ────────────────────────────────────────────────────────────
   { name:"MD5crypt ($1$)", bits:null, len:null, pattern:/^\$1\$[./A-Za-z0-9]{0,8}\$[./A-Za-z0-9]{22}$/,
     hc:"500",  john:"md5crypt", confidence:"high",
-    note:"Linux /etc/shadow MD5crypt. Slow variant of MD5.",
-    refs:["hashcat -m 500 hash.txt wordlist.txt","john --format=md5crypt --wordlist=rockyou.txt hash.txt"] },
+    note:"Linux /etc/shadow MD5crypt. Slow variant of MD5." },
   { name:"SHA-256crypt ($5$)", bits:null, len:null, pattern:/^\$5\$/,
     hc:"7400", john:"sha256crypt", confidence:"high",
-    note:"Linux /etc/shadow SHA-256crypt.",
-    refs:["hashcat -m 7400 hash.txt wordlist.txt"] },
+    note:"Linux /etc/shadow SHA-256crypt." },
   { name:"SHA-512crypt ($6$)", bits:null, len:null, pattern:/^\$6\$/,
     hc:"1800", john:"sha512crypt", confidence:"high",
-    note:"Linux /etc/shadow SHA-512crypt — default on most modern Linux distros.",
-    refs:["hashcat -m 1800 hash.txt wordlist.txt","john --format=sha512crypt --wordlist=rockyou.txt hash.txt"] },
+    note:"Linux /etc/shadow SHA-512crypt — default on most modern Linux distros." },
   { name:"yescrypt ($y$)", bits:null, len:null, pattern:/^\$y\$/,
     hc:"",     john:"yescrypt", confidence:"high",
-    note:"Newer Linux default (Debian 11+, Fedora 35+). Very slow — GPU cracking difficult.",
-    refs:["john --format=yescrypt --wordlist=rockyou.txt hash.txt"] },
+    note:"Newer Linux default (Debian 11+, Fedora 35+). Very slow — GPU cracking difficult." },
 
   // ── bcrypt ────────────────────────────────────────────────────────────────
   { name:"bcrypt",       bits:null, len:null, pattern:/^\$2[abxy]\$\d{2}\$/,
     hc:"3200", john:"bcrypt", confidence:"high",
-    note:"Deliberately slow — standard for modern web apps. Work factor in the hash.",
-    refs:["hashcat -m 3200 hash.txt wordlist.txt","john --format=bcrypt --wordlist=rockyou.txt hash.txt"] },
+    note:"Deliberately slow — standard for modern web apps. Work factor in the hash." },
 
   // ── Argon2 ────────────────────────────────────────────────────────────────
   { name:"Argon2i",  bits:null, len:null, pattern:/^\$argon2i\$/,
     hc:"",     john:"argon2", confidence:"high",
-    note:"Memory-hard KDF. GPU cracking largely impractical.", refs:[] },
+    note:"Memory-hard KDF. GPU cracking largely impractical." },
   { name:"Argon2id", bits:null, len:null, pattern:/^\$argon2id\$/,
     hc:"",     john:"argon2", confidence:"high",
-    note:"Preferred Argon2 variant (hybrid). State-of-the-art password hashing.", refs:[] },
+    note:"Preferred Argon2 variant (hybrid). State-of-the-art password hashing." },
 
   // ── PBKDF2 / scrypt ───────────────────────────────────────────────────────
   { name:"PBKDF2-SHA256 (Django)", bits:null, len:null, pattern:/^pbkdf2_sha256\$/,
     hc:"20000",john:"django",  confidence:"high",
-    note:"Django default password hasher.",
-    refs:["hashcat -m 20000 hash.txt wordlist.txt"] },
+    note:"Django default password hasher." },
   { name:"scrypt",       bits:null, len:null, pattern:/^\$scrypt\$/,
     hc:"8900", john:"scrypt", confidence:"high",
-    note:"Memory-hard. Used by some Linux distros and crypto wallets.", refs:[] },
+    note:"Memory-hard. Used by some Linux distros and crypto wallets." },
 
   // ── Application-specific ─────────────────────────────────────────────────
   { name:"MySQL 4.x",    bits:null, len:[16], hex:true,  hc:"200", john:"mysql",    confidence:"medium",
-    note:"Old MySQL password() function. 16-char hex.",
-    refs:["hashcat -m 200 hash.txt wordlist.txt"] },
+    note:"Old MySQL password() function. 16-char hex." },
   { name:"MySQL 5.x",    bits:null, len:[41], pattern:/^\*[A-F0-9]{40}$/, hc:"300", john:"mysql-sha1", confidence:"high",
-    note:"MySQL password() — SHA1(SHA1(pass)) with leading asterisk.",
-    refs:["hashcat -m 300 hash.txt wordlist.txt"] },
+    note:"MySQL password() — SHA1(SHA1(pass)) with leading asterisk." },
   { name:"MSSQL (2000)", bits:null, len:null, pattern:/^0x0100[a-f0-9]{88}$/i,
-    hc:"131",  john:"mssql", confidence:"high", note:"SQL Server 2000 password hash.", refs:[] },
+    hc:"131",  john:"mssql", confidence:"high", note:"SQL Server 2000 password hash." },
   { name:"MSSQL (2012+)",bits:null, len:null, pattern:/^0x0200[a-f0-9]{136}$/i,
-    hc:"1731", john:"mssql12", confidence:"high", note:"SQL Server 2012+ — SHA-512 based.", refs:[] },
+    hc:"1731", john:"mssql12", confidence:"high", note:"SQL Server 2012+ — SHA-512 based." },
   { name:"WPA-PBKDF2",   bits:null, len:[64], hex:true,  hc:"2500",john:"wpapsk",   confidence:"low",
-    note:"64-char hex could be WPA PSK. Requires .hccapx capture file.",
-    refs:["hashcat -m 2500 capture.hccapx wordlist.txt"] },
+    note:"64-char hex could be WPA PSK. Requires .hccapx capture file." },
   { name:"Kerberos 5 TGS (AS-REP)", bits:null, len:null, pattern:/^\$krb5asrep\$/,
     hc:"18200",john:"krb5asrep", confidence:"high",
-    note:"AS-REP roasting output (accounts with pre-auth disabled).",
-    refs:["hashcat -m 18200 hash.txt wordlist.txt","john --format=krb5asrep --wordlist=rockyou.txt hash.txt"] },
+    note:"AS-REP roasting output (accounts with pre-auth disabled)." },
   { name:"Kerberos 5 TGS (SPN)",   bits:null, len:null, pattern:/^\$krb5tgs\$/,
     hc:"13100",john:"krb5tgs", confidence:"high",
-    note:"Kerberoasting output from GetUserSPNs / Rubeus.",
-    refs:["hashcat -m 13100 hash.txt wordlist.txt","john --format=krb5tgs --wordlist=rockyou.txt hash.txt"] },
+    note:"Kerberoasting output from GetUserSPNs / Rubeus." },
 
   // ── BLAKE / RIPEMD / Whirlpool ────────────────────────────────────────────
-  { name:"BLAKE2b-512",  bits:512, len:[128], hex:true,  hc:"600", john:"",         confidence:"medium", note:"Modern fast hash.", refs:[] },
-  { name:"RIPEMD-160",   bits:160, len:[40],  hex:true,  hc:"6000",john:"ripemd160",confidence:"medium", note:"Same length as SHA-1 — look for context.", refs:[] },
-  { name:"Whirlpool",    bits:512, len:[128], hex:true,  hc:"6100",john:"whirlpool",confidence:"low",    note:"Same length as SHA-512 — context needed.", refs:[] },
-  { name:"CRC32",        bits:32,  len:[8],   hex:true,  hc:"11500",john:"crc32",   confidence:"medium", note:"Non-cryptographic checksum. 8 hex chars.", refs:[] },
+  { name:"BLAKE2b-512",  bits:512, len:[128], hex:true,  hc:"600", john:"",         confidence:"medium", note:"Modern fast hash." },
+  { name:"RIPEMD-160",   bits:160, len:[40],  hex:true,  hc:"6000",john:"ripemd160",confidence:"medium", note:"Same length as SHA-1 — look for context." },
+  { name:"Whirlpool",    bits:512, len:[128], hex:true,  hc:"6100",john:"whirlpool",confidence:"low",    note:"Same length as SHA-512 — context needed." },
+  { name:"CRC32",        bits:32,  len:[8],   hex:true,  hc:"11500",john:"crc32",   confidence:"medium", note:"Non-cryptographic checksum. 8 hex chars." },
 
   // ── NTDS / Kerberos special ───────────────────────────────────────────────
   { name:"NTDS hash (domain)",  bits:null, len:null, pattern:/^[a-z0-9]+:[0-9]+:[a-f0-9]{32}:[a-f0-9]{32}::$/i,
     hc:"1000", john:"NT", confidence:"high",
-    note:"secretsdump / impacket NTDS output format: user:rid:lm:ntlm::",
-    refs:["hashcat -m 1000 ntlm.txt wordlist.txt"] },
+    note:"secretsdump / impacket NTDS output format: user:rid:lm:ntlm::" },
 ];
 
 // ── Identification logic ────────────────────────────────────────────────────
@@ -419,23 +397,43 @@ function renderInfo(m, hash) {
 }
 
 function renderCrackCommands(m, hash) {
-  if (!m.refs || m.refs.length === 0) {
-    if (!m.hc && !m.john) return '<p style="font-size:0.78rem;color:var(--text-faint)">No standard cracking command — this algorithm may not be supported by hashcat/john.</p>';
-    return '';
+  if (!m.hc && !m.john) {
+    return '<p style="font-size:0.78rem;color:var(--text-faint)">No standard cracking command — this algorithm is not supported by hashcat/john.</p>';
   }
-  const blocks = m.refs.map((cmd, i) => {
-    const tool = cmd.startsWith('hashcat') ? 'hashcat' : cmd.startsWith('john') ? 'john' : 'cmd';
-    const id = `cc-${m.name.replace(/\W/g,'-')}-${i}`;
-    return `
+
+  const slug   = m.name.replace(/\W/g, '-');
+  const hEsc   = escHtml(hash);
+  const wordlist = '/usr/share/wordlists/rockyou.txt';
+  const blocks = [];
+
+  if (m.hc) {
+    const cmd = `hashcat -m ${m.hc} '${hash}' ${wordlist}`;
+    const id  = `cc-${slug}-hc`;
+    blocks.push(`
     <div class="crack-block">
       <div class="crack-head">
-        <span class="crack-tool">${tool}</span>
-        <button class="crack-copy" id="${id}" onclick="copyCrack('${id}', this)">${tool === 'hashcat' ? '⚡' : '🔑'} Copy</button>
+        <span class="crack-tool">hashcat</span>
+        <button class="crack-copy" id="${id}" onclick="copyCrack('${id}', this)">⚡ Copy</button>
       </div>
       <div class="crack-cmd" id="cmd-${id}">${escHtml(cmd)}</div>
-    </div>`;
-  }).join('');
-  return `<div class="crack-grid">${blocks}</div>`;
+    </div>`);
+  }
+
+  if (m.john) {
+    // john needs the hash in a file; show echo → john as a one-liner
+    const cmd = `echo '${hash}' > hash.txt && john --format=${m.john} --wordlist=${wordlist} hash.txt`;
+    const id  = `cc-${slug}-john`;
+    blocks.push(`
+    <div class="crack-block">
+      <div class="crack-head">
+        <span class="crack-tool">john</span>
+        <button class="crack-copy" id="${id}" onclick="copyCrack('${id}', this)">🔑 Copy</button>
+      </div>
+      <div class="crack-cmd" id="cmd-${id}">${escHtml(cmd)}</div>
+    </div>`);
+  }
+
+  return `<div class="crack-grid">${blocks.join('')}</div>`;
 }
 
 function escHtml(s) {
