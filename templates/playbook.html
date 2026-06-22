@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Playbooks — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --danger:#ef4444;--ok:#22d3ee;
+      --radius:12px;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-150px;right:-80px;}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .main{position:relative;z-index:1;flex:1;min-width:0;padding-bottom:100px;}
+
+    /* Header */
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 16px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:4px;}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);margin-top:2px;}
+
+    /* Filter bar */
+    .filter-bar{display:flex;align-items:center;gap:10px;padding:12px 40px;flex-wrap:wrap;}
+    .eng-chips{display:flex;gap:6px;flex-wrap:wrap;}
+    .chip{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:5px 12px;border-radius:99px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;user-select:none;
+    }
+    .chip:hover{border-color:var(--border-hi);color:var(--text);}
+    .chip.active{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    .filter-right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+    .btn-sm{padding:6px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--s1);color:var(--text-dim);font-family:inherit;font-size:0.75rem;font-weight:600;cursor:pointer;transition:all 0.15s;}
+    .btn-sm:hover{border-color:var(--border-hi);color:var(--text);}
+    .btn-sm.danger:hover{border-color:var(--danger);color:var(--danger);}
+
+    /* Stats */
+    .stats-bar{padding:0 40px 12px;display:flex;align-items:center;gap:16px;}
+    .stat-pill{font-size:0.72rem;color:var(--text-faint);}
+    .stat-pill strong{color:var(--text-dim);}
+
+    /* Content */
+    .content{padding:0 40px;}
+
+    /* Empty state */
+    .empty-state{text-align:center;padding:80px 20px;}
+    .empty-icon{font-size:3rem;margin-bottom:16px;opacity:0.4;}
+    .empty-title{font-size:1rem;font-weight:600;color:var(--text-dim);margin-bottom:8px;}
+    .empty-sub{font-size:0.8rem;color:var(--text-faint);}
+    .empty-sub a{color:var(--accent-hi);text-decoration:none;}
+    .empty-sub a:hover{text-decoration:underline;}
+
+    /* Engagement group */
+    .eng-group{margin-bottom:28px;}
+    .eng-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+    .eng-name{font-size:0.82rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);padding:4px 10px;background:var(--s2);border-radius:6px;border:1px solid var(--border);}
+    .eng-count{font-size:0.72rem;color:var(--text-faint);}
+
+    /* Entry card */
+    .entry-card{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:14px 18px;margin-bottom:8px;
+      transition:border-color 0.2s;
+    }
+    .entry-card:hover{border-color:var(--border-hi);}
+    .entry-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;}
+    .entry-tool{font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent-hi);flex-shrink:0;}
+    .entry-note{font-size:0.78rem;color:var(--text-dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .entry-time{font-size:0.68rem;color:var(--text-faint);flex-shrink:0;margin-left:auto;}
+    .entry-cmd{
+      background:var(--s2);border:1px solid var(--border);border-radius:8px;
+      padding:10px 14px;
+      font-family:'Fira Code',monospace;font-size:0.78rem;color:var(--text);
+      white-space:pre-wrap;word-break:break-all;
+      cursor:text;user-select:all;
+    }
+    .entry-actions{display:flex;align-items:center;gap:8px;margin-top:8px;}
+    .act-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-family:inherit;font-size:0.72rem;color:var(--text-dim);cursor:pointer;transition:all 0.15s;}
+    .act-btn:hover{border-color:var(--border-hi);color:var(--text);}
+    .act-btn.del:hover{border-color:var(--danger);color:var(--danger);}
+    .act-btn.copy-ok{color:var(--ok);border-color:var(--ok);}
+
+    .tool-link{display:inline-flex;align-items:center;gap:4px;text-decoration:none;color:var(--accent-hi);font-size:0.72rem;transition:opacity 0.15s;}
+    .tool-link:hover{opacity:0.75;}
+
+    @media(max-width:700px){.content,.filter-bar,.stats-bar,.page-header{padding-left:16px;padding-right:16px;}}
+  </style>
+</head>
+<body>
+<div class="bg-layer">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="grid-ov"></div>
+</div>
+
+{% include '_nav.html' %}
+
+<main class="main">
+  <div class="page-header">
+    <div class="header-top">
+      <span style="font-size:1.4rem">📒</span>
+      <div>
+        <div class="page-title">Playbooks</div>
+        <div class="page-sub">Saved commands grouped by engagement</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="eng-chips" id="eng-chips">
+      <span class="chip active" data-eng="">All engagements</span>
+      {% for eng in engagements %}
+      <span class="chip" data-eng="{{ eng }}">{{ eng }}</span>
+      {% endfor %}
+    </div>
+    <div class="filter-right">
+      <button class="btn-sm danger" id="clear-all-btn" onclick="confirmClearAll()" style="display:none">Clear all</button>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <span class="stat-pill" id="stats-label">
+      {% set total = namespace(n=0) %}
+      {% for entries in grouped.values() %}{% set total.n = total.n + entries|length %}{% endfor %}
+      <strong>{{ total.n }}</strong> saved command{{ 's' if total.n != 1 else '' }} across
+      <strong>{{ grouped|length }}</strong> engagement{{ 's' if grouped|length != 1 else '' }}
+    </span>
+  </div>
+
+  <div class="content" id="content">
+    {% if not grouped %}
+    <div class="empty-state">
+      <div class="empty-icon">📒</div>
+      <div class="empty-title">No saved commands yet</div>
+      <div class="empty-sub">Open any <a href="/generators">generator tool</a>, build a command, and click <strong>Save ↗</strong> to add it here.</div>
+    </div>
+    {% else %}
+    {% for eng, entries in grouped.items() %}
+    <div class="eng-group" data-eng="{{ eng }}" id="group-{{ loop.index }}">
+      <div class="eng-header">
+        <span class="eng-name">{{ eng }}</span>
+        <span class="eng-count">{{ entries|length }} command{{ 's' if entries|length != 1 else '' }}</span>
+      </div>
+      {% for entry in entries %}
+      <div class="entry-card" id="entry-{{ entry.id }}">
+        <div class="entry-top">
+          <span class="entry-tool">{{ entry.tool_name or entry.tool_slug }}</span>
+          {% if entry.note %}<span class="entry-note">{{ entry.note }}</span>{% endif %}
+          <span class="entry-time">{{ entry.created_at[:16] if entry.created_at else '' }}</span>
+        </div>
+        <div class="entry-cmd" id="cmd-{{ entry.id }}">{{ entry.command }}</div>
+        <div class="entry-actions">
+          <button class="act-btn" id="copy-btn-{{ entry.id }}" onclick="copyEntry({{ entry.id }})">Copy</button>
+          <a class="tool-link" href="/generators/{{ entry.tool_slug }}">Open tool ↗</a>
+          <button class="act-btn del" onclick="deleteEntry({{ entry.id }})">Delete</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+</main>
+
+<script>
+const GROUPS = document.querySelectorAll('.eng-group');
+
+document.getElementById('eng-chips').addEventListener('click', e => {
+  const chip = e.target.closest('[data-eng]');
+  if (!chip) return;
+  document.querySelectorAll('#eng-chips .chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  const eng = chip.dataset.eng;
+  GROUPS.forEach(g => {
+    g.style.display = (!eng || g.dataset.eng === eng) ? '' : 'none';
+  });
+});
+
+function copyEntry(id) {
+  const cmd = document.getElementById('cmd-' + id).textContent;
+  navigator.clipboard.writeText(cmd).then(() => {
+    const btn = document.getElementById('copy-btn-' + id);
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.classList.add('copy-ok');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copy-ok'); }, 1500);
+  }).catch(() => {});
+}
+
+function deleteEntry(id) {
+  if (!confirm('Delete this saved command?')) return;
+  fetch('/api/playbooks/' + id, {
+    method: 'DELETE',
+    headers: { 'Origin': window.location.origin },
+  }).then(r => r.json()).then(data => {
+    if (data.ok) {
+      const el = document.getElementById('entry-' + id);
+      if (el) el.remove();
+      updateStats();
+    }
+  }).catch(() => {});
+}
+
+function confirmClearAll() {
+  const active = document.querySelector('#eng-chips .chip.active');
+  const eng = active ? active.dataset.eng : '';
+  const label = eng || 'all engagements';
+  if (!confirm(`Delete all saved commands for ${label}? This cannot be undone.`)) return;
+  const cards = eng
+    ? document.querySelectorAll(`.eng-group[data-eng="${eng}"] .entry-card`)
+    : document.querySelectorAll('.entry-card');
+  Promise.all([...cards].map(card => {
+    const id = card.id.replace('entry-', '');
+    return fetch('/api/playbooks/' + id, { method: 'DELETE', headers: { 'Origin': window.location.origin } });
+  })).then(() => location.reload());
+}
+
+function updateStats() {
+  const remaining = document.querySelectorAll('.entry-card').length;
+  const groups = [...document.querySelectorAll('.eng-group')].filter(g => g.querySelector('.entry-card'));
+  document.getElementById('stats-label').innerHTML =
+    `<strong>${remaining}</strong> saved command${remaining !== 1 ? 's' : ''} across <strong>${groups.length}</strong> engagement${groups.length !== 1 ? 's' : ''}`;
+  if (!remaining) location.reload();
+}
+
+const hasEntries = document.querySelectorAll('.entry-card').length > 0;
+if (hasEntries) document.getElementById('clear-all-btn').style.display = '';
+</script>
+</body>
+</html>

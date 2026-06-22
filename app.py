@@ -530,6 +530,60 @@ def api_cve_search():
     return jsonify({"total": raw.get("totalResults", 0), "results": results})
 
 
+# ── Engagement / Playbooks ─────────────────────────────────────────────────────
+
+@app.route("/playbook")
+def playbook():
+    entries      = database.get_playbook_entries()
+    engagements  = database.get_engagement_names()
+    grouped: dict = {}
+    for e in entries:
+        grouped.setdefault(e["engagement"], []).append(e)
+    return render_template("playbook.html",
+                           grouped=grouped,
+                           engagements=engagements,
+                           active_page="playbook")
+
+
+@app.route("/api/playbooks", methods=["GET"])
+def api_playbooks_list():
+    eng     = request.args.get("engagement", "").strip()[:100]
+    entries = database.get_playbook_entries(eng or None)
+    names   = database.get_engagement_names()
+    return jsonify({"entries": entries, "engagements": names})
+
+
+@app.route("/api/playbooks", methods=["POST"])
+def api_playbooks_save():
+    if not _csrf_check():
+        return jsonify({"error": "Forbidden"}), 403
+    data       = _body_json()
+    engagement = str(data.get("engagement") or "default").strip()[:100]
+    tool_slug  = str(data.get("tool_slug")  or "").strip()[:80]
+    tool_name  = str(data.get("tool_name")  or "").strip()[:120]
+    command    = str(data.get("command")    or "").strip()[:8000]
+    note       = str(data.get("note")       or "").strip()[:400]
+    if not tool_slug or not command:
+        return jsonify({"error": "tool_slug and command are required"}), 400
+    entry_id = database.save_playbook_entry(engagement, tool_slug, tool_name, command, note)
+    return jsonify({"ok": True, "id": entry_id}), 201
+
+
+@app.route("/api/playbooks/<int:entry_id>", methods=["DELETE"])
+def api_playbooks_delete(entry_id):
+    if not _csrf_check():
+        return jsonify({"error": "Forbidden"}), 403
+    database.delete_playbook_entry(entry_id)
+    return jsonify({"ok": True})
+
+
+# ── MITRE ATT&CK ───────────────────────────────────────────────────────────────
+
+@app.route("/mitre")
+def mitre():
+    return render_template("mitre.html", active_page="mitre")
+
+
 # ── Core scan endpoint ────────────────────────────────────────────────────────
 
 @app.route("/analyze", methods=["POST"])

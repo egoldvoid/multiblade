@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MITRE ATT&CK — Vantage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#080a12;--s1:#0d0f1c;--s2:#121525;--s3:#191d31;
+      --border:#1e2240;--border-hi:#2d3260;
+      --text:#dde1f5;--text-dim:#6b7099;--text-faint:#373b5c;
+      --accent:#6366f1;--accent-hi:#818cf8;--accent-glow:#6366f133;
+      --radius:12px;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex; }
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .blob{position:absolute;border-radius:50%;filter:blur(100px);}
+    .blob-1{width:700px;height:700px;background:radial-gradient(circle,#3730a314,transparent 70%);top:-250px;left:-100px;}
+    .blob-2{width:500px;height:500px;background:radial-gradient(circle,#7c3aed10,transparent 70%);bottom:-150px;right:-80px;}
+    .grid-ov{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#6366f112 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)}
+
+    .main{position:relative;z-index:1;flex:1;min-width:0;padding-bottom:100px;}
+
+    /* Header */
+    .page-header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,var(--bg) 80%,transparent);padding:24px 40px 16px;}
+    .header-top{display:flex;align-items:center;gap:16px;margin-bottom:12px;}
+    .page-title{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:0.04em;}
+    .page-sub{font-size:0.78rem;color:var(--text-dim);}
+
+    /* Filters */
+    .filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .search-wrap{position:relative;flex:1;min-width:200px;max-width:320px;}
+    .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:0.85rem;pointer-events:none;}
+    .search-input{
+      width:100%;background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:8px 12px 8px 34px;color:var(--text);font-family:inherit;font-size:0.85rem;
+      outline:none;transition:border-color 0.15s;
+    }
+    .search-input:focus{border-color:var(--accent);}
+    .search-input::placeholder{color:var(--text-faint);}
+    .tactic-chips{display:flex;gap:6px;flex-wrap:wrap;}
+    .chip{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:5px 12px;border-radius:99px;
+      border:1.5px solid var(--border);background:var(--s1);
+      color:var(--text-dim);font-size:0.72rem;font-weight:600;
+      cursor:pointer;transition:all 0.15s;user-select:none;
+    }
+    .chip:hover{border-color:var(--border-hi);color:var(--text);}
+    .chip.active{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    /* Stats */
+    .stats-bar{padding:10px 40px 0;display:flex;align-items:center;gap:16px;}
+    .stat-pill{font-size:0.72rem;color:var(--text-faint);}
+    .stat-pill strong{color:var(--text-dim);}
+
+    /* Content */
+    .content{padding:16px 40px 0;}
+
+    /* Tactic section */
+    .tactic-section{margin-bottom:32px;}
+    .tactic-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+    .tactic-id{font-family:'Fira Code',monospace;font-size:0.72rem;color:var(--text-faint);background:var(--s2);padding:3px 8px;border-radius:6px;border:1px solid var(--border);}
+    .tactic-name{font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:800;letter-spacing:0.04em;}
+    .tactic-count{font-size:0.7rem;color:var(--text-faint);margin-left:auto;}
+
+    /* Technique grid */
+    .technique-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;}
+
+    /* Technique card */
+    .tech-card{
+      background:var(--s1);border:1.5px solid var(--border);border-radius:var(--radius);
+      padding:14px 16px;
+      transition:border-color 0.2s,box-shadow 0.2s;
+    }
+    .tech-card:hover{border-color:var(--border-hi);box-shadow:0 4px 20px -4px #00000050;}
+    .tech-card.hidden{display:none;}
+    .tech-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+    .tech-id{font-family:'Fira Code',monospace;font-size:0.72rem;color:var(--text-faint);flex-shrink:0;}
+    .tech-name{font-size:0.82rem;font-weight:600;color:var(--text);}
+    .tech-desc{font-size:0.75rem;color:var(--text-dim);margin-bottom:10px;line-height:1.5;}
+    .tech-tools{display:flex;flex-wrap:wrap;gap:5px;}
+    .tool-chip{
+      display:inline-flex;align-items:center;
+      padding:3px 9px;border-radius:99px;
+      border:1px solid var(--border);background:var(--s2);
+      color:var(--text-dim);font-size:0.68rem;font-weight:500;
+      text-decoration:none;
+      transition:all 0.15s;
+    }
+    .tool-chip:hover{border-color:var(--accent);color:var(--accent-hi);background:var(--accent-glow);}
+
+    /* Empty state */
+    .empty-state{text-align:center;padding:60px 20px;display:none;}
+    .empty-icon{font-size:2.5rem;margin-bottom:12px;opacity:0.4;}
+    .empty-title{font-size:0.9rem;color:var(--text-dim);}
+
+    @media(max-width:700px){
+      .content,.stats-bar,.filters,.page-header{padding-left:16px;padding-right:16px;}
+      .technique-grid{grid-template-columns:1fr;}
+    }
+  </style>
+</head>
+<body>
+<div class="bg-layer">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="grid-ov"></div>
+</div>
+
+{% include '_nav.html' %}
+
+<main class="main">
+  <div class="page-header">
+    <div class="header-top">
+      <span style="font-size:1.4rem">🗺</span>
+      <div>
+        <div class="page-title">MITRE ATT&amp;CK Browser</div>
+        <div class="page-sub">Tactics and techniques mapped to Vantage tools</div>
+      </div>
+    </div>
+    <div class="filters">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input class="search-input" id="search" type="text" placeholder="Search techniques…" oninput="filterAll()" />
+      </div>
+      <div class="tactic-chips" id="tactic-chips">
+        <span class="chip active" data-tactic="">All tactics</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <span class="stat-pill"><strong id="vis-count">0</strong> techniques shown</span>
+  </div>
+
+  <div class="content" id="content"></div>
+  <div class="empty-state" id="empty-state">
+    <div class="empty-icon">🔍</div>
+    <div class="empty-title">No techniques match your search</div>
+  </div>
+</main>
+
+<script>
+const DATA = [
+  {
+    id: "TA0043", name: "Reconnaissance",
+    techniques: [
+      { id:"T1595", name:"Active Scanning", desc:"Probe target infrastructure to gather actionable info — open ports, running services, OS fingerprints.", tools:["nmap","masscan","rustscan","naabu"] },
+      { id:"T1596", name:"Search Open Technical Databases", desc:"Query public databases for target infrastructure details — WHOIS, BGP, passive DNS, Shodan.", tools:["shodan","theHarvester","whois","asnmap"] },
+      { id:"T1590", name:"Gather Victim Network Info", desc:"Enumerate IP ranges, domain structure, DNS records, and ASNs.", tools:["amass","subfinder","dnsrecon","dnsx","fierce","massdns","uncover"] },
+      { id:"T1591", name:"Gather Victim Org Information", desc:"Collect employee/org data from public sources: LinkedIn, breach data, email patterns.", tools:["theHarvester","recon-ng","spiderfoot","maigret","holehe"] },
+      { id:"T1592", name:"Gather Victim Host Information", desc:"Fingerprint web technologies, CMS, WAF, TLS configuration.", tools:["whatweb","wafw00f","cmseek","sslscan","sslyze","eyewitness","gowitness","aquatone"] },
+      { id:"T1593", name:"Search Open Websites/Domains", desc:"Mine web archives and crawlers for historical URLs, parameters, and endpoints.", tools:["waybackurls","gau","gospider","katana","hakrawler","paramspider"] },
+      { id:"T1598", name:"Phishing for Information", desc:"Craft targeted messages to harvest credentials or internal details.", tools:["dnstwist"] },
+    ]
+  },
+  {
+    id: "TA0042", name: "Resource Development",
+    techniques: [
+      { id:"T1587", name:"Develop Capabilities", desc:"Build custom payloads, shellcode, and staged malware for the engagement.", tools:["msfvenom","msfconsole"] },
+      { id:"T1588", name:"Obtain Capabilities", desc:"Acquire existing exploit code, PoCs, and payloads from public repositories.", tools:["searchsploit","msfvenom"] },
+      { id:"T1583", name:"Acquire Infrastructure", desc:"Register domains, provision servers, or set up redirectors.", tools:["dnstwist","whois"] },
+    ]
+  },
+  {
+    id: "TA0001", name: "Initial Access",
+    techniques: [
+      { id:"T1190", name:"Exploit Public-Facing Application", desc:"Exploit vulnerabilities in internet-facing services: SQLi, XSS, SSRF, RCE.", tools:["sqlmap","nuclei","dalfox","nikto","commix","ssrfmap","tplmap","crlfuzz","XSStrike","testssl","smuggler"] },
+      { id:"T1133", name:"External Remote Services", desc:"Gain access via exposed services: SSH, WinRM, RDP.", tools:["evil-winrm","ssh","nc","netexec"] },
+      { id:"T1078", name:"Valid Accounts", desc:"Use obtained credentials to authenticate to services.", tools:["hydra","medusa","spray","hashcat","john","netexec"] },
+      { id:"T1195", name:"Supply Chain Compromise", desc:"Identify vulnerable dependencies and container images.", tools:["trivy","grype","snyk","syft","dockle","hadolint"] },
+    ]
+  },
+  {
+    id: "TA0002", name: "Execution",
+    techniques: [
+      { id:"T1059", name:"Command and Scripting Interpreter", desc:"Execute commands via shells, PowerShell, or scripting engines on target systems.", tools:["msfconsole","nc","socat"] },
+      { id:"T1203", name:"Exploitation for Client Execution", desc:"Deliver and execute exploits that run code on target via client-side apps.", tools:["msfvenom","msfconsole","searchsploit"] },
+      { id:"T1047", name:"Windows Management Instrumentation", desc:"Use WMI for remote execution and persistent command running.", tools:["netexec"] },
+      { id:"T1072", name:"Software Deployment Tools", desc:"Leverage infrastructure tooling for lateral code execution.", tools:["kubectl","terraform"] },
+    ]
+  },
+  {
+    id: "TA0003", name: "Persistence",
+    techniques: [
+      { id:"T1136", name:"Create Account", desc:"Create new accounts to maintain access after initial compromise.", tools:["netexec","evil-winrm"] },
+      { id:"T1505", name:"Server Software Component", desc:"Install web shells or server-side backdoors for persistent access.", tools:["msfvenom","msfconsole"] },
+      { id:"T1547", name:"Boot or Logon Autostart Execution", desc:"Establish persistence via Run keys, startup folders, or init scripts.", tools:["msfconsole"] },
+    ]
+  },
+  {
+    id: "TA0004", name: "Privilege Escalation",
+    techniques: [
+      { id:"T1068", name:"Exploitation for Privilege Escalation", desc:"Exploit vulnerabilities in services or the kernel to gain elevated privileges.", tools:["searchsploit","msfconsole","msfvenom"] },
+      { id:"T1055", name:"Process Injection", desc:"Inject code into running processes to run with their privileges.", tools:["msfvenom","msfconsole"] },
+      { id:"T1548", name:"Abuse Elevation Control Mechanism", desc:"Bypass UAC or sudo to escalate without exploiting a vulnerability.", tools:["msfconsole"] },
+    ]
+  },
+  {
+    id: "TA0005", name: "Defense Evasion",
+    techniques: [
+      { id:"T1027", name:"Obfuscated Files or Information", desc:"Encode, encrypt, or pack payloads to bypass AV/EDR signatures.", tools:["msfvenom","openssl","base64","age"] },
+      { id:"T1036", name:"Masquerading", desc:"Disguise malicious files or processes as benign ones.", tools:["msfvenom"] },
+      { id:"T1562", name:"Impair Defenses", desc:"Disable or tamper with security tools and logging.", tools:["netexec"] },
+      { id:"T1600", name:"Weaken Encryption", desc:"Exploit weak TLS configurations to intercept traffic.", tools:["testssl","sslyze","sslscan","tlsx"] },
+    ]
+  },
+  {
+    id: "TA0006", name: "Credential Access",
+    techniques: [
+      { id:"T1003", name:"OS Credential Dumping", desc:"Extract password hashes, Kerberos tickets, or plaintext creds from memory or disk.", tools:["secretsdump","netexec","responder"] },
+      { id:"T1110", name:"Brute Force", desc:"Systematically guess credentials via password spraying, dictionary, or hash cracking.", tools:["hydra","hashcat","medusa","spray","john","kerbrute","netexec"] },
+      { id:"T1558", name:"Steal or Forge Kerberos Tickets", desc:"Perform Kerberoasting or AS-REP Roasting to obtain crackable Kerberos hashes.", tools:["getuserspns","kerbrute","netexec"] },
+      { id:"T1552", name:"Unsecured Credentials", desc:"Find credentials in code repositories, config files, environment variables.", tools:["trufflehog","gitleaks","semgrep"] },
+      { id:"T1557", name:"Adversary-in-the-Middle", desc:"Capture and relay authentication to gain credentials or sessions.", tools:["responder"] },
+    ]
+  },
+  {
+    id: "TA0007", name: "Discovery",
+    techniques: [
+      { id:"T1046", name:"Network Service Scanning", desc:"Scan for open ports and identify running services across the network.", tools:["nmap","masscan","rustscan","naabu","netstat"] },
+      { id:"T1087", name:"Account Discovery", desc:"Enumerate local and domain accounts, groups, and permissions.", tools:["enum4linux-ng","netexec","bloodhound-py"] },
+      { id:"T1135", name:"Network Share Discovery", desc:"Identify accessible SMB/NFS shares.", tools:["netexec","enum4linux-ng"] },
+      { id:"T1069", name:"Permission Groups Discovery", desc:"Map AD group membership and ACLs to find privilege paths.", tools:["bloodhound-py","enum4linux-ng","netexec"] },
+      { id:"T1018", name:"Remote System Discovery", desc:"Identify active hosts and their roles within the network.", tools:["nmap","netexec","masscan"] },
+      { id:"T1083", name:"File and Directory Discovery", desc:"Search for interesting files: configs, credentials, source code.", tools:["find","grep"] },
+      { id:"T1613", name:"Container and Resource Discovery", desc:"Enumerate Kubernetes/Docker resources and misconfigurations.", tools:["kubectl","trivy","checkov","cloudmapper","scoutsuite"] },
+    ]
+  },
+  {
+    id: "TA0008", name: "Lateral Movement",
+    techniques: [
+      { id:"T1021", name:"Remote Services", desc:"Move laterally via SSH, WinRM, SMB exec, or PsExec-style techniques.", tools:["evil-winrm","psexec-py","ssh","netexec","nc","socat"] },
+      { id:"T1210", name:"Exploitation of Remote Services", desc:"Exploit vulnerabilities in internal services to pivot.", tools:["msfconsole","searchsploit"] },
+      { id:"T1550", name:"Use Alternate Authentication Material", desc:"Use pass-the-hash or pass-the-ticket to authenticate without plaintext creds.", tools:["netexec","evil-winrm","psexec-py","secretsdump"] },
+    ]
+  },
+  {
+    id: "TA0009", name: "Collection",
+    techniques: [
+      { id:"T1005", name:"Data from Local System", desc:"Gather interesting files from the compromised host.", tools:["find","grep"] },
+      { id:"T1560", name:"Archive Collected Data", desc:"Compress and encrypt data prior to exfiltration.", tools:["tar","openssl","gpg","age"] },
+      { id:"T1119", name:"Automated Collection", desc:"Script the collection of files, logs, and config data.", tools:["find","grep","awk","xargs"] },
+    ]
+  },
+  {
+    id: "TA0010", name: "Exfiltration",
+    techniques: [
+      { id:"T1041", name:"Exfiltration Over C2 Channel", desc:"Send data out via the existing C2 channel.", tools:["nc","socat"] },
+      { id:"T1048", name:"Exfiltration Over Alternative Protocol", desc:"Use DNS, ICMP, or other protocols to move data out.", tools:["scp","rsync","wget","nc","curl-unix"] },
+      { id:"T1567", name:"Exfiltration Over Web Service", desc:"Abuse cloud storage or web APIs to exfiltrate data.", tools:["aws","gcloud","az"] },
+    ]
+  },
+  {
+    id: "TA0011", name: "Command and Control",
+    techniques: [
+      { id:"T1090", name:"Proxy", desc:"Route C2 traffic through intermediary hosts to obscure origin.", tools:["nc","socat"] },
+      { id:"T1095", name:"Non-Application Layer Protocol", desc:"Use raw TCP/UDP sockets for C2 communication.", tools:["nc","socat"] },
+      { id:"T1071", name:"Application Layer Protocol", desc:"Blend C2 into HTTP/HTTPS/DNS traffic.", tools:["nc","socat","curl-unix"] },
+      { id:"T1132", name:"Data Encoding", desc:"Encode C2 messages to evade network detection.", tools:["base64","openssl"] },
+    ]
+  },
+  {
+    id: "TA0040", name: "Impact",
+    techniques: [
+      { id:"T1486", name:"Data Encrypted for Impact", desc:"Encrypt victim data to disrupt operations or for ransom.", tools:["openssl","gpg","age"] },
+      { id:"T1485", name:"Data Destruction", desc:"Destroy data to degrade availability.", tools:["find"] },
+      { id:"T1609", name:"Container Administration Command", desc:"Abuse container orchestration to disrupt workloads.", tools:["kubectl","docker"] },
+    ]
+  },
+];
+
+const contentEl = document.getElementById('content');
+const emptyEl   = document.getElementById('empty-state');
+
+function buildUI() {
+  const chips = document.getElementById('tactic-chips');
+  DATA.forEach(tac => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.dataset.tactic = tac.id;
+    chip.textContent = tac.name;
+    chips.appendChild(chip);
+  });
+
+  DATA.forEach(tac => {
+    const sec = document.createElement('div');
+    sec.className = 'tactic-section';
+    sec.id = 'tac-' + tac.id;
+    sec.innerHTML = `
+      <div class="tactic-header">
+        <span class="tactic-id">${tac.id}</span>
+        <span class="tactic-name">${tac.name}</span>
+        <span class="tactic-count">${tac.techniques.length} technique${tac.techniques.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="technique-grid" id="grid-${tac.id}"></div>
+    `;
+    const grid = sec.querySelector('.technique-grid');
+    tac.techniques.forEach(tech => {
+      const card = document.createElement('div');
+      card.className = 'tech-card';
+      card.dataset.id   = tech.id;
+      card.dataset.name = tech.name.toLowerCase();
+      card.dataset.tactic = tac.id;
+      card.innerHTML = `
+        <div class="tech-top">
+          <span class="tech-id">${tech.id}</span>
+          <span class="tech-name">${tech.name}</span>
+        </div>
+        <div class="tech-desc">${tech.desc}</div>
+        <div class="tech-tools">${tech.tools.map(slug =>
+          `<a class="tool-chip" href="/generators/${encodeURIComponent(slug)}" title="Open ${slug}">${slug}</a>`
+        ).join('')}</div>
+      `;
+      grid.appendChild(card);
+    });
+    contentEl.appendChild(sec);
+  });
+
+  updateCount();
+}
+
+function filterAll() {
+  const q      = document.getElementById('search').value.toLowerCase().trim();
+  const active = document.querySelector('#tactic-chips .chip.active');
+  const tactic = active ? active.dataset.tactic : '';
+
+  let visible = 0;
+  document.querySelectorAll('.tactic-section').forEach(sec => {
+    const tacId = sec.id.replace('tac-', '');
+    const tacMatch = !tactic || tactic === tacId;
+    sec.style.display = tacMatch ? '' : 'none';
+    if (!tacMatch) return;
+
+    let secVisible = 0;
+    sec.querySelectorAll('.tech-card').forEach(card => {
+      const match = !q ||
+        card.dataset.id.toLowerCase().includes(q) ||
+        card.dataset.name.includes(q) ||
+        card.querySelector('.tech-desc').textContent.toLowerCase().includes(q) ||
+        [...card.querySelectorAll('.tool-chip')].some(a => a.textContent.toLowerCase().includes(q));
+      card.classList.toggle('hidden', !match);
+      if (match) { secVisible++; visible++; }
+    });
+    sec.style.display = secVisible ? '' : 'none';
+  });
+
+  document.getElementById('vis-count').textContent = visible;
+  emptyEl.style.display = visible ? 'none' : 'block';
+}
+
+document.getElementById('tactic-chips').addEventListener('click', e => {
+  const chip = e.target.closest('[data-tactic]');
+  if (!chip) return;
+  document.querySelectorAll('#tactic-chips .chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  filterAll();
+});
+
+document.getElementById('search').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.target.value = ''; filterAll(); }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    document.getElementById('search').focus();
+  }
+});
+
+function updateCount() {
+  const total = DATA.reduce((s, t) => s + t.techniques.length, 0);
+  document.getElementById('vis-count').textContent = total;
+}
+
+buildUI();
+</script>
+</body>
+</html>

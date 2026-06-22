@@ -1,6 +1,6 @@
-# ZIP Analyzer — Security Scanner
+# Vantage — Security Operations Platform
 
-A static analysis engine for archive files that detects malware, trojans, and attack vectors before extraction. Ships with a drag-and-drop web dashboard, a command-line interface, 19 sample archives covering every threat class, and live threat intelligence via YARA rules and VirusTotal.
+A local-first security platform for penetration testers and security researchers. Ships as a self-hosted Flask app with three integrated wings: a 163-tool command generator, an archive malware analyzer, and a reference library — all behind a unified sidebar UI.
 
 ---
 
@@ -18,49 +18,80 @@ pip install -r requirements.txt
 
 ---
 
-## Supported formats
+## What's inside
 
-| Format | Extensions |
-|---|---|
-| ZIP (and ZIP-based) | `.zip` `.jar` `.apk` `.war` `.ear` `.docx` `.xlsx` `.pptx` |
-| TAR | `.tar` `.tar.gz` `.tgz` `.tar.bz2` `.tbz2` `.tar.xz` |
+### Command Generators (`/generators`)
+
+A searchable grid of 163 security tools across 18 categories. Each tool page is a data-driven form that builds the command string as you fill in flags and options.
+
+**Features per tool page:**
+- Form fields sync live into a command preview textarea
+- Presets, flag reference table, share URL (base64 state), download `.sh`
+- Copy / Copy one-liner / Reset
+- Global Target bar — set once, propagates to target/host/IP fields across all tools
+- Save to Playbook — saves the generated command to an engagement-named playbook
+
+**Standalone generators:**
+- **Reverse Shell Generator** (`/generators/revshells`) — 25 shell types, live IP/port, base64/URL encode toggles
+- **Attack Workflows** (`/generators/workflows`) — 10 curated multi-tool chains (recon, webapp, AD, ransomware, etc.)
+- **cURL Generator** (`/curl`) — dedicated cURL builder with more options than the generic system
+
+**Standalone tools:**
+- **Encoder / Decoder** (`/tools/encode`) — 13 transforms, fully client-side
+- **Hash Identifier** (`/tools/hashid`) — 35+ algorithms, hashcat mode + john format
+
+### Archive Analyzer (`/analyzer`)
+
+Static analysis engine for ZIP and TAR archives. Detects 30+ threat classes before extraction.
+
+**Supported formats:** `.zip` `.jar` `.apk` `.war` `.ear` `.docx` `.xlsx` `.pptx` `.tar` `.tar.gz` `.tgz` `.tar.bz2` `.tar.xz`
+
+**Detection categories:** path traversal, zip bombs, null byte filenames, magic byte mismatches, RTLO/homograph attacks, PE import analysis, high entropy, C2 addresses, ransomware IOCs, Office macro analysis, PDF dangerous keys, YARA rule scanning, VirusTotal hash lookup — and more (see [Detection capabilities](#detection-capabilities) below).
+
+**Additional analyzer tools:**
+- **Triage** (`/triage`) — bulk queue, multiple files, ranked by risk score
+- **Compare** (`/compare`) — diff two archive versions
+- **History** (`/history`) — scan history with IOC pivot search
+- **Campaigns** (`/campaigns`) — auto-clusters scans sharing IPs/onions/URLs
+- **Watch Folders** (`/watch`) — monitor directories, trigger batch scans
+- **YARA Playground** (`/yara`) — draft and test YARA rules live
+- **Custom Checks** (`/custom-checks`) — define detection rules without code
+
+### Reference Library
+
+- **Port Reference** (`/reference/ports`) — 85-port database with risk levels, pentest notes, tool links
+- **CVE Lookup** (`/reference/cve`) — live NVD API proxy, CVSS scores, Exploit-DB links, pagination
+- **Wordlist Browser** (`/reference/wordlists`) — 40 SecLists entries, category filters, copy-path, tool links
+
+### Engagement Features
+
+- **Playbooks** (`/playbook`) — saved commands grouped by engagement name; add from any generator tool page via Save ↗
+- **MITRE ATT&CK Browser** (`/mitre`) — 14 tactics, 50+ techniques, each linked to the relevant Vantage tools
 
 ---
 
-## Threat intelligence
+## Tool categories
 
-Two optional enrichment layers activate automatically when their prerequisites are met.
-
-### YARA rule scanning
-
-Scans every readable file inside the archive against 25 bundled YARA rules across 8 malware families. Findings include the rule name, family, and ATT&CK technique ID.
-
-**Setup:** `yara-python` must be installed (included in `requirements.txt`).
-
-```bash
-pip install yara-python      # already in requirements.txt
-python cli.py suspect.zip    # YARA scanning activates automatically
-```
-
-Rules live in `zip_analyzer/rules/` and can be extended with any standard YARA syntax.
-
-### VirusTotal hash lookup
-
-Computes SHA-256 for each entry and queries VirusTotal's v3 API. Executable and script files are checked first; up to 25 files per archive. Free-tier rate limiting (4 req/min) is applied automatically.
-
-**Setup:** export your API key before running:
-
-```bash
-export VT_API_KEY="your-key-here"   # get a free key at virustotal.com
-python cli.py suspect.zip
-```
-
-Test the integration without real malware using the bundled EICAR sample:
-
-```bash
-VT_API_KEY="your-key" python cli.py samples/19_vt_eicar_test.zip
-# → CRITICAL virustotal_hit on eicar.com (60+ engines detect it)
-```
+| Category | Tools | Color |
+|---|---|---|
+| Port Scanning | nmap, masscan, rustscan, naabu | |
+| Web Fuzzing | ffuf, gobuster, feroxbuster, wpscan, dirsearch, wfuzz, dirb, joomscan, droopescan | |
+| Vulnerability | nuclei, sqlmap, dalfox, nikto, commix, ssrfmap, tplmap, crlfuzz, interactsh, graphw00f, jwt_tool, corscanner, XSStrike, testssl, smuggler | |
+| HTTP & Web | httpx, katana, whatweb, wafw00f, arjun, sslyze, gowitness, gospider, hakrawler, paramspider, cmseek, httprobe, sslscan, eyewitness, aquatone, kiterunner | |
+| Recon & OSINT | subfinder, amass, waybackurls, gau, theHarvester, whois, shodan, assetfinder, findomain, recon-ng, spiderfoot, sherlock, uncover, asnmap, maigret, holehe | |
+| DNS | dnsx, dig, tlsx, dnsrecon, dnstwist, fierce, massdns | |
+| Active Directory | bloodhound-py, netexec, evil-winrm, secretsdump, getuserspns, psexec-py, kerbrute, responder, enum4linux-ng | |
+| Exploitation | searchsploit, msfconsole, msfvenom | |
+| Credentials | hydra, hashcat, medusa, spray, john | |
+| Secrets | trufflehog, gitleaks, linkfinder, semgrep | |
+| Forensics | volatility3, binwalk, exiftool, strings, file, xxd, yara-cli, oletools, foremost, clamav | |
+| Reverse Engineering | ghidra, radare2, gdb, objdump, nm, strace, ltrace, pwndbg | |
+| Cloud & Infra | s3scanner, pacu, trivy, grype, aws, gcloud, az, kubectl, checkov, prowler, terraform, cloudmapper, scoutsuite, snyk, hadolint, syft, cosign, dockle | |
+| Mobile | frida, objection, apktool, jadx | |
+| Network | nc, socat, tcpdump, tshark | |
+| Password & Crypto | openssl, gpg, ssh-keygen, age, base64 | |
+| Unix & Shell | grep, wget, find, ssh, rsync, scp, awk, sed, curl-unix, jq, xargs, tar, ps, netstat, cut, sort, uniq, wc, tr | |
+| Misc | notify, interlace, gf, anew, qsreplace, unfurl | |
 
 ---
 
@@ -122,7 +153,7 @@ VT_API_KEY="your-key" python cli.py samples/19_vt_eicar_test.zip
 ### Evasion & persistence
 | Check | Severity | Description |
 |---|---|---|
-| **vm_evasion** | High | VMware / VirtualBox / QEMU / Sandboxie detection strings — file may refuse to run in analysis environments |
+| **vm_evasion** | High | VMware / VirtualBox / QEMU / Sandboxie detection strings |
 | **wmi_persistence** | High | WMI event subscription (`__EventFilter`, `ActiveScriptEventConsumer`) |
 | **reg_persistence** | High | `.reg` file writes to `HKLM\…\Run` or `RunOnce` autostart keys |
 | **scheduled_task** | High | Windows scheduled task XML definition |
@@ -147,63 +178,31 @@ VT_API_KEY="your-key" python cli.py samples/19_vt_eicar_test.zip
 
 ---
 
-## YARA rule families
+## Threat intelligence setup
 
-25 rules across 8 families ship with the scanner. All rules are in `zip_analyzer/rules/` and follow standard YARA syntax.
+### YARA rule scanning
 
-| File | Rules | What they detect |
-|---|---|---|
-| `injection.yar` | 2 | `VirtualAllocEx`/`CreateRemoteThread` classic injection, APC/`NtMapViewOfSection` injection |
-| `credential_theft.yar` | 3 | `MiniDumpWriteDump` LSASS dump, SAM/LSA secrets, DPAPI decryption |
-| `ransomware.yar` | 3 | `CryptEncrypt`/`BCryptEncrypt`, ransom note text, file-search + encrypt combo |
-| `webshell.yar` | 3 | PHP `system($_GET[...])`, PHP `eval(base64_decode(...))`, PHP arbitrary file write |
-| `dropper.yar` | 4 | PowerShell IEX+DownloadString, PowerShell DownloadFile to temp/system path, Python `exec(base64.b64decode(...))`, wget/curl + chmod/bash |
-| `evasion.yar` | 3 | VM/sandbox string clusters (VMware/VBOX/QEMU), multi-API anti-debug, WMI event subscription |
-| `obfuscation.yar` | 3 | PowerShell `-EncodedCommand` + evasion flags, large base64 blob, hex-encoded shellcode |
-| `c2_malware.yar` | 3 | Tor `.onion` + exec/base64 beacon, `URLDownloadToFile`, HTTP send-request API |
-| `keylogger.yar` | 1 | `SetWindowsHookEx`/`GetAsyncKeyState`/`GetRawInputData` |
+Scans every readable file inside the archive against 25 bundled YARA rules across 8 malware families.
 
-**Adding custom rules:** Drop any `.yar` file into `zip_analyzer/rules/` — it is compiled and merged at startup.
+```bash
+pip install yara-python      # already in requirements.txt
+python cli.py suspect.zip    # YARA scanning activates automatically
+```
 
----
+Rules live in `zip_analyzer/rules/` — drop any `.yar` file there to extend coverage.
 
-## Risk scoring
+### VirusTotal hash lookup
 
-Risk scores are additive and capped at 100. Three classes of findings use different diminishing-returns formulas to prevent any single noisy check from dominating:
+```bash
+export VT_API_KEY="your-key-here"   # get a free key at virustotal.com
+python cli.py suspect.zip
+```
 
-| Finding class | Diminishing returns |
-|---|---|
-| **VirusTotal hits** | None — each confirmed-malicious file counts at full weight |
-| **YARA matches** | Per rule name: 1st occurrence 1.0×, 2nd 0.5×, 3rd+ 0.25× |
-| **All other checks** | Per check name: 1st 1.0×, 2nd 0.5×, 3rd+ 0.25× |
-
-Severity weights: CRITICAL 45 · HIGH 22 · MEDIUM 10 · LOW 4 · INFO 1
-
-| Score | Label |
-|---|---|
-| 0 | NONE |
-| 1–15 | LOW |
-| 16–35 | MEDIUM |
-| 36–60 | HIGH |
-| 61–100 | CRITICAL |
-
----
-
-## Dashboard metrics
-
-### Scores
-- **Risk Score (0–100)** — severity-weighted sum with per-class diminishing returns, capped at 100
-- **Scan Confidence (0–99%)** — `95 × (scanned/total) × (1 − entropy_drag)`, boosted slightly by VT-verified clean files
-
-### Panels
-- **Archive Profile** — file count, uncompressed size, compression ratio, threat category chips
-- **Entropy Analysis** — average and peak Shannon entropy bars (color-coded green→red)
-- **File Composition** — stacked extension breakdown bar
-- **Archive Health** — timestamp anomalies, hidden file count, year range
-- **MITRE ATT&CK** — deduped technique chips from static checks, YARA metadata, and PE imports
-- **Indicators of Compromise** — tabbed IP / URL / Onion table with classification
-- **Threat Intelligence** — YARA and VirusTotal side-by-side panel; shows rules loaded, files matched, per-rule and per-file results
-- **File Hashes** — SHA-256 + MD5 for every entry, one-click copy
+Test with the bundled EICAR sample:
+```bash
+VT_API_KEY="your-key" python cli.py samples/19_vt_eicar_test.zip
+# → CRITICAL virustotal_hit on eicar.com (60+ engines detect it)
+```
 
 ---
 
@@ -213,9 +212,7 @@ Severity weights: CRITICAL 45 · HIGH 22 · MEDIUM 10 · LOW 4 · INFO 1
 python cli.py <file.zip> [file2.zip ...]
 ```
 
-Exit codes: `0` = safe, `1` = threats found, `2` = error/invalid file.
-
-YARA scanning is always active when `yara-python` is installed. VT lookup activates when `VT_API_KEY` is set.
+Exit codes: `0` = safe, `1` = threats found, `2` = error/invalid file. YARA scanning activates when `yara-python` is installed; VT lookup activates when `VT_API_KEY` is set.
 
 ---
 
@@ -228,26 +225,10 @@ import os
 os.environ["VT_API_KEY"] = "your-key"   # optional
 
 result = ZipAnalyzer().analyze("path/to/file.zip")
-
-print(result.summary())                          # "UNSAFE — 71 finding(s), max severity: CRITICAL"
-print(result.metrics["risk_score"])              # 100
-print(result.metrics["confidence"])              # 95
-
-# Threat intelligence
-ti = result.metrics["threat_intelligence"]
-print(ti["yara"]["rules_loaded"])                # 25
-print(ti["yara"]["files_matched"])               # 6
-print(ti["yara"]["matches"][0]["rule"])          # "ProcessInjection_ClassicTriad"
-print(ti["yara"]["matches"][0]["mitre"])         # "T1055.003"
-
-print(ti["virustotal"]["enabled"])               # True / False
-print(ti["virustotal"]["malicious"])             # 2
-print(ti["virustotal"]["hits"][0]["threat_label"])  # "trojan.emotet/agent"
-
-# Standard fields
-print(result.metrics["mitre_techniques"])        # [{id, name}, ...] — includes YARA-sourced ATT&CK IDs
-print(result.metrics["ioc_summary"])             # {ips, urls, onions}
-print(result.metrics["file_hashes"])             # [{filename, sha256, md5}, ...]
+print(result.summary())                   # "UNSAFE — 71 finding(s), max severity: CRITICAL"
+print(result.metrics["risk_score"])       # 100
+print(result.metrics["mitre_techniques"]) # [{id, name}, ...]
+print(result.metrics["ioc_summary"])      # {ips, urls, onions}
 ```
 
 ---
@@ -256,14 +237,14 @@ print(result.metrics["file_hashes"])             # [{filename, sha256, md5}, ...
 
 ```bash
 python -m pytest tests/ -v
-# 40 tests, all passing
+# 305 tests, all passing
 ```
 
 ---
 
 ## Sample archives
 
-All 19 samples in `samples/` are inert — no real malware. Contents are crafted headers, dummy bytes, and realistic strings that exercise every detection check. Run `python samples/create_samples.py` to regenerate them.
+All 19 samples in `samples/` are inert — no real malware. Run `python samples/create_samples.py` to regenerate.
 
 | File | Risk | Key detections |
 |---|---|---|
@@ -273,7 +254,7 @@ All 19 samples in `samples/` are inert — no real malware. Contents are crafted
 | `04_phishing_kit.zip` | 74 — HIGH | PHP webshell, `.htaccess`, `malicious_comment` |
 | `05_zip_bomb.zip` | 66 — HIGH | ~500:1 compression ratio |
 | `06_path_traversal.zip` | 100 — CRITICAL | `../../../etc/cron.d`, `authorized_keys`, `.bashrc` |
-| `07_exfiltration_pack.zip` | 74 — HIGH | SSH private keys, `.env`, encrypted entries (conf 55%) |
+| `07_exfiltration_pack.zip` | 74 — HIGH | SSH private keys, `.env`, encrypted entries |
 | `08_macro_and_symlink.zip` | 94 — CRITICAL | `.docm`/`.xlsm`, ELF binary, symlink escape |
 | `09_obfuscated_payload.zip` | 100 — CRITICAL | PE disguised as `.dat`, `eval(base64_decode)`, C2 strings |
 | `10_hidden_credentials.zip` | 12 — LOW | `.aws/credentials`, `.env`, `.bash_history`, future timestamp |
@@ -284,8 +265,8 @@ All 19 samples in `samples/` are inert — no real malware. Contents are crafted
 | `15_malicious_pdf.zip` | 100 — CRITICAL | `/JavaScript`, `/OpenAction`, `/Launch`, `/EmbeddedFile` |
 | `16_office_deep_analysis.zip` | 100 — CRITICAL | `vbaProject.bin` confirmed, external NTLM link, formula injection |
 | `17_ioc_heavy_c2.zip` | 100 — CRITICAL | Public C2 IPs on port 4444/31337, Tor `.onion`, DGA domains, 12 IOCs |
-| `18_yara_strike.zip` | 100 — CRITICAL | **21 YARA hits** across 8 families: injection, credential theft, ransomware, webshell, dropper, VM evasion, obfuscation, C2 |
-| `19_vt_eicar_test.zip` | 20 — MEDIUM (static) | Contains the EICAR test string; with `VT_API_KEY` set returns CRITICAL `virustotal_hit` (60+ engines) |
+| `18_yara_strike.zip` | 100 — CRITICAL | **21 YARA hits** across 8 families |
+| `19_vt_eicar_test.zip` | 20 — MEDIUM (static) | EICAR test string; `virustotal_hit` CRITICAL with API key |
 
 ---
 
@@ -294,33 +275,38 @@ All 19 samples in `samples/` are inert — no real malware. Contents are crafted
 ```
 zip-analyzer/
 ├── zip_analyzer/
-│   ├── __init__.py
 │   ├── analyzer.py          # ZipAnalyzer orchestrator (static + YARA + VT)
 │   ├── tar_analyzer.py      # TarAnalyzer (TAR-specific threats)
-│   ├── checks.py            # Static detection functions (~1100 lines, 20 checks)
-│   ├── metrics.py           # Risk score, confidence, MITRE, IOC, hashes, TI summary
+│   ├── checks.py            # Static detection functions (~1100 lines, 30 checks)
+│   ├── metrics.py           # Risk score, confidence, MITRE, IOC, hashes, TI
 │   ├── models.py            # Severity, Finding, AnalysisResult
 │   ├── yara_scanner.py      # YARA rule scanning (optional — yara-python)
 │   ├── virustotal.py        # VirusTotal v3 hash lookup (optional — VT_API_KEY)
+│   ├── database.py          # SQLite (vantage.db) — scans, IOCs, playbooks, watches
+│   ├── tool_data.py         # 163-tool definitions for generator pages
+│   ├── port_data.py         # 85-port reference database
+│   ├── custom_check_engine.py
+│   ├── stix_export.py       # STIX 2.1 + ATT&CK Navigator export
 │   └── rules/               # Bundled YARA rules (25 rules, 8 families)
-│       ├── injection.yar
-│       ├── credential_theft.yar
-│       ├── ransomware.yar
-│       ├── webshell.yar
-│       ├── dropper.yar
-│       ├── evasion.yar
-│       ├── obfuscation.yar
-│       ├── c2_malware.yar
-│       └── keylogger.yar
 ├── templates/
-│   └── index.html           # Web UI (findings, metrics, TI panel, MITRE, IOC, hashes)
+│   ├── _nav.html            # Fixed sidebar included in all inner pages
+│   ├── landing.html         # Entry point (/)
+│   ├── hub.html             # Platform hub (/platform)
+│   ├── generators.html      # Tool grid (/generators)
+│   ├── generator_tool.html  # Universal tool page (/generators/<slug>)
+│   ├── playbook.html        # Saved commands (/playbook)
+│   ├── mitre.html           # MITRE ATT&CK browser (/mitre)
+│   ├── reference_ports.html # Port reference (/reference/ports)
+│   ├── reference_cve.html   # CVE lookup (/reference/cve)
+│   ├── reference_wordlists.html
+│   └── ...                  # analyzer, triage, compare, history, campaigns, etc.
 ├── tests/
 │   ├── fixtures.py          # Programmatic ZIP builders for every threat class
-│   └── test_analyzer.py     # 40 pytest tests
+│   └── test_platform.py     # 305 pytest tests
 ├── samples/
 │   ├── create_samples.py    # Generates all 19 sample archives
 │   └── *.zip                # Pre-generated samples (01–19)
-├── app.py                   # Flask server + JSON error handling
+├── app.py                   # Flask server — all routes and REST API
 ├── cli.py                   # Colorized CLI
 ├── run.sh                   # Start script — frees port on exit
 └── requirements.txt
@@ -328,26 +314,22 @@ zip-analyzer/
 
 ---
 
-## Implementation notes
+## Risk scoring
 
-**Null byte filenames** — Python's `zipfile` truncates filenames at `\x00` on read. The raw central-directory scanner in `checks.py` parses the binary directly with `struct` to catch this class of attack.
+Risk scores are additive and capped at 100.
 
-**YARA compilation** — Rules are compiled once at module import time and cached for the process lifetime. YARA-Python loads all `.yar` files from `zip_analyzer/rules/` using namespaced compilation so rule names don't collide across files. Encrypted entries are skipped (can't decompress).
+| Finding class | Diminishing returns |
+|---|---|
+| **VirusTotal hits** | None — each confirmed-malicious file counts at full weight |
+| **YARA matches** | Per rule name: 1st 1.0×, 2nd 0.5×, 3rd+ 0.25× |
+| **All other checks** | Per check name: 1st 1.0×, 2nd 0.5×, 3rd+ 0.25× |
 
-**VT scoring — no diminishing returns** — Each VT-confirmed malicious file represents a uniquely-identified threat (different SHA-256). Unlike static heuristics where the same check fires on ten files (one noisy signal), each VT hit is a separate confirmed fact, so all count at full weight. A single confirmed-malicious file adds 45 points; two add 90; three guarantee a 100 CRITICAL score.
+Severity weights: CRITICAL 45 · HIGH 22 · MEDIUM 10 · LOW 4 · INFO 1
 
-**YARA scoring — per rule, not per file** — The same YARA rule matching two different files does carry diminishing returns (second match 0.5×), because the rule is one signal observed twice. But two different rules are two independent signals and each counts fully on first match.
-
-**Confidence formula** — proportional, not magic numbers:
-```
-coverage    = scanned_files / total_files
-entropy_drag = min(high_entropy_files / total_files × 0.25, 0.25)
-confidence   = round(95 × coverage × (1 − entropy_drag))
-# VT clean files add up to +8 percentage points
-```
-
-**PE import detection** — Windows API import names appear as literal ASCII strings in PE binaries. No full PE parsing needed; regex scan of the binary catches them reliably and works on truncated/partial files.
-
-**Office deep-scan** — `.docx`/`.xlsx` files are themselves ZIP archives. The analyzer recursively opens them with `zipfile.ZipFile(io.BytesIO(...))` to inspect for `vbaProject.bin`, `externalLinks/`, and suspicious XML content.
-
-**MITRE ATT&CK** — Every static check maps to a technique ID in `metrics.py`. YARA findings carry their ATT&CK ID in the `detail` field and are parsed into the same `mitre_techniques` array. All techniques are deduplicated by ID before display.
+| Score | Label |
+|---|---|
+| 0 | NONE |
+| 1–15 | LOW |
+| 16–35 | MEDIUM |
+| 36–60 | HIGH |
+| 61–100 | CRITICAL |

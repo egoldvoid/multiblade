@@ -75,6 +75,16 @@ def init():
                 last_scanned_at TIMESTAMP,
                 total_scanned   INTEGER DEFAULT 0
             );
+            CREATE TABLE IF NOT EXISTS saved_commands (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                engagement  TEXT NOT NULL DEFAULT 'default',
+                tool_slug   TEXT NOT NULL,
+                tool_name   TEXT NOT NULL,
+                command     TEXT NOT NULL,
+                note        TEXT NOT NULL DEFAULT '',
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS sc_engagement ON saved_commands(engagement);
         """)
         c.commit()
 
@@ -355,3 +365,48 @@ def get_campaigns() -> List[Dict]:
                 "scans":     scans,
             })
     return campaigns
+
+
+# ── Playbooks ──────────────────────────────────────────────────────────────────
+
+def save_playbook_entry(engagement: str, tool_slug: str, tool_name: str,
+                        command: str, note: str = "") -> int:
+    engagement = (engagement or "default").strip()[:100]
+    with _lock:
+        c = _get_conn()
+        cur = c.execute(
+            "INSERT INTO saved_commands (engagement,tool_slug,tool_name,command,note) VALUES (?,?,?,?,?)",
+            (engagement, tool_slug, tool_name, command, note),
+        )
+        c.commit()
+    return cur.lastrowid
+
+
+def get_playbook_entries(engagement: Optional[str] = None) -> List[Dict]:
+    with _lock:
+        c = _get_conn()
+        if engagement:
+            rows = c.execute(
+                "SELECT * FROM saved_commands WHERE engagement=? ORDER BY created_at DESC",
+                (engagement,),
+            ).fetchall()
+        else:
+            rows = c.execute(
+                "SELECT * FROM saved_commands ORDER BY engagement, created_at DESC"
+            ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_engagement_names() -> List[str]:
+    with _lock:
+        rows = _get_conn().execute(
+            "SELECT DISTINCT engagement FROM saved_commands ORDER BY engagement"
+        ).fetchall()
+    return [r[0] for r in rows]
+
+
+def delete_playbook_entry(entry_id: int):
+    with _lock:
+        c = _get_conn()
+        c.execute("DELETE FROM saved_commands WHERE id=?", (entry_id,))
+        c.commit()

@@ -74,6 +74,23 @@
 
   .nav-divider { height: 1px; background: #1e2240; margin: 6px 10px; flex-shrink: 0; }
 
+  .nav-target-bar {
+    border-top: 1px solid #1e2240;
+    flex-shrink: 0; overflow: hidden;
+    display: none;
+  }
+  .nav-target-bar.has-target { display: block; }
+  .nav-target-inner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0 8px 17px;
+    margin-right: 8px;
+    border-radius: 0 8px 8px 0;
+    background: #6366f110; border-left: 2px solid #6366f1;
+  }
+  .nav-target-dot { width: 8px; height: 8px; border-radius: 50%; background: #6366f1; flex-shrink: 0; box-shadow: 0 0 6px #6366f1; }
+  .nav-target-val { font-size: 0.72rem; color: #818cf8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; opacity: 0; transition: opacity 0.12s 0.1s; }
+  .app-nav:hover .nav-target-val { opacity: 1; }
+
   .nav-back {
     border-top: 1px solid #1e2240;
     flex-shrink: 0; overflow: hidden;
@@ -158,6 +175,18 @@
     </a>
 
     <div class="nav-divider"></div>
+    <div class="nav-section-label">Engagement</div>
+
+    <a href="/playbook" class="nav-link {% if active_page == 'playbook' %}active{% endif %}" title="Saved Playbooks">
+      <span class="nav-icon">📒</span>
+      <span class="nav-label">Playbooks</span>
+    </a>
+    <a href="/mitre" class="nav-link {% if active_page == 'mitre' %}active{% endif %}" title="MITRE ATT&CK Browser">
+      <span class="nav-icon">🗺</span>
+      <span class="nav-label">MITRE ATT&CK</span>
+    </a>
+
+    <div class="nav-divider"></div>
     <div class="nav-section-label">Reference</div>
 
     <a href="/reference/ports" class="nav-link {% if active_page == 'ref-ports' %}active{% endif %}" title="Port Reference">
@@ -186,6 +215,13 @@
     </a>
   </div>
 
+  <div class="nav-target-bar" id="nav-target-bar" title="Active target">
+    <div class="nav-target-inner">
+      <div class="nav-target-dot"></div>
+      <span class="nav-target-val" id="nav-target-val"></span>
+    </div>
+  </div>
+
   <div class="nav-back">
     <a href="/platform" class="nav-link" title="Platform Hub">
       <span class="nav-icon">⊞</span>
@@ -193,3 +229,14 @@
     </a>
   </div>
 </nav>
+<script>
+(function(){
+  var t = localStorage.getItem('vantage_target');
+  if (t) {
+    var bar = document.getElementById('nav-target-bar');
+    var val = document.getElementById('nav-target-val');
+    if (bar) { bar.classList.add('has-target'); bar.title = 'Active target: ' + t; }
+    if (val) val.textContent = t;
+  }
+})();
+</script>
